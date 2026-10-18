@@ -1,0 +1,15 @@
+{
+  "name": "Living Dex",
+  "short_name": "Living Dex",
+  "description": "Scan Pokémon cards into a 1,025-slot living Pokédex binder with live Cardmarket prices.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef0f3",
+  "theme_color": "#e2382a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
