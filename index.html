@@ -1630,7 +1630,7 @@ label textarea { resize: vertical; min-height: 54px; }
     } else if (view === "top") {
       bar.hidden = false;
       const d = top.data;
-      bar.innerHTML = `<p class="hint">${d ? `The ${d.cards.length} most valuable Pok\xE9mon cards by Cardmarket trend price, out of ${(+d.scanned || 0).toLocaleString("en-GB")} priced cards. Updated ${shortDate(d.updated)}.` : "The most valuable Pok\xE9mon cards of all, by Cardmarket trend price."}</p>`;
+      bar.innerHTML = `<p class="hint">${d ? `The ${d.cards.length} most valuable Pok\xE9mon cards by Cardmarket trend price${d.method === "full" ? `, out of ${(+d.scanned || 0).toLocaleString("en-GB")} priced cards` : ""}. Updated ${shortDate(d.updated)}.` : "The most valuable Pok\xE9mon cards of all, by Cardmarket trend price."}</p>`;
     } else if (view === "prices") {
       bar.hidden = false;
       let last = null;
