@@ -15,10 +15,202 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css">
+  <style>
+/* Living Dex — a binder you flip through: 3×3 sleeve pages in Dex order, with the scan button under your thumb. */
+:root {
+  --bg: #eef0f3; --sheet: #ffffff; --sleeve: #f6f7f9; --line: #d7dbe2;
+  --ink: #1b2333; --muted: #677184; --accent: #e2382a; --accent-ink: #ffffff;
+  --got: #1f8a5b; --got-soft: #e3f3ea; --gold: #b7860b;
+  --display: "Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --shadow: 0 1px 2px rgba(27,35,51,.08), 0 4px 14px rgba(27,35,51,.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161f; --sheet: #1a202c; --sleeve: #222937; --line: #313a4b;
+    --ink: #e8ebf2; --muted: #98a2b6; --accent: #ff5a47; --accent-ink: #1a0d0b;
+    --got: #4cc38a; --got-soft: #17352a; --gold: #e1b53e;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); margin: 0; }
+body {
+  color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 130px max(16px, env(safe-area-inset-left, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+.wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .55; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--display); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
+/* Header readout */
+header { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; }
+.ring { width: 88px; height: 88px; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .track { stroke: var(--line); } .ring .fill { stroke: var(--got); transition: stroke-dashoffset .6s ease; }
+.ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 20px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.stats strong { color: var(--ink); font-family: var(--display); font-size: 15px; font-weight: 600; }
+.gear { align-self: start; border: 1px solid var(--line); background: var(--sheet); border-radius: 50%; width: 40px; height: 40px; display: grid; place-items: center; }
+.gear svg { width: 20px; height: 20px; }
+@media (max-width: 480px) { header { grid-template-columns: auto 1fr; } .gear { grid-column: 2; grid-row: 1; justify-self: end; } header > div:not(.ring) { grid-column: 1 / -1; } }
+
+.notice { background: var(--sheet); border: 1px dashed var(--line); border-radius: 10px; padding: 12px 14px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+
+/* Region strip */
+.regions { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.reg { background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 7px 4px 6px; text-align: center; font-size: 11px; line-height: 1.2; }
+.reg[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.reg .rn { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reg .rc { display: block; font-family: var(--display); color: var(--muted); }
+.reg .bar { display: block; height: 3px; border-radius: 2px; background: var(--line); margin-top: 5px; overflow: hidden; }
+.reg .bar i { display: block; height: 100%; background: var(--got); }
+@media (max-width: 560px) { .regions { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+/* Controls */
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.segwrap { overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.segwrap::-webkit-scrollbar { display: none; }
+.seg { display: inline-flex; background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; padding: 3px; white-space: nowrap; }
+.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg .count { font-family: var(--display); font-weight: 500; opacity: .75; margin-left: 4px; }
+.search { flex: 1 1 160px; min-width: 0; background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 16px; }
+.typesel { background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: 14px; max-width: 150px; }
+.textbtn { border: 0; background: none; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; padding: 6px 4px; }
+.switch { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 2px; font-size: 13px; font-weight: 600; }
+.switch .knob { width: 36px; height: 20px; border-radius: 999px; background: var(--line); position: relative; transition: background .15s; }
+.switch .knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--sheet); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.switch[aria-pressed="true"] .knob { background: var(--accent); }
+.switch[aria-pressed="true"] .knob::after { transform: translateX(16px); }
+.spacer { flex: 1; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; flex: 1 1 100%; }
+.progress i { display: block; height: 100%; background: var(--got); width: 0; transition: width .2s; }
+
+/* Binder pages */
+.pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 18px; }
+.page { background: var(--sheet); border-radius: 12px; box-shadow: var(--shadow); padding: 10px; }
+.page h2 { margin: 0 2px 8px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.grid9 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.flat { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.slot { position: relative; aspect-ratio: 63 / 88; max-width: 100%; border: 1px solid var(--line); border-radius: 7px; background: var(--sleeve);
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 6px; text-align: left; overflow: hidden; min-width: 0; }
+.slot .sn { font-family: var(--display); font-size: 11px; color: var(--muted); }
+.slot .nm { font-size: 11px; font-weight: 600; line-height: 1.15; color: var(--muted); overflow-wrap: anywhere; }
+.slot.legend::after { content: ""; position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); z-index: 1; }
+.slot.wish { border: 1.5px dashed var(--accent); }
+.slot.wish .sn { color: var(--accent); }
+.slot.got { background: var(--got-soft); border: 1px solid var(--got); }
+.slot.got .nm { color: var(--ink); }
+.slot.got .sn { color: var(--got); }
+.slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.slot.hasimg { padding: 0; border-color: transparent; background: var(--sleeve); }
+.slot.hasimg .sn, .slot.hasimg .nm { display: none; }
+.slot .badge { position: absolute; z-index: 1; bottom: 5px; font-family: var(--display); font-size: 10px; border-radius: 4px; padding: 0 4px; }
+.slot .spare { right: 5px; background: var(--ink); color: var(--bg); }
+.slot .val { left: 5px; background: var(--sheet); color: var(--ink); border: 1px solid var(--line); }
+.empty { color: var(--muted); text-align: center; padding: 40px 10px; }
+
+/* Scan bar */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center; gap: 10px;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(to top, var(--bg) 60%, transparent); }
+.scan { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px;
+  padding: 14px 26px; font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .03em; box-shadow: 0 6px 20px rgba(226,56,42,.3); }
+.scan svg { width: 22px; height: 22px; }
+.ghost { background: var(--sheet); border: 1px solid var(--line); border-radius: 999px; padding: 14px 18px; font-weight: 600; }
+
+/* Sheet */
+.backdrop { position: fixed; inset: 0; z-index: 30; background: rgba(10,14,22,.5); display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--sheet); width: min(560px, 100%); max-height: 92%; overflow: auto; border-radius: 18px 18px 0 0;
+  padding: 18px max(18px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
+@media (min-width: 700px) { .backdrop { align-items: center; } .sheet { border-radius: 18px; } }
+.sheet h3 { margin: 0; font-family: var(--display); font-size: 20px; }
+.sheet h4 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sheet-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.x { border: 0; background: var(--sleeve); border-radius: 50%; width: 34px; height: 34px; font-size: 18px; line-height: 1; flex: none; }
+.photo { display: flex; gap: 14px; align-items: flex-start; }
+.photo img { width: 96px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); flex: none; }
+.status { font-size: 14px; color: var(--muted); min-width: 0; margin: 0; }
+.status.ok { color: var(--got); } .status.warn { color: var(--accent); }
+.dots::after { content: ""; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+@media (prefers-reduced-motion: reduce) { .dots::after { animation: none; content: "…"; } .ring .fill, .switch .knob, .switch .knob::after, .progress i { transition: none; } }
+.searchrow { display: grid; grid-template-columns: 1fr 96px auto; gap: 8px; align-items: end; }
+form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; min-width: 0; }
+label input, label textarea, label select { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 16px; font-weight: 400; color: var(--ink); width: 100%; }
+label textarea { resize: vertical; min-height: 54px; }
+.full { grid-column: 1 / -1; }
+.match { font-size: 13px; color: var(--muted); margin: 0; } .match b { color: var(--ink); }
+.pricelink { color: var(--accent); font-weight: 600; text-underline-offset: 3px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.btn { border: 1px solid var(--line); background: var(--sheet); border-radius: 999px; padding: 10px 18px; font-weight: 600; }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.go { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-family: var(--display); font-size: 16px; padding: 12px 22px; }
+.btn.danger { color: var(--accent); border-color: var(--accent); }
+.dupe { background: var(--sleeve); border-radius: 10px; padding: 12px; font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Card picker */
+.picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.pick { border: 2px solid transparent; background: var(--sleeve); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; gap: 3px; text-align: left; font-size: 11px; color: var(--muted); min-width: 0; }
+.pick img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 5px; background: var(--line); }
+.pick b { color: var(--ink); font-family: var(--display); font-size: 12px; font-weight: 600; }
+.pick span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick[aria-pressed="true"] { border-color: var(--accent); }
+.chosen { display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: start; background: var(--sleeve); border-radius: 12px; padding: 12px; }
+.chosen img { width: 110px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 7px; }
+.chosen .cn { font-family: var(--display); font-weight: 700; font-size: 17px; line-height: 1.2; }
+.chosen .meta { color: var(--muted); font-size: 13px; }
+.price { font-family: var(--display); font-size: 26px; font-weight: 700; line-height: 1.1; margin-top: 6px; }
+.price small { font-family: var(--body); font-size: 12px; font-weight: 500; color: var(--muted); display: block; }
+.finish { display: inline-flex; gap: 4px; margin-top: 8px; }
+.finish button { border: 1px solid var(--line); background: var(--sheet); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.finish button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.wishrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--sleeve); border-radius: 10px; padding: 10px 12px; }
+.wishbtn { border: 1.5px dashed var(--accent); background: none; color: var(--accent); border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 13px; }
+.wishbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-style: solid; }
+.wishrow label { flex-direction: row; align-items: center; gap: 8px; }
+.wishrow input { width: 90px; }
+.added { display: flex; gap: 14px; align-items: center; }
+.added img { width: 84px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 7px; flex: none; }
+.added b { font-family: var(--display); font-size: 18px; display: block; }
+.sparelist { width: 100%; min-height: 200px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: var(--ink); resize: vertical; }
+.setting { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.setting:last-child { border-bottom: 0; padding-bottom: 0; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 40; background: var(--ink); color: var(--bg);
+  padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; box-shadow: var(--shadow); max-width: calc(100% - 32px); text-align: center; }
+
+/* Crop step: camera-style screen, dark in both themes */
+.cropper { position: fixed; inset: 0; z-index: 35; background: #0b0e14; color: #fff; display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+.crop-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px 4px; font-family: var(--display); font-weight: 600; font-size: 17px; }
+.crop-top .x { background: rgba(255,255,255,.14); color: #fff; }
+.crop-hint { color: rgba(255,255,255,.72); font-size: 13px; margin: 0 16px 6px; min-height: 1.4em; }
+.crop-hint.found { color: #7be0a6; }
+#cropCv { flex: 1; min-height: 0; width: 100%; display: block; touch-action: none; cursor: grab; }
+.crop-bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 12px 16px 16px; }
+.crop-bar .btn { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
+.crop-bar .btn.primary { background: #e2382a; border-color: #e2382a; color: #fff; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+</style>
   <!-- Tesseract.js reads text off your card photos, on the phone itself -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-  <script type="module" src="js/app.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -83,5 +275,1792 @@
 <div id="sheetRoot"></div>
 <datalist id="dexList"></datalist>
 <div id="toast" class="toast" role="status" hidden></div>
+<script>
+// Living Dex app, built from the js/ source files
+(() => {
+  var NAMES = ["Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon", "Charizard", "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod", "Butterfree", "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot", "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok", "Pikachu", "Raichu", "Sandshrew", "Sandslash", "Nidoran\u2640", "Nidorina", "Nidoqueen", "Nidoran\u2642", "Nidorino", "Nidoking", "Clefairy", "Clefable", "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat", "Golbat", "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat", "Venomoth", "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck", "Golduck", "Mankey", "Primeape", "Growlithe", "Arcanine", "Poliwag", "Poliwhirl", "Poliwrath", "Abra", "Kadabra", "Alakazam", "Machop", "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel", "Tentacool", "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash", "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch\u2019d", "Doduo", "Dodrio", "Seel", "Dewgong", "Grimer", "Muk", "Shellder", "Cloyster", "Gastly", "Haunter", "Gengar", "Onix", "Drowzee", "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode", "Exeggcute", "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung", "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela", "Kangaskhan", "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu", "Starmie", "Mr. Mime", "Scyther", "Jynx", "Electabuzz", "Magmar", "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras", "Ditto", "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte", "Omastar", "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno", "Zapdos", "Moltres", "Dratini", "Dragonair", "Dragonite", "Mewtwo", "Mew", "Chikorita", "Bayleef", "Meganium", "Cyndaquil", "Quilava", "Typhlosion", "Totodile", "Croconaw", "Feraligatr", "Sentret", "Furret", "Hoothoot", "Noctowl", "Ledyba", "Ledian", "Spinarak", "Ariados", "Crobat", "Chinchou", "Lanturn", "Pichu", "Cleffa", "Igglybuff", "Togepi", "Togetic", "Natu", "Xatu", "Mareep", "Flaaffy", "Ampharos", "Bellossom", "Marill", "Azumarill", "Sudowoodo", "Politoed", "Hoppip", "Skiploom", "Jumpluff", "Aipom", "Sunkern", "Sunflora", "Yanma", "Wooper", "Quagsire", "Espeon", "Umbreon", "Murkrow", "Slowking", "Misdreavus", "Unown", "Wobbuffet", "Girafarig", "Pineco", "Forretress", "Dunsparce", "Gligar", "Steelix", "Snubbull", "Granbull", "Qwilfish", "Scizor", "Shuckle", "Heracross", "Sneasel", "Teddiursa", "Ursaring", "Slugma", "Magcargo", "Swinub", "Piloswine", "Corsola", "Remoraid", "Octillery", "Delibird", "Mantine", "Skarmory", "Houndour", "Houndoom", "Kingdra", "Phanpy", "Donphan", "Porygon2", "Stantler", "Smeargle", "Tyrogue", "Hitmontop", "Smoochum", "Elekid", "Magby", "Miltank", "Blissey", "Raikou", "Entei", "Suicune", "Larvitar", "Pupitar", "Tyranitar", "Lugia", "Ho-Oh", "Celebi", "Treecko", "Grovyle", "Sceptile", "Torchic", "Combusken", "Blaziken", "Mudkip", "Marshtomp", "Swampert", "Poochyena", "Mightyena", "Zigzagoon", "Linoone", "Wurmple", "Silcoon", "Beautifly", "Cascoon", "Dustox", "Lotad", "Lombre", "Ludicolo", "Seedot", "Nuzleaf", "Shiftry", "Taillow", "Swellow", "Wingull", "Pelipper", "Ralts", "Kirlia", "Gardevoir", "Surskit", "Masquerain", "Shroomish", "Breloom", "Slakoth", "Vigoroth", "Slaking", "Nincada", "Ninjask", "Shedinja", "Whismur", "Loudred", "Exploud", "Makuhita", "Hariyama", "Azurill", "Nosepass", "Skitty", "Delcatty", "Sableye", "Mawile", "Aron", "Lairon", "Aggron", "Meditite", "Medicham", "Electrike", "Manectric", "Plusle", "Minun", "Volbeat", "Illumise", "Roselia", "Gulpin", "Swalot", "Carvanha", "Sharpedo", "Wailmer", "Wailord", "Numel", "Camerupt", "Torkoal", "Spoink", "Grumpig", "Spinda", "Trapinch", "Vibrava", "Flygon", "Cacnea", "Cacturne", "Swablu", "Altaria", "Zangoose", "Seviper", "Lunatone", "Solrock", "Barboach", "Whiscash", "Corphish", "Crawdaunt", "Baltoy", "Claydol", "Lileep", "Cradily", "Anorith", "Armaldo", "Feebas", "Milotic", "Castform", "Kecleon", "Shuppet", "Banette", "Duskull", "Dusclops", "Tropius", "Chimecho", "Absol", "Wynaut", "Snorunt", "Glalie", "Spheal", "Sealeo", "Walrein", "Clamperl", "Huntail", "Gorebyss", "Relicanth", "Luvdisc", "Bagon", "Shelgon", "Salamence", "Beldum", "Metang", "Metagross", "Regirock", "Regice", "Registeel", "Latias", "Latios", "Kyogre", "Groudon", "Rayquaza", "Jirachi", "Deoxys", "Turtwig", "Grotle", "Torterra", "Chimchar", "Monferno", "Infernape", "Piplup", "Prinplup", "Empoleon", "Starly", "Staravia", "Staraptor", "Bidoof", "Bibarel", "Kricketot", "Kricketune", "Shinx", "Luxio", "Luxray", "Budew", "Roserade", "Cranidos", "Rampardos", "Shieldon", "Bastiodon", "Burmy", "Wormadam", "Mothim", "Combee", "Vespiquen", "Pachirisu", "Buizel", "Floatzel", "Cherubi", "Cherrim", "Shellos", "Gastrodon", "Ambipom", "Drifloon", "Drifblim", "Buneary", "Lopunny", "Mismagius", "Honchkrow", "Glameow", "Purugly", "Chingling", "Stunky", "Skuntank", "Bronzor", "Bronzong", "Bonsly", "Mime Jr.", "Happiny", "Chatot", "Spiritomb", "Gible", "Gabite", "Garchomp", "Munchlax", "Riolu", "Lucario", "Hippopotas", "Hippowdon", "Skorupi", "Drapion", "Croagunk", "Toxicroak", "Carnivine", "Finneon", "Lumineon", "Mantyke", "Snover", "Abomasnow", "Weavile", "Magnezone", "Lickilicky", "Rhyperior", "Tangrowth", "Electivire", "Magmortar", "Togekiss", "Yanmega", "Leafeon", "Glaceon", "Gliscor", "Mamoswine", "Porygon-Z", "Gallade", "Probopass", "Dusknoir", "Froslass", "Rotom", "Uxie", "Mesprit", "Azelf", "Dialga", "Palkia", "Heatran", "Regigigas", "Giratina", "Cresselia", "Phione", "Manaphy", "Darkrai", "Shaymin", "Arceus", "Victini", "Snivy", "Servine", "Serperior", "Tepig", "Pignite", "Emboar", "Oshawott", "Dewott", "Samurott", "Patrat", "Watchog", "Lillipup", "Herdier", "Stoutland", "Purrloin", "Liepard", "Pansage", "Simisage", "Pansear", "Simisear", "Panpour", "Simipour", "Munna", "Musharna", "Pidove", "Tranquill", "Unfezant", "Blitzle", "Zebstrika", "Roggenrola", "Boldore", "Gigalith", "Woobat", "Swoobat", "Drilbur", "Excadrill", "Audino", "Timburr", "Gurdurr", "Conkeldurr", "Tympole", "Palpitoad", "Seismitoad", "Throh", "Sawk", "Sewaddle", "Swadloon", "Leavanny", "Venipede", "Whirlipede", "Scolipede", "Cottonee", "Whimsicott", "Petilil", "Lilligant", "Basculin", "Sandile", "Krokorok", "Krookodile", "Darumaka", "Darmanitan", "Maractus", "Dwebble", "Crustle", "Scraggy", "Scrafty", "Sigilyph", "Yamask", "Cofagrigus", "Tirtouga", "Carracosta", "Archen", "Archeops", "Trubbish", "Garbodor", "Zorua", "Zoroark", "Minccino", "Cinccino", "Gothita", "Gothorita", "Gothitelle", "Solosis", "Duosion", "Reuniclus", "Ducklett", "Swanna", "Vanillite", "Vanillish", "Vanilluxe", "Deerling", "Sawsbuck", "Emolga", "Karrablast", "Escavalier", "Foongus", "Amoonguss", "Frillish", "Jellicent", "Alomomola", "Joltik", "Galvantula", "Ferroseed", "Ferrothorn", "Klink", "Klang", "Klinklang", "Tynamo", "Eelektrik", "Eelektross", "Elgyem", "Beheeyem", "Litwick", "Lampent", "Chandelure", "Axew", "Fraxure", "Haxorus", "Cubchoo", "Beartic", "Cryogonal", "Shelmet", "Accelgor", "Stunfisk", "Mienfoo", "Mienshao", "Druddigon", "Golett", "Golurk", "Pawniard", "Bisharp", "Bouffalant", "Rufflet", "Braviary", "Vullaby", "Mandibuzz", "Heatmor", "Durant", "Deino", "Zweilous", "Hydreigon", "Larvesta", "Volcarona", "Cobalion", "Terrakion", "Virizion", "Tornadus", "Thundurus", "Reshiram", "Zekrom", "Landorus", "Kyurem", "Keldeo", "Meloetta", "Genesect", "Chespin", "Quilladin", "Chesnaught", "Fennekin", "Braixen", "Delphox", "Froakie", "Frogadier", "Greninja", "Bunnelby", "Diggersby", "Fletchling", "Fletchinder", "Talonflame", "Scatterbug", "Spewpa", "Vivillon", "Litleo", "Pyroar", "Flab\xE9b\xE9", "Floette", "Florges", "Skiddo", "Gogoat", "Pancham", "Pangoro", "Furfrou", "Espurr", "Meowstic", "Honedge", "Doublade", "Aegislash", "Spritzee", "Aromatisse", "Swirlix", "Slurpuff", "Inkay", "Malamar", "Binacle", "Barbaracle", "Skrelp", "Dragalge", "Clauncher", "Clawitzer", "Helioptile", "Heliolisk", "Tyrunt", "Tyrantrum", "Amaura", "Aurorus", "Sylveon", "Hawlucha", "Dedenne", "Carbink", "Goomy", "Sliggoo", "Goodra", "Klefki", "Phantump", "Trevenant", "Pumpkaboo", "Gourgeist", "Bergmite", "Avalugg", "Noibat", "Noivern", "Xerneas", "Yveltal", "Zygarde", "Diancie", "Hoopa", "Volcanion", "Rowlet", "Dartrix", "Decidueye", "Litten", "Torracat", "Incineroar", "Popplio", "Brionne", "Primarina", "Pikipek", "Trumbeak", "Toucannon", "Yungoos", "Gumshoos", "Grubbin", "Charjabug", "Vikavolt", "Crabrawler", "Crabominable", "Oricorio", "Cutiefly", "Ribombee", "Rockruff", "Lycanroc", "Wishiwashi", "Mareanie", "Toxapex", "Mudbray", "Mudsdale", "Dewpider", "Araquanid", "Fomantis", "Lurantis", "Morelull", "Shiinotic", "Salandit", "Salazzle", "Stufful", "Bewear", "Bounsweet", "Steenee", "Tsareena", "Comfey", "Oranguru", "Passimian", "Wimpod", "Golisopod", "Sandygast", "Palossand", "Pyukumuku", "Type: Null", "Silvally", "Minior", "Komala", "Turtonator", "Togedemaru", "Mimikyu", "Bruxish", "Drampa", "Dhelmise", "Jangmo-o", "Hakamo-o", "Kommo-o", "Tapu Koko", "Tapu Lele", "Tapu Bulu", "Tapu Fini", "Cosmog", "Cosmoem", "Solgaleo", "Lunala", "Nihilego", "Buzzwole", "Pheromosa", "Xurkitree", "Celesteela", "Kartana", "Guzzlord", "Necrozma", "Magearna", "Marshadow", "Poipole", "Naganadel", "Stakataka", "Blacephalon", "Zeraora", "Meltan", "Melmetal", "Grookey", "Thwackey", "Rillaboom", "Scorbunny", "Raboot", "Cinderace", "Sobble", "Drizzile", "Inteleon", "Skwovet", "Greedent", "Rookidee", "Corvisquire", "Corviknight", "Blipbug", "Dottler", "Orbeetle", "Nickit", "Thievul", "Gossifleur", "Eldegoss", "Wooloo", "Dubwool", "Chewtle", "Drednaw", "Yamper", "Boltund", "Rolycoly", "Carkol", "Coalossal", "Applin", "Flapple", "Appletun", "Silicobra", "Sandaconda", "Cramorant", "Arrokuda", "Barraskewda", "Toxel", "Toxtricity", "Sizzlipede", "Centiskorch", "Clobbopus", "Grapploct", "Sinistea", "Polteageist", "Hatenna", "Hattrem", "Hatterene", "Impidimp", "Morgrem", "Grimmsnarl", "Obstagoon", "Perrserker", "Cursola", "Sirfetch\u2019d", "Mr. Rime", "Runerigus", "Milcery", "Alcremie", "Falinks", "Pincurchin", "Snom", "Frosmoth", "Stonjourner", "Eiscue", "Indeedee", "Morpeko", "Cufant", "Copperajah", "Dracozolt", "Arctozolt", "Dracovish", "Arctovish", "Duraludon", "Dreepy", "Drakloak", "Dragapult", "Zacian", "Zamazenta", "Eternatus", "Kubfu", "Urshifu", "Zarude", "Regieleki", "Regidrago", "Glastrier", "Spectrier", "Calyrex", "Wyrdeer", "Kleavor", "Ursaluna", "Basculegion", "Sneasler", "Overqwil", "Enamorus", "Sprigatito", "Floragato", "Meowscarada", "Fuecoco", "Crocalor", "Skeledirge", "Quaxly", "Quaxwell", "Quaquaval", "Lechonk", "Oinkologne", "Tarountula", "Spidops", "Nymble", "Lokix", "Pawmi", "Pawmo", "Pawmot", "Tandemaus", "Maushold", "Fidough", "Dachsbun", "Smoliv", "Dolliv", "Arboliva", "Squawkabilly", "Nacli", "Naclstack", "Garganacl", "Charcadet", "Armarouge", "Ceruledge", "Tadbulb", "Bellibolt", "Wattrel", "Kilowattrel", "Maschiff", "Mabosstiff", "Shroodle", "Grafaiai", "Bramblin", "Brambleghast", "Toedscool", "Toedscruel", "Klawf", "Capsakid", "Scovillain", "Rellor", "Rabsca", "Flittle", "Espathra", "Tinkatink", "Tinkatuff", "Tinkaton", "Wiglett", "Wugtrio", "Bombirdier", "Finizen", "Palafin", "Varoom", "Revavroom", "Cyclizar", "Orthworm", "Glimmet", "Glimmora", "Greavard", "Houndstone", "Flamigo", "Cetoddle", "Cetitan", "Veluza", "Dondozo", "Tatsugiri", "Annihilape", "Clodsire", "Farigiraf", "Dudunsparce", "Kingambit", "Great Tusk", "Scream Tail", "Brute Bonnet", "Flutter Mane", "Slither Wing", "Sandy Shocks", "Iron Treads", "Iron Bundle", "Iron Hands", "Iron Jugulis", "Iron Moth", "Iron Thorns", "Frigibax", "Arctibax", "Baxcalibur", "Gimmighoul", "Gholdengo", "Wo-Chien", "Chien-Pao", "Ting-Lu", "Chi-Yu", "Roaring Moon", "Iron Valiant", "Koraidon", "Miraidon", "Walking Wake", "Iron Leaves", "Dipplin", "Poltchageist", "Sinistcha", "Okidogi", "Munkidori", "Fezandipiti", "Ogerpon", "Archaludon", "Hydrapple", "Gouging Fire", "Raging Bolt", "Iron Boulder", "Iron Crown", "Terapagos", "Pecharunt"];
+  var LEGEND = /* @__PURE__ */ new Set([144, 145, 146, 150, 151, 243, 244, 245, 249, 250, 251, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649, 716, 717, 718, 719, 720, 721, 772, 773, 785, 786, 787, 788, 789, 790, 791, 792, 800, 801, 802, 807, 808, 809, 888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 905, 1001, 1002, 1003, 1004, 1007, 1008, 1014, 1015, 1016, 1017, 1024, 1025]);
+  var TYPECODES = "ldldldj_j_jck_k_k_g_g_gcgdgdgdacacaca_a_acacd_d_m_m_e_e_d_d_ded_d_der_r_j_j_arardcdcldldldglglgdgde_e_a_a_k_k_b_b_j_j_k_k_kbn_n_n_b_b_b_ldldldkdkdfefefej_j_knknmimiacacack_kod_d_k_kohdhdhdfen_n_k_k_m_m_lnlne_e_b_b_a_d_d_efefa_l_a_k_k_k_k_k_knnrgconm_j_g_a_k_kckoa_a_k_m_j_a_fkfkfkfkfca_ocmcjcp_p_pcn_n_l_l_l_j_j_j_k_k_k_a_a_acacgcgcgdgddckmkmm_r_arr_rcncncm_m_m_l_krkrf_k_lclclca_l_l_gckeken_q_qcknh_n_n_ang_gia_ecier_r_kdgigfgbqoa_a_j_jfoeoekfk_k_ockcicqjqjkpe_e_a_a_a_b_b_onm_j_a_a_m_j_k_fefefqncjcnll_l_l_j_jbjbk_kekeq_q_a_a_g_g_gcg_gdklklkll_lqlqacackckcnrnrnrgkgcl_lba_a_a_gegcgha_a_a_b_b_arf_a_a_qhirifififbnbnm_m_m_m_g_g_ldd_d_kqkqk_k_jejej_n_n_a_e_epepl_lqacpca_d_fnfnkekek_kqenenflflfgfgk_k_a_a_h_h_h_h_lcn_q_n_o_o_okokokk_k_k_kfk_p_p_pcinininf_o_i_pnpnk_e_pcinn_l_l_lej_jbjbk_k_kiacacaca_akg_g_m_m_m_ldldf_f_fifig_glgcgcgcm_k_k_l_l_k_kea_hchca_a_h_qca_a_n_dqdqininf_nra_achqpepepea_b_bie_e_dgdqdbdbl_k_k_kcloloqomia_efl_m_j_rcgcl_o_ecoea_nbfih_ohmhn_n_n_ipkpjia_hpn_k_k_q_l_a_njl_l_l_j_jbjbk_k_k_a_a_a_a_a_q_q_l_l_j_j_k_k_n_n_acacacm_m_f_f_f_ncnce_eia_b_b_b_k_kekeb_b_glglglgdgdgdlrlrl_l_k_eqeqeqj_j_l_gfgfqbqbnch_h_kfkffcfcd_d_q_q_a_a_n_n_n_n_n_n_kckco_o_o_alalmcg_gildldkhkhk_gmgmlilii_i_i_m_m_m_n_n_hjhjhjp_p_p_o_o_o_g_g_emb_b_p_ehehqiqia_acacqcqcj_giqpqpqpgjgjibfblbc_mcpjpmecpokbangil_l_lbj_j_jnk_k_kqa_aeacjcjcg_g_gcjajar_r_r_l_l_b_bqa_n_n_ihihihr_r_r_r_qnqnfkfkdkdpk_k_mamafpfpfofor_bcmrfrp_p_p_irhlhlhlhlo_o_cpcpr_qcpefrnhjklclclhj_j_jqk_k_kracacaca_a_g_gmgmb_bojcgrgrf_f_k_dkdke_e_kgkgl_l_lrlrdjdjababl_l_l_r_anb_gkgkhehek_a_a_fca_jpmihrknaphlp_pbpbmrnrlrkrn_n_ninhfdgbgbm_icliqpn_irbhd_dpfijhm_i_i_l_l_l_j_j_j_k_k_k_a_a_c_c_cig_gngnq_q_l_l_a_a_k_kfm_m_f_fjfjlplplpe_e_ckk_k_mdmdjgjgb_b_h_h_n_n_nrqrqrqrqai_h_b_onehr_r_b_m_ogogf_o_namqi_i_mpmokpkoipphphphr_b_dpb_bqqlm_p_o_h_nlangfeakhbdqdrcl_l_lqj_j_jhk_k_kba_a_g_g_g_gqm_mbmba_a_r_r_lalalaacf_f_f_j_jnjhm_m_mcmcq_q_dadalhlhelelf_l_ljg_gnn_n_riririk_k_cqk_k_ididpai_fdfdh_h_cbo_o_knk_pkbhdeana_qiebrnlqhrgbmeeiokbmqcjdfmpopopoh_ihqlqoqeqjpqrbbpmpkplnlplhlhdbdndrl_iplpjpmpfnina_dh";
+  var TYPES = ["Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel", "Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark", "Fairy"];
+  var typesOf = (n) => [TYPECODES.charCodeAt((n - 1) * 2) - 97, TYPECODES.charCodeAt((n - 1) * 2 + 1) - 97].filter((t) => t >= 0 && t < 18).map((t) => t + 1);
+  var GEN_END = [151, 251, 386, 493, 649, 721, 809, 905, 1025];
+  var REGIONS = ["Kanto", "Johto", "Hoenn", "Sinnoh", "Unova", "Kalos", "Alola", "Galar", "Paldea"];
+  var genOf = (n) => GEN_END.findIndex((e) => n <= e) + 1;
+  var DB_NAME = "living-dex";
+  var DB_VERSION = 1;
+  var TABLES = ["entries", "wish", "photos", "meta"];
+  var dbPromise = null;
+  function openDb() {
+    if (!dbPromise) {
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          for (const t of TABLES) if (!db.objectStoreNames.contains(t)) db.createObjectStore(t);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    return dbPromise;
+  }
+  async function run(table, mode, work) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(table, mode);
+      const req = work(tx.objectStore(table));
+      tx.oncomplete = () => resolve(req ? req.result : void 0);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+  var store = {
+    /** Every record in a table, as a Map of key -> value. */
+    async all(table) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const out = /* @__PURE__ */ new Map();
+        const cursor = db.transaction(table).objectStore(table).openCursor();
+        cursor.onsuccess = () => {
+          const c = cursor.result;
+          if (c) {
+            out.set(c.key, c.value);
+            c.continue();
+          } else resolve(out);
+        };
+        cursor.onerror = () => reject(cursor.error);
+      });
+    },
+    get: (table, key) => run(table, "readonly", (s) => s.get(key)),
+    put: (table, key, value) => run(table, "readwrite", (s) => s.put(value, key)),
+    remove: (table, key) => run(table, "readwrite", (s) => s.delete(key)),
+    clear: (table) => run(table, "readwrite", (s) => s.clear())
+  };
+  async function askToKeepData() {
+    try {
+      if (navigator.storage?.persisted && await navigator.storage.persisted()) return true;
+      return navigator.storage?.persist ? await navigator.storage.persist() : false;
+    } catch {
+      return false;
+    }
+  }
+  var TCGDEX = "https://api.tcgdex.net/v2/en";
+  var PTCG = "https://api.pokemontcg.io/v2";
+  var num = (v) => typeof v === "number" && isFinite(v) && v > 0 ? v : null;
+  async function getJSON(url, { signal, timeout = 15e3 } = {}) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeout);
+    const onAbort = () => ctl.abort();
+    signal?.addEventListener("abort", onAbort);
+    try {
+      const res = await fetch(url, { signal: ctl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    }
+  }
+  async function inBatches(items, size, fn) {
+    const out = [];
+    for (let i = 0; i < items.length; i += size) {
+      out.push(...await Promise.all(items.slice(i, i + size).map(fn)));
+    }
+    return out;
+  }
+  function words(s) {
+    return " " + String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/♀/g, " f ").replace(/♂/g, " m ").replace(/[^a-z0-9]+/g, " ").trim() + " ";
+  }
+  var isCardOf = (cardName, species) => words(cardName).includes(words(species));
+  var sameNumber = (a, b) => {
+    const x = String(a ?? "").trim().toUpperCase(), y = String(b ?? "").trim().toUpperCase();
+    if (!x || !y) return false;
+    if (/^\d+$/.test(x) && /^\d+$/.test(y)) return parseInt(x, 10) === parseInt(y, 10);
+    return x.replace(/^0+/, "") === y.replace(/^0+/, "");
+  };
+  function fromTcgdex(c) {
+    const cm = c.pricing?.cardmarket, tp = c.pricing?.tcgplayer;
+    const usd = tp && (tp.normal?.marketPrice ?? tp.holofoil?.marketPrice ?? tp.holo?.marketPrice ?? tp["reverse-holofoil"]?.marketPrice ?? tp.reverse?.marketPrice);
+    return {
+      id: c.id,
+      source: "tcgdex",
+      name: c.name,
+      number: String(c.localId ?? ""),
+      setId: c.set?.id ?? null,
+      setName: c.set?.name ?? null,
+      setTotal: c.set?.cardCount?.official ?? null,
+      rarity: c.rarity ?? null,
+      image: c.image ? c.image + "/low.webp" : null,
+      imageLarge: c.image ? c.image + "/high.webp" : null,
+      dex: Array.isArray(c.dexId) ? c.dexId : [],
+      cardmarketUrl: null,
+      eur: cm ? {
+        trend: num(cm.trend) ?? num(cm.avg),
+        trendHolo: num(cm["trend-holo"]) ?? num(cm["avg-holo"]),
+        avg30: num(cm.avg30),
+        low: num(cm.low),
+        updated: cm.updated ?? null
+      } : null,
+      usd: num(usd)
+    };
+  }
+  var briefFromTcgdex = (b) => ({
+    id: b.id,
+    source: "tcgdex",
+    name: b.name,
+    number: String(b.localId ?? ""),
+    brief: true,
+    setId: String(b.id).replace(/-[^-]+$/, ""),
+    setName: null,
+    setTotal: null,
+    image: b.image ? b.image + "/low.webp" : null,
+    imageLarge: b.image ? b.image + "/high.webp" : null
+  });
+  async function tcgdexSearch({ species, number, total }, signal) {
+    let url = `${TCGDEX}/cards?name=${encodeURIComponent(species)}`;
+    if (number && /^\d+$/.test(number)) url += `&localId=${encodeURIComponent(String(parseInt(number, 10)))}`;
+    else if (number) url += `&localId=${encodeURIComponent(number)}`;
+    const list = await getJSON(url, { signal });
+    if (!Array.isArray(list)) throw new Error("Unexpected reply");
+    let briefs = list.filter((b) => b && b.id && isCardOf(b.name, species));
+    if (number) briefs = briefs.filter((b) => sameNumber(b.localId, number));
+    briefs.reverse();
+    if (briefs.length <= 16) {
+      let cards = await inBatches(briefs, 6, (b) => getJSON(`${TCGDEX}/cards/${encodeURIComponent(b.id)}`, { signal }).then(fromTcgdex).catch(() => briefFromTcgdex(b)));
+      if (total) {
+        const exact = cards.filter((c) => c.setTotal === total);
+        if (exact.length) cards = exact;
+      }
+      return cards;
+    }
+    return briefs.slice(0, 60).map(briefFromTcgdex);
+  }
+  function fromPtcg(c) {
+    const p = c.cardmarket?.prices, tp = c.tcgplayer?.prices;
+    const usd = tp && (tp.normal?.market ?? tp.holofoil?.market ?? tp.reverseHolofoil?.market ?? tp["1stEditionHolofoil"]?.market);
+    return {
+      id: c.id,
+      source: "ptcg",
+      name: c.name,
+      number: String(c.number ?? ""),
+      setId: c.set?.id ?? null,
+      setName: c.set?.name ?? null,
+      setTotal: c.set?.printedTotal ?? null,
+      rarity: c.rarity ?? null,
+      image: c.images?.small ?? null,
+      imageLarge: c.images?.large ?? null,
+      dex: c.nationalPokedexNumbers ?? [],
+      cardmarketUrl: c.cardmarket?.url ?? null,
+      eur: p ? {
+        trend: num(p.trendPrice) ?? num(p.averageSellPrice),
+        trendHolo: num(p.reverseHoloTrend) ?? num(p.reverseHoloSell),
+        avg30: num(p.avg30),
+        low: num(p.lowPrice),
+        updated: c.cardmarket?.updatedAt ?? null
+      } : null,
+      usd: num(usd)
+    };
+  }
+  var FIELDS = "id,name,number,set,images,cardmarket,tcgplayer,nationalPokedexNumbers,rarity";
+  async function ptcgSearch({ species, number, total, dex }, signal) {
+    const q = [];
+    if (dex) q.push(`nationalPokedexNumbers:${dex}`);
+    else q.push(/^[a-z0-9]+$/i.test(species) ? `name:*${species}*` : `name:"${species.replace(/"/g, "")}"`);
+    if (number) q.push(`number:${/^\d+$/.test(number) ? parseInt(number, 10) : number}`);
+    if (total) q.push(`set.printedTotal:${total}`);
+    const url = `${PTCG}/cards?q=${encodeURIComponent(q.join(" "))}&pageSize=40&orderBy=-set.releaseDate&select=${FIELDS}`;
+    const res = await getJSON(url, { signal });
+    let cards = (res.data || []).map(fromPtcg).filter((c) => isCardOf(c.name, species));
+    if (!cards.length && total) return ptcgSearch({ species, number, dex }, signal);
+    return cards;
+  }
+  async function findCards({ species, dex, number, total }, signal) {
+    number = number ? String(number).trim() : "";
+    let firstError;
+    try {
+      const cards = await tcgdexSearch({ species, number, total }, signal);
+      if (cards.length) return { cards, source: "tcgdex" };
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      firstError = e;
+    }
+    try {
+      const cards = await ptcgSearch({ species, number, total, dex }, signal);
+      return { cards, source: "ptcg" };
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      if (firstError) throw firstError;
+      throw e;
+    }
+  }
+  async function getCard(id, source, signal) {
+    if (source === "ptcg") {
+      const res = await getJSON(`${PTCG}/cards/${encodeURIComponent(id)}?select=${FIELDS}`, { signal });
+      return fromPtcg(res.data);
+    }
+    return fromTcgdex(await getJSON(`${TCGDEX}/cards/${encodeURIComponent(id)}`, { signal }));
+  }
+  function eurPrice(card, finish) {
+    const e = card?.eur;
+    if (!e) return null;
+    if (finish === "reverse") return e.trendHolo ?? e.trend ?? e.avg30 ?? null;
+    return e.trend ?? e.avg30 ?? e.trendHolo ?? null;
+  }
+  var FX_KEY = "fx-eur-gbp";
+  var FALLBACK_RATE = 0.85;
+  async function eurToGbp() {
+    let cached = null;
+    try {
+      cached = JSON.parse(localStorage.getItem(FX_KEY) || "null");
+    } catch {
+    }
+    if (cached && Date.now() - cached.at < 12 * 36e5) return cached;
+    for (const url of ["https://api.frankfurter.dev/v1/latest?base=EUR&symbols=GBP", "https://api.frankfurter.app/latest?from=EUR&to=GBP"]) {
+      try {
+        const r = await getJSON(url, { timeout: 8e3 });
+        const rate = r?.rates?.GBP;
+        if (rate > 0.5 && rate < 1.5) {
+          const v = { rate, at: Date.now(), live: true };
+          try {
+            localStorage.setItem(FX_KEY, JSON.stringify(v));
+          } catch {
+          }
+          return v;
+        }
+      } catch {
+      }
+    }
+    return cached || { rate: FALLBACK_RATE, at: 0, live: false };
+  }
+  var workerPromise = null;
+  function getWorker(onStatus) {
+    if (!window.Tesseract) return Promise.reject(new Error("The text reader didn't load. Check your connection."));
+    if (!workerPromise) {
+      onStatus?.("Getting the text reader ready (first scan only)");
+      workerPromise = window.Tesseract.createWorker("eng").catch((e) => {
+        workerPromise = null;
+        throw e;
+      });
+    }
+    return workerPromise;
+  }
+  function strip(bmp, x, y, w, h, scale = 3) {
+    const sx = Math.round(bmp.width * x), sy = Math.round(bmp.height * y);
+    const sw = Math.round(bmp.width * w), sh = Math.round(bmp.height * h);
+    const c = document.createElement("canvas");
+    c.width = sw * scale;
+    c.height = sh * scale;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    const img = ctx.getImageData(0, 0, c.width, c.height), d = img.data;
+    let lo = 255, hi = 0;
+    const g = new Uint8Array(d.length / 4);
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      g[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+      if (g[p] < lo) lo = g[p];
+      if (g[p] > hi) hi = g[p];
+    }
+    const span = Math.max(1, hi - lo);
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const v = (g[p] - lo) * 255 / span;
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+  function parseNumber(text) {
+    const t = String(text || "").toUpperCase().replace(/[|\\]/g, "/").replace(/(\d)O/g, "$10").replace(/O(\d)/g, "0$1");
+    let m = t.match(/\b(TG|GG|SV|RC)\s?(\d{1,3})\s*\/\s*(TG|GG|SV|RC)?\s?(\d{1,3})\b/);
+    if (m) return { number: m[1] + m[2].padStart(2, "0"), total: null };
+    m = t.match(/(\d{1,3})\s*\/\s*(\d{2,3})(?!\d)/);
+    if (m) {
+      const n = parseInt(m[1], 10), total = parseInt(m[2], 10);
+      if (n > 0 && total >= 10) return { number: String(n), total };
+    }
+    m = t.match(/\b(SVP|SWSH|SM|XY|BW|HGSS|DP)\s?(\d{1,3})\b/);
+    if (m) return { number: m[1] + m[2].padStart(m[1] === "SVP" ? 3 : 2, "0"), total: null };
+    return { number: "", total: null };
+  }
+  function lev(a, b) {
+    const v = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = v[0];
+      v[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const tmp = v[j];
+        v[j] = Math.min(v[j] + 1, v[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = tmp;
+      }
+    }
+    return v[b.length];
+  }
+  var letters = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+  function matchSpecies(text, names) {
+    const toks = String(text || "").split(/[^A-Za-zÀ-ÿ.'’-]+/).filter((t) => letters(t).length >= 2);
+    const grams = /* @__PURE__ */ new Set();
+    for (let i = 0; i < toks.length; i++) {
+      grams.add(letters(toks[i]));
+      if (i + 1 < toks.length) grams.add(letters(toks[i] + toks[i + 1]));
+      if (i + 2 < toks.length) grams.add(letters(toks[i] + toks[i + 1] + toks[i + 2]));
+    }
+    let best = 0, bestScore = Infinity;
+    names.forEach((name, i) => {
+      const n = letters(name);
+      if (n.length < 3) return;
+      for (const g of grams) {
+        if (g.length < 3 || Math.abs(g.length - n.length) > 2) continue;
+        const d = lev(g, n);
+        const allowed = n.length <= 4 ? 0 : n.length <= 7 ? 1 : 2;
+        if (d <= allowed) {
+          const score = d / n.length - n.length * 1e-3;
+          if (score < bestScore) {
+            bestScore = score;
+            best = i + 1;
+          }
+        }
+      }
+    });
+    return best;
+  }
+  async function readCard(blob, names, onStatus) {
+    const worker = await getWorker(onStatus);
+    const bmp = await createImageBitmap(blob);
+    onStatus?.("Reading the card");
+    await worker.setParameters({ tessedit_pageseg_mode: "6", tessedit_char_whitelist: "" });
+    const nameText = (await worker.recognize(strip(bmp, 0.04, 0.02, 0.74, 0.11))).data.text;
+    await worker.setParameters({ tessedit_pageseg_mode: "6", tessedit_char_whitelist: "0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ " });
+    const numberText = (await worker.recognize(strip(bmp, 0, 0.885, 1, 0.105))).data.text;
+    const { number, total } = parseNumber(numberText);
+    return { dex: matchSpecies(nameText, names), nameText, number, total, numberText };
+  }
+  function otsu(vals, n) {
+    const hist = new Float64Array(256);
+    for (let i = 0; i < n; i++) hist[vals[i]]++;
+    let sum = 0;
+    for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sumB = 0, wB = 0, best = -1, thr = 128;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t];
+      if (!wB) continue;
+      const wF = n - wB;
+      if (!wF) break;
+      sumB += t * hist[t];
+      const mB = sumB / wB, mF = (sum - sumB) / wF, v = wB * wF * (mB - mF) * (mB - mF);
+      if (v > best) {
+        best = v;
+        thr = t;
+      }
+    }
+    return thr;
+  }
+  function detectCore(d, w, h) {
+    const N = w * h, gray = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+      const i = p * 4;
+      gray[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 | 0;
+    }
+    const b = Math.max(2, Math.round(Math.min(w, h) * 0.04)), border = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (x < b || y < b || x >= w - b || y >= h - b) border.push(y * w + x);
+    const med = (a) => {
+      a.sort((p, q) => p - q);
+      return a[a.length >> 1];
+    };
+    const br = med(border.map((p) => d[p * 4])), bgc = med(border.map((p) => d[p * 4 + 1])), bb = med(border.map((p) => d[p * 4 + 2]));
+    const dmap = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+      const i = p * 4, r = d[i] - br, g = d[i + 1] - bgc, bl = d[i + 2] - bb;
+      dmap[p] = Math.min(255, Math.sqrt(r * r + g * g + bl * bl));
+    }
+    const morph = (src, r, dil) => {
+      const t = new Uint8Array(N), o = new Uint8Array(N);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let v = dil ? 0 : 1;
+        for (let q = -r; q <= r; q++) {
+          const X = x + q;
+          const s = X < 0 || X >= w ? 0 : src[y * w + X];
+          if (dil ? s : !s) {
+            v = dil ? 1 : 0;
+            break;
+          }
+        }
+        t[y * w + x] = v;
+      }
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let v = dil ? 0 : 1;
+        for (let q = -r; q <= r; q++) {
+          const Y = y + q;
+          const s = Y < 0 || Y >= h ? 0 : t[Y * w + x];
+          if (dil ? s : !s) {
+            v = dil ? 1 : 0;
+            break;
+          }
+        }
+        o[y * w + x] = v;
+      }
+      return o;
+    };
+    const fillHoles = (m) => {
+      const seen = new Uint8Array(N), q = new Int32Array(N);
+      let qh = 0, qt2 = 0;
+      const push = (p) => {
+        if (!m[p] && !seen[p]) {
+          seen[p] = 1;
+          q[qt2++] = p;
+        }
+      };
+      for (let x = 0; x < w; x++) {
+        push(x);
+        push((h - 1) * w + x);
+      }
+      for (let y = 0; y < h; y++) {
+        push(y * w);
+        push(y * w + w - 1);
+      }
+      while (qh < qt2) {
+        const p = q[qh++], x = p % w, y = p / w | 0;
+        if (x > 0) push(p - 1);
+        if (x < w - 1) push(p + 1);
+        if (y > 0) push(p - w);
+        if (y < h - 1) push(p + w);
+      }
+      for (let p = 0; p < N; p++) if (!m[p] && !seen[p]) m[p] = 1;
+      return m;
+    };
+    const evaluate = (m) => {
+      const lab = new Int32Array(N), queue = new Int32Array(N);
+      let bestLab = 0, bestSize = 0, cur = 0;
+      for (let p = 0; p < N; p++) {
+        if (!m[p] || lab[p]) continue;
+        cur++;
+        let qh = 0, qt2 = 0, size = 0;
+        queue[qt2++] = p;
+        lab[p] = cur;
+        while (qh < qt2) {
+          const q = queue[qh++];
+          size++;
+          const qx = q % w, qy = q / w | 0;
+          if (qx > 0 && m[q - 1] && !lab[q - 1]) {
+            lab[q - 1] = cur;
+            queue[qt2++] = q - 1;
+          }
+          if (qx < w - 1 && m[q + 1] && !lab[q + 1]) {
+            lab[q + 1] = cur;
+            queue[qt2++] = q + 1;
+          }
+          if (qy > 0 && m[q - w] && !lab[q - w]) {
+            lab[q - w] = cur;
+            queue[qt2++] = q - w;
+          }
+          if (qy < h - 1 && m[q + w] && !lab[q + w]) {
+            lab[q + w] = cur;
+            queue[qt2++] = q + w;
+          }
+        }
+        if (size > bestSize) {
+          bestSize = size;
+          bestLab = cur;
+        }
+      }
+      if (!bestLab || bestSize < N * 0.04) return null;
+      const cMin = new Int32Array(w).fill(-1), cMax = new Int32Array(w).fill(-1);
+      for (let p = 0; p < N; p++) if (lab[p] === bestLab) {
+        const px = p % w, py = p / w | 0;
+        if (cMin[px] < 0 || py < cMin[px]) cMin[px] = py;
+        if (py > cMax[px]) cMax[px] = py;
+      }
+      const pts = [];
+      for (let px = 0; px < w; px++) if (cMin[px] >= 0) {
+        pts.push([px, cMin[px]]);
+        pts.push([px + 1, cMin[px]]);
+        pts.push([px, cMax[px] + 1]);
+        pts.push([px + 1, cMax[px] + 1]);
+      }
+      pts.sort((a, c) => a[0] - c[0] || a[1] - c[1]);
+      const cross = (o, a, c) => (a[0] - o[0]) * (c[1] - o[1]) - (a[1] - o[1]) * (c[0] - o[0]);
+      const lower = [], upper = [];
+      for (const p of pts) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+        lower.push(p);
+      }
+      for (let i = pts.length - 1; i >= 0; i--) {
+        const p = pts[i];
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+        upper.push(p);
+      }
+      const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+      if (hull.length < 4) return null;
+      let best = null;
+      for (let i = 0; i < hull.length; i++) {
+        const a = hull[i], c = hull[(i + 1) % hull.length], th = Math.atan2(c[1] - a[1], c[0] - a[0]), co = Math.cos(th), si = Math.sin(th);
+        let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+        for (const [px, py] of hull) {
+          const u = px * co + py * si, v = -px * si + py * co;
+          if (u < u0) u0 = u;
+          if (u > u1) u1 = u;
+          if (v < v0) v0 = v;
+          if (v > v1) v1 = v;
+        }
+        const area = (u1 - u0) * (v1 - v0);
+        if (!best || area < best.area) best = { area, th, co, si, wU: u1 - u0, hV: v1 - v0, uc: (u0 + u1) / 2, vc: (v0 + v1) / 2 };
+      }
+      const long = Math.max(best.wU, best.hV), short = Math.min(best.wU, best.hV);
+      const ratio = short / long, cover = best.area / N, solid = bestSize / best.area;
+      if (ratio < 0.58 || ratio > 0.88 || cover < 0.05 || cover > 0.97 || solid < 0.82) return null;
+      let ang = best.wU >= best.hV ? Math.PI / 2 - best.th : -best.th;
+      ang = ((ang + Math.PI / 2) % Math.PI + Math.PI) % Math.PI - Math.PI / 2;
+      return {
+        cx: best.uc * best.co - best.vc * best.si,
+        cy: best.uc * best.si + best.vc * best.co,
+        long,
+        ang,
+        score: solid - 2.5 * Math.abs(ratio - 0.716) + 0.15 * Math.min(cover, 0.6),
+        how: ""
+      };
+    };
+    const cands = [];
+    const tryMask = (m, how) => {
+      const r = evaluate(fillHoles(m));
+      if (r) {
+        r.how = how;
+        cands.push(r);
+      }
+    };
+    {
+      const t = Math.max(24, otsu(dmap, N));
+      const m = new Uint8Array(N);
+      for (let p = 0; p < N; p++) m[p] = dmap[p] > t;
+      tryMask(morph(morph(m, 2, true), 2, false), "colour");
+    }
+    {
+      const t = otsu(gray, N);
+      let bm = 0;
+      for (const p of border) bm += gray[p];
+      bm /= border.length;
+      const bright = bm <= t;
+      const m = new Uint8Array(N);
+      for (let p = 0; p < N; p++) m[p] = bright ? gray[p] > t : gray[p] <= t;
+      tryMask(morph(morph(m, 2, true), 2, false), "brightness");
+    }
+    {
+      const mag = new Uint8Array(N);
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const p = y * w + x;
+        const gx = -gray[p - w - 1] - 2 * gray[p - 1] - gray[p + w - 1] + gray[p - w + 1] + 2 * gray[p + 1] + gray[p + w + 1];
+        const gy = -gray[p - w - 1] - 2 * gray[p - w] - gray[p - w + 1] + gray[p + w - 1] + 2 * gray[p + w] + gray[p + w + 1];
+        mag[p] = Math.min(255, Math.hypot(gx, gy) / 4);
+      }
+      const t = Math.max(18, otsu(mag, N));
+      const m = new Uint8Array(N);
+      for (let p = 0; p < N; p++) m[p] = mag[p] > t;
+      const filled = fillHoles(morph(m, 2, true));
+      const r = evaluate(morph(filled, 2, false));
+      if (r) {
+        r.how = "edges";
+        cands.push(r);
+      }
+    }
+    if (!cands.length) return null;
+    cands.sort((a, c) => c.score - a.score);
+    return cands[0];
+  }
+  function detectCard(bmp) {
+    try {
+      const k = Math.min(1, 320 / Math.max(bmp.width, bmp.height));
+      const w = Math.max(16, Math.round(bmp.width * k)), h = Math.max(16, Math.round(bmp.height * k));
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const x = c.getContext("2d", { willReadFrequently: true });
+      x.drawImage(bmp, 0, 0, w, h);
+      const r = detectCore(x.getImageData(0, 0, w, h).data, w, h);
+      if (!r) return null;
+      return { cx: r.cx / k - bmp.width / 2, cy: r.cy / k - bmp.height / 2, long: r.long / k, ang: r.ang };
+    } catch {
+      return null;
+    }
+  }
+  function makeView(bmp) {
+    return {
+      s: 1,
+      ang: 0,
+      tx: 0,
+      ty: 0,
+      draw(c, W, H) {
+        c.save();
+        c.translate(W / 2 + this.tx, H / 2 + this.ty);
+        c.rotate(this.ang);
+        c.scale(this.s, this.s);
+        c.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
+        c.restore();
+      },
+      centreOn(px, py) {
+        const co = Math.cos(this.ang), si = Math.sin(this.ang);
+        this.tx = -this.s * (px * co - py * si);
+        this.ty = -this.s * (px * si + py * co);
+      },
+      centrePoint() {
+        const co = Math.cos(-this.ang), si = Math.sin(-this.ang), x = -this.tx / this.s, y = -this.ty / this.s;
+        return [x * co - y * si, x * si + y * co];
+      }
+    };
+  }
+  function cropFromView(v, frame, W, H) {
+    const OW = 504, OH = 704, oc = document.createElement("canvas");
+    oc.width = OW;
+    oc.height = OH;
+    const o = oc.getContext("2d");
+    o.fillStyle = "#ffffff";
+    o.fillRect(0, 0, OW, OH);
+    o.setTransform(OW / frame.w, 0, 0, OH / frame.h, -frame.x * OW / frame.w, -frame.y * OH / frame.h);
+    v.draw(o, W, H);
+    return new Promise((r) => oc.toBlob(r, "image/jpeg", 0.9));
+  }
+  var TRIM = 0.985;
+  function cropCard(file, bmp, found, root, { skipIfFound = false } = {}) {
+    return new Promise(async (resolve) => {
+      if (!bmp) {
+        resolve(file);
+        return;
+      }
+      if (skipIfFound && found) {
+        const W2 = 400, H2 = 560, frame2 = { x: 0, y: 0, w: W2, h: H2 }, v2 = makeView(bmp);
+        v2.ang = found.ang;
+        v2.s = H2 / (found.long * TRIM);
+        v2.centreOn(found.cx, found.cy);
+        resolve(await cropFromView(v2, frame2, W2, H2) || file);
+        return;
+      }
+      root.innerHTML = `<div class="cropper" role="dialog" aria-modal="true" aria-labelledby="cropT">
+      <div class="crop-top"><span id="cropT">Line up the card</span><button type="button" class="x" id="cX" aria-label="Cancel scan">\xD7</button></div>
+      <p class="crop-hint" id="cHint"></p>
+      <canvas id="cropCv" aria-label="Card photo"></canvas>
+      <div class="crop-bar"><button type="button" class="btn" id="cRot">Rotate</button><button type="button" class="btn" id="cAuto">Auto</button><button type="button" class="btn" id="cSkip">Whole photo</button><button type="button" class="btn primary" id="cOk">Use this crop</button></div>
+    </div>`;
+      const $2 = (s) => root.querySelector(s);
+      const cv = $2("#cropCv"), ctx = cv.getContext("2d"), hint = $2("#cHint");
+      const v = makeView(bmp);
+      let W = 0, H = 0, dpr = 1, frame = null, minS = 0.05, maxS = 20;
+      function layout() {
+        const r = cv.getBoundingClientRect();
+        dpr = window.devicePixelRatio || 1;
+        W = r.width;
+        H = r.height;
+        cv.width = Math.round(W * dpr);
+        cv.height = Math.round(H * dpr);
+        const fh = Math.min(H * 0.88, W * 0.86 * 88 / 63), fw = fh * 63 / 88;
+        frame = { x: (W - fw) / 2, y: (H - fh) / 2, w: fw, h: fh };
+      }
+      function fitWhole() {
+        const turned = Math.round(v.ang / (Math.PI / 2)) % 2 !== 0;
+        const iw = turned ? bmp.height : bmp.width, ih = turned ? bmp.width : bmp.height;
+        v.s = Math.max(frame.w / iw, frame.h / ih);
+        v.tx = v.ty = 0;
+      }
+      function applyAuto() {
+        if (found) {
+          v.ang = found.ang;
+          v.s = frame.h / (found.long * TRIM);
+          v.centreOn(found.cx, found.cy);
+          hint.className = "crop-hint found";
+          hint.textContent = "Card found and zoomed in. Nudge it if an edge is off.";
+        } else {
+          v.ang = 0;
+          fitWhole();
+          hint.className = "crop-hint";
+          hint.textContent = "Couldn't spot the card's edges. Drag and pinch to line it up. A plain, contrasting background helps.";
+        }
+        minS = v.s * 0.25;
+        maxS = v.s * 8;
+      }
+      function rr(c, f) {
+        const r = f.w * 0.045;
+        c.roundRect ? c.roundRect(f.x, f.y, f.w, f.h, r) : c.rect(f.x, f.y, f.w, f.h);
+      }
+      function draw() {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        v.draw(ctx, W, H);
+        ctx.fillStyle = "rgba(8,10,16,.66)";
+        ctx.beginPath();
+        ctx.rect(0, 0, W, H);
+        rr(ctx, frame);
+        ctx.fill("evenodd");
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        rr(ctx, frame);
+        ctx.stroke();
+      }
+      function zoomAt(f, cx, cy) {
+        const r = cv.getBoundingClientRect();
+        const ns = Math.min(maxS, Math.max(minS, v.s * f)), k = ns / v.s;
+        const px = cx - r.left - W / 2 - v.tx, py = cy - r.top - H / 2 - v.ty;
+        v.tx -= px * (k - 1);
+        v.ty -= py * (k - 1);
+        v.s = ns;
+      }
+      const pts = /* @__PURE__ */ new Map();
+      let last = null;
+      const snap = () => {
+        const a = [...pts.values()];
+        if (a.length >= 2) return { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) };
+        if (a.length === 1) return { x: a[0].x, y: a[0].y, d: 0 };
+        return null;
+      };
+      cv.addEventListener("pointerdown", (e) => {
+        cv.setPointerCapture(e.pointerId);
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        last = snap();
+      });
+      cv.addEventListener("pointermove", (e) => {
+        if (!pts.has(e.pointerId)) return;
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const now = snap();
+        if (last && now) {
+          if (now.d && last.d) zoomAt(now.d / last.d, now.x, now.y);
+          v.tx += now.x - last.x;
+          v.ty += now.y - last.y;
+          draw();
+        }
+        last = now;
+      });
+      const lift = (e) => {
+        pts.delete(e.pointerId);
+        last = snap();
+      };
+      cv.addEventListener("pointerup", lift);
+      cv.addEventListener("pointercancel", lift);
+      cv.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        zoomAt(Math.exp(-e.deltaY * 15e-4), e.clientX, e.clientY);
+        draw();
+      }, { passive: false });
+      const onResize = () => {
+        layout();
+        draw();
+      };
+      window.addEventListener("resize", onResize);
+      const done = (val) => {
+        window.removeEventListener("resize", onResize);
+        resolve(val);
+      };
+      $2("#cRot").onclick = () => {
+        const [px, py] = v.centrePoint();
+        v.ang += Math.PI / 2;
+        v.centreOn(px, py);
+        draw();
+      };
+      $2("#cAuto").onclick = () => {
+        applyAuto();
+        draw();
+      };
+      $2("#cX").onclick = () => {
+        root.innerHTML = "";
+        done(null);
+      };
+      $2("#cSkip").onclick = () => done(file);
+      $2("#cOk").onclick = async () => done(await cropFromView(v, frame, W, H) || file);
+      requestAnimationFrame(() => {
+        layout();
+        applyAuto();
+        draw();
+      });
+    });
+  }
+  var TOTAL = NAMES.length;
+  var STALE_DAYS = 7;
+  var DAY = 864e5;
+  var CONDITIONS = ["Mint", "Near Mint", "Excellent", "Good", "Light Played", "Played", "Poor"];
+  var COND_SHORT = { "Mint": "MT", "Near Mint": "NM", "Excellent": "EX", "Good": "GD", "Light Played": "LP", "Played": "PL", "Poor": "PO" };
+  var $ = (s, el = document) => el.querySelector(s);
+  var esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  var pad = (n) => String(n).padStart(3, "0");
+  var nameOf = (n) => NAMES[n - 1];
+  var money = (v) => "\xA3" + (+v || 0).toFixed(2);
+  var euro = (v) => "\u20AC" + (+v || 0).toFixed(2);
+  var pagePos = (n) => `page ${Math.ceil(n / 9)}, slot ${(n - 1) % 9 + 1}`;
+  var shortDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  var ageDays = (d) => d ? (Date.now() - Date.parse(d)) / DAY : Infinity;
+  var owned = /* @__PURE__ */ new Map();
+  var wish = /* @__PURE__ */ new Map();
+  var photoUrls = /* @__PURE__ */ new Map();
+  var view = "all";
+  var gen = 0;
+  var query = "";
+  var typeFilter = 0;
+  var fx = { rate: FALLBACK_RATE, live: false, at: 0 };
+  var updating = null;
+  var prefs = (() => {
+    const d = { rapid: false, binder: "card" };
+    try {
+      return { ...d, ...JSON.parse(localStorage.getItem("prefs") || "{}") };
+    } catch {
+      return d;
+    }
+  })();
+  var savePrefs = () => {
+    try {
+      localStorage.setItem("prefs", JSON.stringify(prefs));
+    } catch {
+    }
+  };
+  var norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/♀/g, "f").replace(/♂/g, "m").replace(/[^a-z0-9]/g, "");
+  var NORM_INDEX = new Map(NAMES.map((n, i) => [norm(n), i + 1]));
+  function resolveDex(text) {
+    if (!text) return 0;
+    const m = String(text).match(/^\s*#?\s*0*(\d{1,4})\b/);
+    if (m) {
+      const n = +m[1];
+      if (n >= 1 && n <= TOTAL) return n;
+    }
+    let t = String(text).replace(/^#?\d+\s*/, "");
+    t = t.replace(/\b(mega|alolan|galarian|hisuian|paldean|dark|radiant|shining)\b/gi, " ").replace(/\b(ex|gx|v|vmax|vstar|break|lv\.?\s*x|prime|star)\b/gi, " ");
+    const k = norm(t);
+    if (NORM_INDEX.has(k)) return NORM_INDEX.get(k);
+    let best = 0, len = 0;
+    for (const [nk, i] of NORM_INDEX) if (nk.length > 3 && k.includes(nk) && nk.length > len) {
+      best = i;
+      len = nk.length;
+    }
+    return best;
+  }
+  async function saveEntry(e) {
+    owned.set(e.dex, e);
+    await store.put("entries", e.dex, e);
+  }
+  async function removeEntry(n) {
+    owned.delete(n);
+    await store.remove("entries", n);
+    await store.remove("photos", n);
+    if (photoUrls.has(n)) {
+      URL.revokeObjectURL(photoUrls.get(n));
+      photoUrls.delete(n);
+    }
+  }
+  async function saveWish(n, item) {
+    if (item) {
+      wish.set(n, item);
+      await store.put("wish", n, item);
+    } else {
+      wish.delete(n);
+      await store.remove("wish", n);
+    }
+  }
+  async function savePhoto(n, blob) {
+    try {
+      const bmp = await createImageBitmap(blob);
+      const w = 300, h = Math.round(bmp.height * w / bmp.width);
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      c.getContext("2d").drawImage(bmp, 0, 0, w, h);
+      const thumb = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.82));
+      if (!thumb) return false;
+      await store.put("photos", n, thumb);
+      if (photoUrls.has(n)) URL.revokeObjectURL(photoUrls.get(n));
+      photoUrls.set(n, URL.createObjectURL(thumb));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  var gbp = (eur) => eur == null ? null : Math.round(eur * fx.rate * 100) / 100;
+  function applyCard(entry, card) {
+    return {
+      ...entry,
+      cardId: card.id,
+      source: card.source,
+      cardName: card.name,
+      set: card.setName || entry.set || "",
+      number: card.number,
+      setTotal: card.setTotal ?? null,
+      rarity: card.rarity ?? null,
+      image: card.image || entry.image || null,
+      imageLarge: card.imageLarge || entry.imageLarge || null,
+      cardmarketUrl: card.cardmarketUrl || null,
+      eur: card.eur || null,
+      usd: card.usd ?? null,
+      value: gbp(eurPrice(card, entry.finish)),
+      checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      rate: fx.rate
+    };
+  }
+  var entryAsCard = (e) => ({
+    id: e.cardId,
+    source: e.source,
+    name: e.cardName || nameOf(e.dex),
+    number: e.number,
+    setName: e.set,
+    setTotal: e.setTotal,
+    rarity: e.rarity,
+    image: e.image,
+    imageLarge: e.imageLarge,
+    cardmarketUrl: e.cardmarketUrl,
+    eur: e.eur,
+    usd: e.usd
+  });
+  var cardmarketLink = (card, species) => card?.cardmarketUrl || "https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=" + encodeURIComponent([card?.name || species, card?.number ? String(card.number).replace(/^0+(?=\d)/, "") : ""].filter(Boolean).join(" "));
+  async function updateAllPrices() {
+    if (updating) return;
+    const list = [...owned.values()].filter((e) => e.cardId);
+    if (!list.length) {
+      toast("Link some cards first: scan them or pick the card in each entry.");
+      return;
+    }
+    const ctl = new AbortController();
+    updating = { ctl, done: 0, failed: 0, total: list.length };
+    render();
+    fx = await eurToGbp();
+    for (let i = 0; i < list.length && !ctl.signal.aborted; i += 4) {
+      await Promise.all(list.slice(i, i + 4).map(async (e) => {
+        try {
+          const card = await getCard(e.cardId, e.source, ctl.signal);
+          const cur = owned.get(e.dex);
+          if (cur && cur.cardId === e.cardId) await saveEntry(applyCard(cur, card));
+        } catch {
+          if (!ctl.signal.aborted) updating.failed++;
+        }
+        updating.done++;
+      }));
+      renderViewBar();
+    }
+    const { done, failed } = updating;
+    updating = null;
+    try {
+      localStorage.setItem("lastPriceRun", (/* @__PURE__ */ new Date()).toISOString());
+    } catch {
+    }
+    render();
+    if (ctl.signal.aborted) toast(`Stopped after ${done - failed} prices`);
+    else toast(failed ? `Updated ${done - failed} prices. ${failed} couldn't be reached.` : `All ${done} prices updated`);
+  }
+  function stats() {
+    const got = owned.size, pct = got / TOTAL * 100;
+    $("#pct").textContent = (pct >= 10 || pct === 0 ? Math.round(pct) : pct.toFixed(1)) + "%";
+    $("#ringFill").setAttribute("stroke-dashoffset", String(100 - pct));
+    $("#sGot").textContent = got.toLocaleString("en-GB");
+    $("#sLeft").textContent = (TOTAL - got).toLocaleString("en-GB");
+    let spent = 0, value = 0, leg = 0, stale = 0;
+    for (const [n, e] of owned) {
+      spent += +e.paid || 0;
+      value += +e.value || 0;
+      if (LEGEND.has(n)) leg++;
+      if (e.cardId && ageDays(e.checkedAt) > STALE_DAYS) stale++;
+    }
+    $("#sSpent").textContent = money(spent);
+    $("#sValue").textContent = money(value);
+    $("#sLeg").textContent = leg + "/" + LEGEND.size;
+    let wished = 0;
+    for (const n of wish.keys()) if (!owned.has(n)) wished++;
+    $("#cWish").textContent = wished || "";
+    $("#cRe").textContent = stale || "";
+    const counts = Array(10).fill(0);
+    for (const n of owned.keys()) counts[genOf(n)]++;
+    $("#regions").innerHTML = REGIONS.map((r, i) => {
+      const g = i + 1, size = GEN_END[i] - (i ? GEN_END[i - 1] : 0);
+      return `<button type="button" class="reg" data-gen="${g}" aria-pressed="${gen === g}">
+      <span class="rn">${r}</span><span class="rc">${counts[g]}/${size}</span><span class="bar"><i style="width:${counts[g] / size * 100}%"></i></span></button>`;
+    }).join("");
+    const note = $("#notice");
+    if (stale && !updating && view !== "prices") {
+      note.hidden = false;
+      note.innerHTML = `<span>${stale} price${stale > 1 ? "s are" : " is"} over a week old.</span><button type="button" class="btn small" id="noticeUpdate">Update prices</button>`;
+      $("#noticeUpdate").onclick = updateAllPrices;
+    } else note.hidden = true;
+  }
+  function slotHTML(n) {
+    const e = owned.get(n), w = !e && wish.get(n);
+    const photo = photoUrls.get(n);
+    const src = e ? prefs.binder === "photo" ? photo || e.image : e.image || photo : null;
+    const cls = ["slot", e ? "got" : "", w ? "wish" : "", src ? "hasimg" : "", LEGEND.has(n) && !src ? "legend" : ""].join(" ");
+    let badges = "";
+    if (e && e.spares) badges += `<span class="badge spare">+${e.spares}</span>`;
+    if (view === "prices" && e) badges += `<span class="badge val">${e.value != null ? money(e.value) : "\xA3 \u2013"}</span>`;
+    else if (w && w.target != null) badges += `<span class="badge val">\u2264${money(w.target)}</span>`;
+    const label = `#${pad(n)} ${nameOf(n)}${e ? ", collected" : w ? ", on wishlist" : ", missing"}`;
+    const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove('hasimg')">` : "";
+    return `<button type="button" class="${cls}" data-dex="${n}" aria-label="${esc(label)}">${img}<span class="sn">#${pad(n)}${w ? " \u2605" : ""}</span><span class="nm">${esc(nameOf(n))}</span>${badges}</button>`;
+  }
+  function matches(n) {
+    if (gen && genOf(n) !== gen) return false;
+    if (typeFilter && !typesOf(n).includes(typeFilter)) return false;
+    if (view === "have" && !owned.has(n)) return false;
+    if (view === "missing" && owned.has(n)) return false;
+    if (view === "wish" && (owned.has(n) || !wish.has(n))) return false;
+    if (view === "prices" && !owned.has(n)) return false;
+    if (query) {
+      const q = query.trim().toLowerCase();
+      if (/^\d+$/.test(q)) return String(n).startsWith(String(+q)) || pad(n).startsWith(q);
+      return nameOf(n).toLowerCase().includes(q);
+    }
+    return true;
+  }
+  function renderViewBar() {
+    const bar = $("#viewBar");
+    if (view === "wish") {
+      bar.hidden = false;
+      bar.innerHTML = `<p class="hint">Tap a missing slot in the binder to star it and set the most you'd pay.</p>`;
+    } else if (view === "prices") {
+      bar.hidden = false;
+      let last = null;
+      try {
+        last = localStorage.getItem("lastPriceRun");
+      } catch {
+      }
+      if (updating) {
+        bar.innerHTML = `<span class="hint">Updating prices\u2026 ${updating.done}/${updating.total}</span><span class="spacer"></span><button type="button" class="btn small" id="stopUpd">Stop</button>
+        <div class="progress"><i style="width:${updating.done / updating.total * 100}%"></i></div>`;
+        $("#stopUpd").onclick = () => updating?.ctl.abort();
+      } else {
+        bar.innerHTML = `<span class="hint">Most valuable first. Cardmarket trend prices in pounds at \u20AC1 = \xA3${fx.rate.toFixed(3)}${last ? `. Last full update ${shortDate(last)}` : ""}.</span>
+        <span class="spacer"></span><button type="button" class="btn small primary" id="updAll">Update all prices</button>`;
+        $("#updAll").onclick = updateAllPrices;
+      }
+    } else bar.hidden = true;
+  }
+  function render() {
+    stats();
+    renderViewBar();
+    const list = $("#list");
+    const nums = [];
+    for (let n = 1; n <= TOTAL; n++) if (matches(n)) nums.push(n);
+    if (view === "prices") nums.sort((a, b) => (+owned.get(b).value || 0) - (+owned.get(a).value || 0));
+    if (!nums.length) {
+      const msg = {
+        have: owned.size ? "No collected Pok\xE9mon match that." : "Nothing collected yet. Tap <b>Scan a card</b> to add your first one.",
+        wish: "Your wishlist is empty. Tap any missing slot in the binder to add it.",
+        prices: "Once you've collected some cards, they show here with their prices."
+      }[view] || "No Pok\xE9mon match that.";
+      list.innerHTML = `<p class="empty">${msg}</p>`;
+      return;
+    }
+    if (view === "all" && !query && !typeFilter) {
+      const pages = /* @__PURE__ */ new Map();
+      for (const n of nums) {
+        const p = Math.ceil(n / 9);
+        if (!pages.has(p)) pages.set(p, []);
+        pages.get(p).push(n);
+      }
+      let html = '<div class="pages">';
+      for (const [p, arr] of pages) {
+        const first = (p - 1) * 9 + 1, last = Math.min(p * 9, TOTAL);
+        const have = arr.filter((n) => owned.has(n)).length;
+        let cells = "";
+        for (let n = first; n <= last; n++) cells += slotHTML(n);
+        html += `<section class="page"><h2><span>Page ${p}</span><span class="num">#${pad(first)}\u2013${pad(last)} \xB7 ${have}/${last - first + 1}</span></h2><div class="grid9">${cells}</div></section>`;
+      }
+      list.innerHTML = html + "</div>";
+    } else list.innerHTML = `<div class="flat">${nums.map(slotHTML).join("")}</div>`;
+  }
+  var sheetCtl = null;
+  function closeSheet() {
+    $("#sheetRoot").innerHTML = "";
+    sheetCtl?.abort();
+    sheetCtl = null;
+  }
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => t.hidden = true, 2800);
+  }
+  function sheetShell(title, body) {
+    sheetCtl?.abort();
+    sheetCtl = new AbortController();
+    $("#sheetRoot").innerHTML = `<div class="backdrop" id="bd"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT">
+    <div class="sheet-top"><h3 id="shT">${esc(title)}</h3><button type="button" class="x" id="shX" aria-label="Close">\xD7</button></div>${body}</div></div>`;
+    $("#shX").onclick = closeSheet;
+    $("#bd").addEventListener("click", (ev) => {
+      if (ev.target.id === "bd") closeSheet();
+    });
+    return sheetCtl.signal;
+  }
+  function openCardSheet(ctx) {
+    const { mode, photo } = ctx;
+    let dex = ctx.dex || 0;
+    const existing = mode === "edit" ? owned.get(dex) : null;
+    const d = existing || {};
+    const showWish = mode === "add" && dex && !owned.has(dex);
+    const w = wish.get(dex);
+    const photoUrl = photo ? URL.createObjectURL(photo) : existing && photoUrls.get(dex) || null;
+    const title = mode === "edit" ? `#${pad(dex)} ${nameOf(dex)}` : mode === "scan" ? "New card" : dex ? `#${pad(dex)} ${nameOf(dex)}` : "Add a card";
+    const signal = sheetShell(title, `
+    ${photoUrl ? `<div class="photo"><img src="${esc(photoUrl)}" alt="Your card photo"><p class="status" id="status" aria-live="polite"></p></div>` : `<p class="status" id="status" aria-live="polite" hidden></p>`}
+    ${showWish ? `<div class="wishrow"><button type="button" class="wishbtn" id="wishBtn" aria-pressed="${!!w}">${w ? "\u2605 On wishlist" : "\u2606 Add to wishlist"}</button>
+      <label>Most I'd pay \xA3<input id="wTarget" type="number" inputmode="decimal" step="0.01" min="0" placeholder="1.00" value="${w?.target ?? ""}"></label></div>` : ""}
+    <div class="card-find">
+      <div class="searchrow">
+        <label>Pok\xE9mon<input id="fPoke" list="dexList" placeholder="Name or Dex number" autocomplete="off" value="${dex ? "#" + pad(dex) + " " + esc(nameOf(dex)) : ""}"></label>
+        <label>Card no.<input id="fNum" placeholder="e.g. 025" autocomplete="off" value="${esc(d.number || "")}"></label>
+        <button type="button" class="btn" id="findBtn">Find</button>
+      </div>
+      <p class="match" id="matchLine"></p>
+    </div>
+    <div id="results"></div>
+    <form id="cardForm" autocomplete="off">
+      <label>Paid (\xA3)<input id="fPaid" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.15" value="${d.paid ?? ""}"></label>
+      <label>Condition<select id="fCond"><option value="">Not set</option>${CONDITIONS.map((c) => `<option${d.condition === c ? " selected" : ""}>${c}</option>`).join("")}</select></label>
+      <label>Spares<input id="fSpares" type="number" inputmode="numeric" min="0" step="1" value="${d.spares ?? 0}"></label>
+      <label class="full">Notes<textarea id="fNotes" placeholder="Variant, where you got it">${esc(d.notes || "")}</textarea></label>
+    </form>
+    <div id="dupeBox"></div>
+    <div class="actions" id="actions">
+      ${mode === "edit" ? `<button type="button" class="btn danger" id="rmBtn">Remove</button>` : ""}
+      <button type="button" class="btn" id="plainBtn">${mode === "edit" ? "Unlink card" : "Save without card"}</button>
+      <button type="button" class="btn primary" id="saveBtn">${mode === "edit" ? "Save" : "Add to Dex"}</button>
+    </div>`);
+    if (mode === "edit" && !existing?.cardId) $("#plainBtn").hidden = true;
+    let sel = existing?.cardId ? entryAsCard(existing) : null;
+    let selFresh = false;
+    let finish = existing?.finish || "standard";
+    let cards = [];
+    let ocrNumber = "", ocrTotal = null, ocrDex = 0;
+    const st = $("#status"), results = $("#results");
+    const setStatus = (text, cls = "") => {
+      st.hidden = !text;
+      st.className = "status " + cls;
+      st.textContent = text || "";
+    };
+    const updateMatch = () => {
+      const n = resolveDex($("#fPoke").value), line = $("#matchLine");
+      if (!$("#fPoke").value.trim()) line.textContent = "";
+      else if (n) line.innerHTML = `Goes in <b>#${pad(n)} ${esc(nameOf(n))}</b> \xB7 ${pagePos(n)}${owned.has(n) && n !== existing?.dex ? " \xB7 <b>already collected</b>" : ""}`;
+      else line.textContent = "No matching Pok\xE9mon. Try the name or Dex number.";
+    };
+    $("#fPoke").addEventListener("input", updateMatch);
+    updateMatch();
+    function renderChosen() {
+      if (!sel) {
+        results.innerHTML = "";
+        $("#plainBtn").hidden = mode === "edit" && !existing?.cardId;
+        return;
+      }
+      const eur = eurPrice(sel, finish), p = gbp(eur);
+      const updated = sel.eur?.updated ? ` \xB7 ${shortDate(sel.eur.updated)}` : "";
+      const meta = [sel.setName, sel.number ? sel.setTotal ? `${sel.number}/${sel.setTotal}` : `#${sel.number}` : "", sel.rarity].filter(Boolean).join(" \xB7 ");
+      results.innerHTML = `<div class="chosen">
+      ${sel.imageLarge || sel.image ? `<img src="${esc(sel.imageLarge || sel.image)}" alt="${esc(sel.name)}">` : "<div></div>"}
+      <div>
+        <div class="cn">${esc(sel.name)}</div>
+        <div class="meta">${esc(meta || "Set unknown")}</div>
+        <div class="price">${p != null ? money(p) : "No price yet"}<small>${eur != null ? `Cardmarket trend ${euro(eur)}${updated}` : "Cardmarket has no sales data for this one"}</small></div>
+        <div class="finish" role="group" aria-label="Finish">
+          <button type="button" data-f="standard" aria-pressed="${finish === "standard"}">Standard</button>
+          <button type="button" data-f="reverse" aria-pressed="${finish === "reverse"}">Reverse holo</button>
+        </div>
+        <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on Cardmarket \u2197</a>
+        ${mode === "edit" && sel.id ? ` \xB7 <button type="button" class="textbtn" id="refreshBtn" style="padding:0">Refresh price</button>` : ""}</p>
+      </div></div>
+      ${cards.length > 1 ? `<button type="button" class="textbtn" id="showAll">Not this one? Show all ${cards.length} matches</button>` : ""}`;
+      results.querySelectorAll(".finish button").forEach((b) => b.onclick = () => {
+        finish = b.dataset.f;
+        renderChosen();
+      });
+      $("#showAll", results)?.addEventListener("click", () => renderPicker());
+      $("#refreshBtn", results)?.addEventListener("click", async () => {
+        $("#refreshBtn").textContent = "Refreshing\u2026";
+        try {
+          fx = await eurToGbp();
+          sel = await getCard(sel.id, sel.source, signal);
+          selFresh = true;
+          renderChosen();
+          toast("Price refreshed");
+        } catch {
+          if (!signal.aborted) {
+            $("#refreshBtn").textContent = "Refresh price";
+            toast("Couldn't reach the card database.");
+          }
+        }
+      });
+    }
+    function renderPicker() {
+      results.innerHTML = `<p class="hint">${cards.length} matching cards. Tap the one you have.</p>
+      <div class="picker">${cards.map((c, i) => `<button type="button" class="pick" data-i="${i}" aria-pressed="${sel?.id === c.id}">
+        ${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}<b>${esc(c.number ? "#" + c.number : c.name)}</b><span>${esc(c.setName || c.setId || "")}</span>
+        ${c.eur ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`).join("")}</div>`;
+      results.querySelectorAll(".pick").forEach((b) => b.onclick = () => choose(cards[+b.dataset.i]));
+    }
+    async function choose(card) {
+      if (card.brief) {
+        results.innerHTML = `<p class="status dots">Getting the price</p>`;
+        try {
+          card = await getCard(card.id, card.source, signal);
+        } catch {
+          if (signal.aborted) return;
+          toast("Couldn't load that card. Try again.");
+          renderPicker();
+          return;
+        }
+      }
+      sel = card;
+      selFresh = true;
+      renderChosen();
+    }
+    async function search(auto = false) {
+      const n = resolveDex($("#fPoke").value);
+      if (!n) {
+        $("#matchLine").textContent = "Type the Pok\xE9mon's name or Dex number first.";
+        $("#fPoke").focus();
+        return false;
+      }
+      dex = n;
+      const number = $("#fNum").value.trim();
+      const total = number && number === ocrNumber ? ocrTotal : null;
+      results.innerHTML = `<p class="status dots">Looking up ${esc(nameOf(n))} cards</p>`;
+      try {
+        const [res, rate] = await Promise.all([findCards({ species: nameOf(n), dex: n, number, total }, signal), eurToGbp()]);
+        fx = rate;
+        cards = res.cards;
+      } catch (e) {
+        if (signal.aborted) return false;
+        results.innerHTML = `<p class="status warn">Couldn't reach the card databases. Check your connection and tap Find again, or save without card details.</p>`;
+        return false;
+      }
+      if (signal.aborted) return false;
+      if (!cards.length) {
+        sel = null;
+        results.innerHTML = `<p class="status warn">No ${esc(nameOf(n))} card ${number ? `numbered ${esc(number)} ` : ""}found. ${number ? "Check the number, or clear it to see every card." : ""}</p>`;
+        return false;
+      }
+      if (cards.length === 1 || auto && number && total && cards.filter((c) => c.setTotal === total).length === 1) {
+        await choose(cards.length === 1 ? cards[0] : cards.find((c) => c.setTotal === total));
+        return true;
+      }
+      sel = null;
+      renderPicker();
+      return false;
+    }
+    $("#findBtn").onclick = () => search(false);
+    $("#fNum").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        search(false);
+      }
+    });
+    if (showWish) {
+      const btn = $("#wishBtn"), tgt = $("#wTarget");
+      const cur = () => tgt.value === "" ? null : Math.max(0, +tgt.value);
+      btn.onclick = async () => {
+        const on = btn.getAttribute("aria-pressed") !== "true";
+        btn.setAttribute("aria-pressed", String(on));
+        btn.textContent = on ? "\u2605 On wishlist" : "\u2606 Add to wishlist";
+        await saveWish(dex, on ? { dex, target: cur(), addedAt: (/* @__PURE__ */ new Date()).toISOString() } : null);
+        render();
+        toast(on ? `#${pad(dex)} added to wishlist` : "Removed from wishlist");
+      };
+      tgt.addEventListener("change", async () => {
+        if (btn.getAttribute("aria-pressed") !== "true") {
+          if (tgt.value === "") return;
+          btn.setAttribute("aria-pressed", "true");
+          btn.textContent = "\u2605 On wishlist";
+        }
+        await saveWish(dex, { dex, target: cur(), addedAt: wish.get(dex)?.addedAt || (/* @__PURE__ */ new Date()).toISOString() });
+        render();
+      });
+    }
+    $("#rmBtn")?.addEventListener("click", () => {
+      $("#actions").innerHTML = `<span class="status" style="margin-right:auto">Remove #${pad(dex)} from your Dex?</span><button type="button" class="btn" id="keepBtn">Keep</button><button type="button" class="btn danger" id="yesRm">Remove</button>`;
+      $("#keepBtn").onclick = closeSheet;
+      $("#yesRm").onclick = async () => {
+        await removeEntry(existing.dex);
+        closeSheet();
+        render();
+        toast(`Removed #${pad(existing.dex)}`);
+      };
+    });
+    const readForm = () => ({
+      paid: $("#fPaid").value === "" ? null : Math.max(0, +$("#fPaid").value),
+      condition: $("#fCond").value || null,
+      spares: Math.max(0, parseInt($("#fSpares").value || "0", 10) || 0),
+      notes: $("#fNotes").value.trim()
+    });
+    async function commit({ withCard, force = false }) {
+      const n = resolveDex($("#fPoke").value);
+      if (!n) {
+        $("#matchLine").textContent = "Pick a Pok\xE9mon first: type its name or Dex number.";
+        $("#fPoke").focus();
+        return;
+      }
+      if (withCard && !sel) {
+        toast("Tap the card you have first, or save without card details.");
+        return;
+      }
+      const prev = owned.get(n);
+      const sameSlot = mode === "edit" && n === existing.dex;
+      if (prev && !sameSlot && !force) {
+        $("#dupeBox").innerHTML = `<div class="dupe"><span>You already have <b>#${pad(n)} ${esc(nameOf(n))}</b>${prev.set ? " from " + esc(prev.set) : ""}.</span>
+        <div class="actions"><button type="button" class="btn" id="asSpare">Count as a spare</button><button type="button" class="btn primary" id="replace">Replace with this card</button></div></div>`;
+        $("#asSpare").onclick = async () => {
+          await saveEntry({ ...prev, spares: (prev.spares || 0) + 1 });
+          done(n, prev, true);
+        };
+        $("#replace").onclick = () => commit({ withCard, force: true });
+        return;
+      }
+      let entry = {
+        ...sameSlot ? existing : {},
+        dex: n,
+        name: nameOf(n),
+        finish,
+        ...readForm(),
+        addedAt: sameSlot && existing.addedAt || (/* @__PURE__ */ new Date()).toISOString()
+      };
+      if (prev && force) entry.spares = Math.max(entry.spares, prev.spares || 0);
+      if (withCard && sameSlot && !selFresh && sel.id === existing.cardId) {
+        const eur = eurPrice(sel, finish);
+        entry.value = eur != null ? Math.round(eur * (existing.rate || fx.rate) * 100) / 100 : existing.value ?? null;
+      } else if (withCard) entry = applyCard(entry, sel);
+      else {
+        Object.assign(entry, {
+          cardId: null,
+          source: null,
+          cardName: null,
+          eur: null,
+          usd: null,
+          value: null,
+          checkedAt: null,
+          image: null,
+          imageLarge: null,
+          cardmarketUrl: null,
+          number: $("#fNum").value.trim() || entry.number || "",
+          set: entry.set || ""
+        });
+      }
+      $("#saveBtn").disabled = true;
+      try {
+        if (mode === "edit" && n !== existing.dex) await removeEntry(existing.dex);
+        if (photo) entry.hasPhoto = await savePhoto(n, photo);
+        await saveEntry(entry);
+        if (wish.has(n)) await saveWish(n, null);
+        done(n, prev || null, false);
+      } catch {
+        $("#saveBtn").disabled = false;
+        toast("Couldn't save. Your phone may be out of storage.");
+      }
+    }
+    function done(n, prev, spare) {
+      render();
+      if (prefs.rapid && mode === "scan") return showAdded({ n, prev, spare, photoUrl });
+      closeSheet();
+      toast(mode === "edit" ? "Saved" : spare ? `Spare #${pad(n)} counted` : `#${pad(n)} ${nameOf(n)} added \xB7 ${pagePos(n)}`);
+    }
+    $("#saveBtn").onclick = () => commit({ withCard: !!sel });
+    $("#plainBtn").onclick = () => commit({ withCard: false });
+    if (sel) renderChosen();
+    if (mode === "scan") (async () => {
+      $("#saveBtn").disabled = true;
+      setStatus("Reading the card", "dots");
+      try {
+        const r = await readCard(photo, NAMES, (msg) => setStatus(msg, "dots"));
+        if (signal.aborted) return;
+        ocrNumber = r.number;
+        ocrTotal = r.total;
+        ocrDex = r.dex;
+        if (r.dex) {
+          $("#fPoke").value = `#${pad(r.dex)} ${nameOf(r.dex)}`;
+          updateMatch();
+        }
+        if (r.number) $("#fNum").value = r.number;
+        if (!r.dex) {
+          setStatus(r.number ? `Read the number (${r.number}) but not the name. Type the Pok\xE9mon and tap Find.` : "Couldn't read the card. Type the Pok\xE9mon and tap Find.", "warn");
+          $("#saveBtn").disabled = false;
+          $("#fPoke").focus();
+          return;
+        }
+        setStatus(`Read: ${nameOf(r.dex)}${r.number ? ` \xB7 ${r.number}${r.total ? "/" + r.total : ""}` : ""}`, "ok");
+        const unique = await search(true);
+        $("#saveBtn").disabled = false;
+        if (signal.aborted) return;
+        if (unique && prefs.rapid && ocrDex) {
+          if (owned.has(ocrDex)) {
+            const prev = owned.get(ocrDex);
+            await saveEntry({ ...prev, spares: (prev.spares || 0) + 1 });
+            done(ocrDex, prev, true);
+          } else await commit({ withCard: true });
+        } else if (!unique && cards.length > 1) setStatus("Several cards match. Tap the one you have.", "ok");
+      } catch (e) {
+        if (signal.aborted) return;
+        $("#saveBtn").disabled = false;
+        setStatus(e && e.message && /reader/i.test(e.message) ? e.message + " Type the Pok\xE9mon below." : "Couldn't read the card. Type the Pok\xE9mon and tap Find.", "warn");
+      }
+    })();
+    else if (mode === "add" && dex) search(false);
+  }
+  function showAdded({ n, prev, spare, photoUrl }) {
+    const e = owned.get(n);
+    const img = e?.image || photoUrl;
+    sheetShell(spare ? "Spare counted" : "Added", `
+    <div class="added">${img ? `<img src="${esc(img)}" alt="">` : ""}<div>
+      <b>#${pad(n)} ${esc(nameOf(n))}</b>
+      <span class="hint">${spare ? `You now have ${e?.spares || 1} spare${(e?.spares || 1) > 1 ? "s" : ""} of this one.` : `${e?.value != null ? money(e.value) + " \xB7 " : ""}Goes in ${pagePos(n)}.`}</span>
+    </div></div>
+    <div class="actions">
+      <button type="button" class="btn" id="undoBtn">Undo</button>
+      <button type="button" class="btn" id="editBtn">Edit</button>
+      <button type="button" class="btn" id="doneBtn">Done</button>
+      <button type="button" class="btn go" id="nextBtn">Scan next</button>
+    </div>`);
+    $("#undoBtn").onclick = async () => {
+      closeSheet();
+      if (prev) await saveEntry(prev);
+      else await removeEntry(n);
+      render();
+      toast("Undone");
+    };
+    $("#editBtn").onclick = () => openCardSheet({ mode: "edit", dex: n });
+    $("#doneBtn").onclick = closeSheet;
+    $("#nextBtn").onclick = () => {
+      closeSheet();
+      openCamera();
+    };
+    $("#nextBtn").focus();
+  }
+  function openCamera() {
+    $("#cam").value = "";
+    $("#cam").click();
+  }
+  async function startScan(photo) {
+    let bmp = null;
+    try {
+      bmp = await createImageBitmap(photo);
+    } catch {
+    }
+    const found = bmp ? detectCard(bmp) : null;
+    const cropped = await cropCard(photo, bmp, found, $("#sheetRoot"), { skipIfFound: prefs.rapid });
+    $("#sheetRoot").innerHTML = "";
+    if (!cropped) return;
+    openCardSheet({ mode: "scan", photo: cropped });
+  }
+  function openSpares() {
+    const lines = [];
+    let total = 0;
+    for (let n = 1; n <= TOTAL; n++) {
+      const e = owned.get(n);
+      if (!e || !e.spares) continue;
+      total += e.spares;
+      const card = [e.set, e.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : ""].filter(Boolean).join(" ");
+      lines.push(`#${pad(n)} ${nameOf(n)}${card ? " \u2013 " + card : ""}${e.condition ? ` (${COND_SHORT[e.condition]})` : ""} \xD7${e.spares}`);
+    }
+    if (!total) {
+      sheetShell("Spares list", `<p class="hint">No spares yet. When you scan a card you already have, choose <b>Count as a spare</b> (Rapid scan does this by itself) and it shows up here.</p>
+      <div class="actions"><button type="button" class="btn primary" id="okBtn">OK</button></div>`);
+      $("#okBtn").onclick = closeSheet;
+      return;
+    }
+    const text = `Pok\xE9mon cards for trade (${total}):
+` + lines.join("\n");
+    sheetShell(`Spares list \xB7 ${total}`, `<p class="hint">Copy this into a trade group or post.</p>
+    <textarea class="sparelist" id="spareTxt" readonly aria-label="Spares list">${esc(text)}</textarea>
+    <div class="actions"><button type="button" class="btn" id="closeBtn">Close</button><button type="button" class="btn primary" id="copyBtn">Copy list</button></div>`);
+    $("#closeBtn").onclick = closeSheet;
+    $("#copyBtn").onclick = () => navigator.clipboard.writeText(text).then(() => toast("Spares list copied"), () => {
+      const ta = $("#spareTxt");
+      ta.focus();
+      ta.select();
+      toast("Selected. Copy it from the menu.");
+    });
+  }
+  function download(filename, data, type) {
+    const url = URL.createObjectURL(new Blob([data], { type }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5e3);
+  }
+  var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  function csvCell(v) {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function exportCSV() {
+    const rows = [["Dex #", "Pok\xE9mon", "Gen", "Region", "Types", "Got it?", "Card", "Set", "Card number", "Finish", "Condition", "Paid (\xA3)", "Raw value (\xA3)", "Price checked", "Spares", "On wishlist", "Wishlist max (\xA3)", "Notes"]];
+    for (let n = 1; n <= TOTAL; n++) {
+      const e = owned.get(n), w = wish.get(n), g = genOf(n);
+      rows.push([
+        n,
+        nameOf(n),
+        g,
+        REGIONS[g - 1],
+        typesOf(n).map((t) => TYPES[t - 1]).join("/"),
+        e ? "Yes" : "",
+        e?.cardName || "",
+        e?.set || "",
+        e?.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : "",
+        e ? e.finish === "reverse" ? "Reverse holo" : "Standard" : "",
+        e?.condition || "",
+        e?.paid != null ? (+e.paid).toFixed(2) : "",
+        e?.value != null ? (+e.value).toFixed(2) : "",
+        e?.checkedAt ? e.checkedAt.slice(0, 10) : "",
+        e?.spares || "",
+        !e && w ? "Yes" : "",
+        !e && w?.target != null ? (+w.target).toFixed(2) : "",
+        e?.notes || ""
+      ]);
+    }
+    download(`living-dex-${today()}.csv`, "\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+  }
+  function exportBackup() {
+    const data = { app: "living-dex", version: 1, exportedAt: (/* @__PURE__ */ new Date()).toISOString(), entries: [...owned.values()], wish: [...wish.values()] };
+    download(`living-dex-backup-${today()}.json`, JSON.stringify(data), "application/json");
+    try {
+      localStorage.setItem("lastBackup", (/* @__PURE__ */ new Date()).toISOString());
+    } catch {
+    }
+  }
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], cell = "", q = false;
+    text = text.replace(/^﻿/, "");
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') {
+          if (text[i + 1] === '"') {
+            cell += '"';
+            i++;
+          } else q = false;
+        } else cell += c;
+      } else if (c === '"') q = true;
+      else if (c === ",") {
+        row.push(cell);
+        cell = "";
+      } else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = "";
+      } else cell += c;
+    }
+    if (cell || row.length) {
+      row.push(cell);
+      rows.push(row);
+    }
+    return rows.filter((r) => r.some((v) => v.trim()));
+  }
+  async function importFile(file, replace) {
+    const text = await file.text();
+    let added = 0, wished = 0;
+    if (/\.json$/i.test(file.name) || text.trim().startsWith("{")) {
+      const data = JSON.parse(text);
+      if (data.app !== "living-dex" || !Array.isArray(data.entries)) throw new Error("That isn't a Living Dex backup.");
+      if (replace) {
+        await store.clear("entries");
+        await store.clear("wish");
+        owned = /* @__PURE__ */ new Map();
+        wish = /* @__PURE__ */ new Map();
+      }
+      for (const e of data.entries) if (e && e.dex >= 1 && e.dex <= TOTAL) {
+        await saveEntry(e);
+        added++;
+      }
+      for (const w of data.wish || []) if (w && w.dex >= 1 && w.dex <= TOTAL) {
+        await saveWish(w.dex, w);
+        wished++;
+      }
+    } else {
+      const rows = parseCSV(text);
+      const head = rows.shift().map((h) => h.trim().toLowerCase());
+      const col = (...names) => {
+        for (const nm of names) {
+          const i = head.indexOf(nm);
+          if (i >= 0) return i;
+        }
+        return -1;
+      };
+      const iDex = col("dex #"), iGot = col("got it?"), iCard = col("card used (set & number)", "set"), iNum = col("card number"), iCond = col("condition"), iPaid = col("paid (\xA3)"), iVal = col("raw value (\xA3)"), iSp = col("spares"), iWish = col("on wishlist"), iMax = col("wishlist max (\xA3)"), iNotes = col("notes");
+      if (iDex < 0 || iGot < 0) throw new Error("That spreadsheet doesn't have the Dex # and Got it? columns.");
+      const numOr = (r, i) => i >= 0 && r[i] !== "" && !isNaN(+r[i]) ? +r[i] : null;
+      for (const r of rows) {
+        const n = parseInt(r[iDex], 10);
+        if (!(n >= 1 && n <= TOTAL)) continue;
+        if (/^yes$/i.test(r[iGot] || "")) {
+          if (owned.has(n) && !replace) continue;
+          await saveEntry({
+            dex: n,
+            name: nameOf(n),
+            set: iCard >= 0 ? r[iCard] : "",
+            number: iNum >= 0 ? r[iNum] : "",
+            finish: "standard",
+            condition: CONDITIONS.includes(r[iCond]) ? r[iCond] : null,
+            paid: numOr(r, iPaid),
+            value: numOr(r, iVal),
+            spares: parseInt(iSp >= 0 ? r[iSp] : "0", 10) || 0,
+            notes: iNotes >= 0 ? r[iNotes] : "",
+            addedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            cardId: null
+          });
+          added++;
+        } else if (iWish >= 0 && /^yes$/i.test(r[iWish] || "")) {
+          await saveWish(n, { dex: n, target: numOr(r, iMax), addedAt: (/* @__PURE__ */ new Date()).toISOString() });
+          wished++;
+        }
+      }
+    }
+    render();
+    return { added, wished };
+  }
+  function openSettings() {
+    let lastBackup = null;
+    try {
+      lastBackup = localStorage.getItem("lastBackup");
+    } catch {
+    }
+    sheetShell("Settings & backup", `
+    <div class="setting">
+      <h4>Binder pictures</h4>
+      <div class="finish" role="group" aria-label="Binder pictures">
+        <button type="button" data-b="card" aria-pressed="${prefs.binder === "card"}">Official card images</button>
+        <button type="button" data-b="photo" aria-pressed="${prefs.binder === "photo"}">My photos</button>
+      </div>
+    </div>
+    <div class="setting">
+      <h4>Backup</h4>
+      <p class="hint">Your collection is saved on this phone only. Save a backup now and then (to iCloud Drive or Files), so you can restore it if you change phones.${lastBackup ? ` Last backup ${shortDate(lastBackup)}.` : ""} Photos aren't included.</p>
+      <div class="actions" style="justify-content:flex-start"><button type="button" class="btn primary" id="bkBtn">Save a backup</button><button type="button" class="btn" id="rsBtn">Restore a backup</button></div>
+    </div>
+    <div class="setting">
+      <h4>Spreadsheet</h4>
+      <p class="hint">Export to open in Excel or Numbers, or import a spreadsheet exported from the Claude version of Living Pok\xE9dex. Imported cards keep their set and price but aren't linked for price updates until you pick the card in each entry.</p>
+      <div class="actions" style="justify-content:flex-start"><button type="button" class="btn" id="csvBtn">Export CSV</button><button type="button" class="btn" id="impBtn">Import CSV</button></div>
+    </div>
+    <div class="setting">
+      <h4>Prices</h4>
+      <p class="hint">Cardmarket trend prices, from TCGdex with the Pok\xE9mon TCG API as a backup, converted at \u20AC1 = \xA3${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily.</p>
+    </div>
+    <div class="setting">
+      <h4>Start over</h4>
+      <div id="wipeRow" class="actions" style="justify-content:flex-start"><button type="button" class="btn danger" id="wipeBtn">Delete my collection</button></div>
+    </div>`);
+    document.querySelectorAll("[data-b]").forEach((b) => b.onclick = () => {
+      prefs.binder = b.dataset.b;
+      savePrefs();
+      document.querySelectorAll("[data-b]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      render();
+    });
+    $("#bkBtn").onclick = () => {
+      exportBackup();
+      toast("Backup saved to your downloads");
+    };
+    $("#csvBtn").onclick = exportCSV;
+    const pick = (replace) => {
+      const inp = $("#fileIn");
+      inp.value = "";
+      inp.onchange = async () => {
+        const f = inp.files?.[0];
+        if (!f) return;
+        try {
+          const { added, wished } = await importFile(f, replace);
+          closeSheet();
+          toast(`Imported ${added} cards${wished ? ` and ${wished} wishlist items` : ""}`);
+        } catch (e) {
+          toast(e?.message || "Couldn't read that file.");
+        }
+      };
+      inp.click();
+    };
+    $("#impBtn").onclick = () => pick(false);
+    $("#rsBtn").onclick = () => {
+      $("#rsBtn").parentElement.innerHTML = `<span class="status">Restoring replaces everything currently in the app.</span><button type="button" class="btn" id="rsNo">Cancel</button><button type="button" class="btn danger" id="rsYes">Choose backup file</button>`;
+      $("#rsNo").onclick = openSettings;
+      $("#rsYes").onclick = () => pick(true);
+    };
+    $("#wipeBtn").onclick = () => {
+      $("#wipeRow").innerHTML = `<span class="status" style="margin-right:auto">Delete all ${owned.size} cards, your wishlist and photos? This can't be undone.</span><button type="button" class="btn" id="wNo">Keep</button><button type="button" class="btn danger" id="wYes">Delete</button>`;
+      $("#wNo").onclick = openSettings;
+      $("#wYes").onclick = async () => {
+        for (const t of ["entries", "wish", "photos"]) await store.clear(t);
+        for (const u of photoUrls.values()) URL.revokeObjectURL(u);
+        owned = /* @__PURE__ */ new Map();
+        wish = /* @__PURE__ */ new Map();
+        photoUrls = /* @__PURE__ */ new Map();
+        closeSheet();
+        render();
+        toast("Collection deleted");
+      };
+    };
+  }
+  $(".seg").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-view]");
+    if (!b) return;
+    view = b.dataset.view;
+    document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    render();
+  });
+  $("#regions").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".reg");
+    if (!b) return;
+    gen = gen === +b.dataset.gen ? 0 : +b.dataset.gen;
+    render();
+  });
+  $("#typeSel").innerHTML += TYPES.map((t, i) => `<option value="${i + 1}">${t}</option>`).join("");
+  $("#typeSel").addEventListener("change", (ev) => {
+    typeFilter = +ev.target.value;
+    render();
+  });
+  var qt;
+  $("#q").addEventListener("input", (ev) => {
+    clearTimeout(qt);
+    qt = setTimeout(() => {
+      query = ev.target.value;
+      render();
+    }, 120);
+  });
+  $("#list").addEventListener("click", (ev) => {
+    const s = ev.target.closest(".slot");
+    if (!s) return;
+    const n = +s.dataset.dex;
+    openCardSheet({ mode: owned.has(n) ? "edit" : "add", dex: n });
+  });
+  var setRapid = (on) => {
+    prefs.rapid = on;
+    savePrefs();
+    $("#rapidBtn").setAttribute("aria-pressed", String(on));
+  };
+  setRapid(prefs.rapid);
+  $("#rapidBtn").onclick = () => {
+    setRapid(!prefs.rapid);
+    toast(prefs.rapid ? "Rapid scan on: clear matches and spares go straight in" : "Rapid scan off");
+  };
+  $("#scanBtn").onclick = openCamera;
+  $("#cam").addEventListener("change", (ev) => {
+    const f = ev.target.files?.[0];
+    if (f) startScan(f);
+  });
+  $("#manualBtn").onclick = () => openCardSheet({ mode: "add" });
+  $("#sparesBtn").onclick = openSpares;
+  $("#settingsBtn").onclick = openSettings;
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !document.querySelector(".cropper")) closeSheet();
+  });
+  $("#dexList").innerHTML = NAMES.map((nm, i) => `<option value="#${pad(i + 1)} ${esc(nm)}"></option>`).join("");
+  render();
+  (async () => {
+    try {
+      owned = await store.all("entries");
+      wish = await store.all("wish");
+      for (const [n, blob] of await store.all("photos")) photoUrls.set(n, URL.createObjectURL(blob));
+    } catch {
+      const note = $("#notice");
+      note.hidden = false;
+      note.textContent = "This browser won't let the app save. If you're in a private window, open it normally.";
+    }
+    render();
+    askToKeepData();
+    eurToGbp().then((r) => {
+      fx = r;
+      renderViewBar();
+    });
+  })();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {
+  });
+})();
+
+</script>
 </body>
 </html>
