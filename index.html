@@ -278,6 +278,14 @@ label textarea { resize: vertical; min-height: 54px; }
 .graded { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
 .graded b { color: var(--ink); font-family: var(--display); font-weight: 600; }
 
+/* Binder view switch and the All cards sheet */
+.seg.mini button { padding: 5px 11px; font-size: 12px; }
+.pick .tag { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.pick.mine { border-color: var(--got); background: var(--got-soft); }
+.pick.mine .tag { color: var(--got); }
+.pick.binder { border-color: var(--got); box-shadow: inset 0 0 0 1px var(--got); }
+.setting .switch { justify-content: flex-start; }
+
 </style>
   <!-- Tesseract.js reads text off your card photos, on the phone itself -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
@@ -326,6 +334,10 @@ label textarea { resize: vertical; min-height: 54px; }
       <select id="sortSel" class="typesel" aria-label="Sort by"><option value="dex">Dex order</option><option value="value">Value: high to low</option></select>
     </div>
     <div class="row">
+      <div class="seg mini" role="group" aria-label="Binder view">
+        <button type="button" data-mode="dex" aria-pressed="true">Dex</button>
+        <button type="button" data-mode="cards" aria-pressed="false">All cards</button>
+      </div>
       <button type="button" class="switch" id="rapidBtn" aria-pressed="false"><span class="knob" aria-hidden="true"></span>Rapid scan</button>
       <span class="spacer"></span>
       <button type="button" class="textbtn" id="sparesBtn">Spares list</button>
@@ -361,11 +373,12 @@ label textarea { resize: vertical; min-height: 54px; }
   var GEN_END = [151, 251, 386, 493, 649, 721, 809, 905, 1025];
   var REGIONS = ["Kanto", "Johto", "Hoenn", "Sinnoh", "Unova", "Kalos", "Alola", "Galar", "Paldea"];
   var genOf = (n) => GEN_END.findIndex((e) => n <= e) + 1;
+  var FORMS = [{ "key": "venusaur-mega", "dex": 3, "kind": "mega", "tag": "", "name": "Mega Venusaur" }, { "key": "charizard-mega-x", "dex": 6, "kind": "mega", "tag": "x", "name": "Mega Charizard X" }, { "key": "charizard-mega-y", "dex": 6, "kind": "mega", "tag": "y", "name": "Mega Charizard Y" }, { "key": "blastoise-mega", "dex": 9, "kind": "mega", "tag": "", "name": "Mega Blastoise" }, { "key": "beedrill-mega", "dex": 15, "kind": "mega", "tag": "", "name": "Mega Beedrill" }, { "key": "pidgeot-mega", "dex": 18, "kind": "mega", "tag": "", "name": "Mega Pidgeot" }, { "key": "rattata-alola", "dex": 19, "kind": "regional", "tag": "alolan", "name": "Alolan Rattata" }, { "key": "raticate-alola", "dex": 20, "kind": "regional", "tag": "alolan", "name": "Alolan Raticate" }, { "key": "raichu-alola", "dex": 26, "kind": "regional", "tag": "alolan", "name": "Alolan Raichu" }, { "key": "raichu-mega-x", "dex": 26, "kind": "mega", "tag": "x", "name": "Mega Raichu X" }, { "key": "raichu-mega-y", "dex": 26, "kind": "mega", "tag": "y", "name": "Mega Raichu Y" }, { "key": "sandshrew-alola", "dex": 27, "kind": "regional", "tag": "alolan", "name": "Alolan Sandshrew" }, { "key": "sandslash-alola", "dex": 28, "kind": "regional", "tag": "alolan", "name": "Alolan Sandslash" }, { "key": "clefable-mega", "dex": 36, "kind": "mega", "tag": "", "name": "Mega Clefable" }, { "key": "vulpix-alola", "dex": 37, "kind": "regional", "tag": "alolan", "name": "Alolan Vulpix" }, { "key": "ninetales-alola", "dex": 38, "kind": "regional", "tag": "alolan", "name": "Alolan Ninetales" }, { "key": "diglett-alola", "dex": 50, "kind": "regional", "tag": "alolan", "name": "Alolan Diglett" }, { "key": "dugtrio-alola", "dex": 51, "kind": "regional", "tag": "alolan", "name": "Alolan Dugtrio" }, { "key": "meowth-alola", "dex": 52, "kind": "regional", "tag": "alolan", "name": "Alolan Meowth" }, { "key": "meowth-galar", "dex": 52, "kind": "regional", "tag": "galarian", "name": "Galarian Meowth" }, { "key": "persian-alola", "dex": 53, "kind": "regional", "tag": "alolan", "name": "Alolan Persian" }, { "key": "growlithe-hisui", "dex": 58, "kind": "regional", "tag": "hisuian", "name": "Hisuian Growlithe" }, { "key": "arcanine-hisui", "dex": 59, "kind": "regional", "tag": "hisuian", "name": "Hisuian Arcanine" }, { "key": "alakazam-mega", "dex": 65, "kind": "mega", "tag": "", "name": "Mega Alakazam" }, { "key": "victreebel-mega", "dex": 71, "kind": "mega", "tag": "", "name": "Mega Victreebel" }, { "key": "geodude-alola", "dex": 74, "kind": "regional", "tag": "alolan", "name": "Alolan Geodude" }, { "key": "graveler-alola", "dex": 75, "kind": "regional", "tag": "alolan", "name": "Alolan Graveler" }, { "key": "golem-alola", "dex": 76, "kind": "regional", "tag": "alolan", "name": "Alolan Golem" }, { "key": "ponyta-galar", "dex": 77, "kind": "regional", "tag": "galarian", "name": "Galarian Ponyta" }, { "key": "rapidash-galar", "dex": 78, "kind": "regional", "tag": "galarian", "name": "Galarian Rapidash" }, { "key": "slowpoke-galar", "dex": 79, "kind": "regional", "tag": "galarian", "name": "Galarian Slowpoke" }, { "key": "slowbro-galar", "dex": 80, "kind": "regional", "tag": "galarian", "name": "Galarian Slowbro" }, { "key": "slowbro-mega", "dex": 80, "kind": "mega", "tag": "", "name": "Mega Slowbro" }, { "key": "farfetchd-galar", "dex": 83, "kind": "regional", "tag": "galarian", "name": "Galarian Farfetch\u2019d" }, { "key": "grimer-alola", "dex": 88, "kind": "regional", "tag": "alolan", "name": "Alolan Grimer" }, { "key": "muk-alola", "dex": 89, "kind": "regional", "tag": "alolan", "name": "Alolan Muk" }, { "key": "gengar-mega", "dex": 94, "kind": "mega", "tag": "", "name": "Mega Gengar" }, { "key": "voltorb-hisui", "dex": 100, "kind": "regional", "tag": "hisuian", "name": "Hisuian Voltorb" }, { "key": "electrode-hisui", "dex": 101, "kind": "regional", "tag": "hisuian", "name": "Hisuian Electrode" }, { "key": "exeggutor-alola", "dex": 103, "kind": "regional", "tag": "alolan", "name": "Alolan Exeggutor" }, { "key": "marowak-alola", "dex": 105, "kind": "regional", "tag": "alolan", "name": "Alolan Marowak" }, { "key": "weezing-galar", "dex": 110, "kind": "regional", "tag": "galarian", "name": "Galarian Weezing" }, { "key": "kangaskhan-mega", "dex": 115, "kind": "mega", "tag": "", "name": "Mega Kangaskhan" }, { "key": "starmie-mega", "dex": 121, "kind": "mega", "tag": "", "name": "Mega Starmie" }, { "key": "mr-mime-galar", "dex": 122, "kind": "regional", "tag": "galarian", "name": "Galarian Mr. Mime" }, { "key": "pinsir-mega", "dex": 127, "kind": "mega", "tag": "", "name": "Mega Pinsir" }, { "key": "tauros-paldea", "dex": 128, "kind": "regional", "tag": "paldean", "name": "Paldean Tauros" }, { "key": "gyarados-mega", "dex": 130, "kind": "mega", "tag": "", "name": "Mega Gyarados" }, { "key": "aerodactyl-mega", "dex": 142, "kind": "mega", "tag": "", "name": "Mega Aerodactyl" }, { "key": "articuno-galar", "dex": 144, "kind": "regional", "tag": "galarian", "name": "Galarian Articuno" }, { "key": "zapdos-galar", "dex": 145, "kind": "regional", "tag": "galarian", "name": "Galarian Zapdos" }, { "key": "moltres-galar", "dex": 146, "kind": "regional", "tag": "galarian", "name": "Galarian Moltres" }, { "key": "dragonite-mega", "dex": 149, "kind": "mega", "tag": "", "name": "Mega Dragonite" }, { "key": "mewtwo-mega-x", "dex": 150, "kind": "mega", "tag": "x", "name": "Mega Mewtwo X" }, { "key": "mewtwo-mega-y", "dex": 150, "kind": "mega", "tag": "y", "name": "Mega Mewtwo Y" }, { "key": "meganium-mega", "dex": 154, "kind": "mega", "tag": "", "name": "Mega Meganium" }, { "key": "typhlosion-hisui", "dex": 157, "kind": "regional", "tag": "hisuian", "name": "Hisuian Typhlosion" }, { "key": "feraligatr-mega", "dex": 160, "kind": "mega", "tag": "", "name": "Mega Feraligatr" }, { "key": "ampharos-mega", "dex": 181, "kind": "mega", "tag": "", "name": "Mega Ampharos" }, { "key": "wooper-paldea", "dex": 194, "kind": "regional", "tag": "paldean", "name": "Paldean Wooper" }, { "key": "slowking-galar", "dex": 199, "kind": "regional", "tag": "galarian", "name": "Galarian Slowking" }, { "key": "steelix-mega", "dex": 208, "kind": "mega", "tag": "", "name": "Mega Steelix" }, { "key": "qwilfish-hisui", "dex": 211, "kind": "regional", "tag": "hisuian", "name": "Hisuian Qwilfish" }, { "key": "scizor-mega", "dex": 212, "kind": "mega", "tag": "", "name": "Mega Scizor" }, { "key": "heracross-mega", "dex": 214, "kind": "mega", "tag": "", "name": "Mega Heracross" }, { "key": "sneasel-hisui", "dex": 215, "kind": "regional", "tag": "hisuian", "name": "Hisuian Sneasel" }, { "key": "corsola-galar", "dex": 222, "kind": "regional", "tag": "galarian", "name": "Galarian Corsola" }, { "key": "skarmory-mega", "dex": 227, "kind": "mega", "tag": "", "name": "Mega Skarmory" }, { "key": "houndoom-mega", "dex": 229, "kind": "mega", "tag": "", "name": "Mega Houndoom" }, { "key": "tyranitar-mega", "dex": 248, "kind": "mega", "tag": "", "name": "Mega Tyranitar" }, { "key": "sceptile-mega", "dex": 254, "kind": "mega", "tag": "", "name": "Mega Sceptile" }, { "key": "blaziken-mega", "dex": 257, "kind": "mega", "tag": "", "name": "Mega Blaziken" }, { "key": "swampert-mega", "dex": 260, "kind": "mega", "tag": "", "name": "Mega Swampert" }, { "key": "zigzagoon-galar", "dex": 263, "kind": "regional", "tag": "galarian", "name": "Galarian Zigzagoon" }, { "key": "linoone-galar", "dex": 264, "kind": "regional", "tag": "galarian", "name": "Galarian Linoone" }, { "key": "gardevoir-mega", "dex": 282, "kind": "mega", "tag": "", "name": "Mega Gardevoir" }, { "key": "sableye-mega", "dex": 302, "kind": "mega", "tag": "", "name": "Mega Sableye" }, { "key": "mawile-mega", "dex": 303, "kind": "mega", "tag": "", "name": "Mega Mawile" }, { "key": "aggron-mega", "dex": 306, "kind": "mega", "tag": "", "name": "Mega Aggron" }, { "key": "medicham-mega", "dex": 308, "kind": "mega", "tag": "", "name": "Mega Medicham" }, { "key": "manectric-mega", "dex": 310, "kind": "mega", "tag": "", "name": "Mega Manectric" }, { "key": "sharpedo-mega", "dex": 319, "kind": "mega", "tag": "", "name": "Mega Sharpedo" }, { "key": "camerupt-mega", "dex": 323, "kind": "mega", "tag": "", "name": "Mega Camerupt" }, { "key": "altaria-mega", "dex": 334, "kind": "mega", "tag": "", "name": "Mega Altaria" }, { "key": "banette-mega", "dex": 354, "kind": "mega", "tag": "", "name": "Mega Banette" }, { "key": "chimecho-mega", "dex": 358, "kind": "mega", "tag": "", "name": "Mega Chimecho" }, { "key": "absol-mega", "dex": 359, "kind": "mega", "tag": "", "name": "Mega Absol" }, { "key": "absol-mega-z", "dex": 359, "kind": "mega", "tag": "z", "name": "Mega Absol Z" }, { "key": "glalie-mega", "dex": 362, "kind": "mega", "tag": "", "name": "Mega Glalie" }, { "key": "salamence-mega", "dex": 373, "kind": "mega", "tag": "", "name": "Mega Salamence" }, { "key": "metagross-mega", "dex": 376, "kind": "mega", "tag": "", "name": "Mega Metagross" }, { "key": "latias-mega", "dex": 380, "kind": "mega", "tag": "", "name": "Mega Latias" }, { "key": "latios-mega", "dex": 381, "kind": "mega", "tag": "", "name": "Mega Latios" }, { "key": "kyogre-primal", "dex": 382, "kind": "mega", "tag": "primal", "name": "Primal Kyogre" }, { "key": "groudon-primal", "dex": 383, "kind": "mega", "tag": "primal", "name": "Primal Groudon" }, { "key": "rayquaza-mega", "dex": 384, "kind": "mega", "tag": "", "name": "Mega Rayquaza" }, { "key": "staraptor-mega", "dex": 398, "kind": "mega", "tag": "", "name": "Mega Staraptor" }, { "key": "lopunny-mega", "dex": 428, "kind": "mega", "tag": "", "name": "Mega Lopunny" }, { "key": "garchomp-mega", "dex": 445, "kind": "mega", "tag": "", "name": "Mega Garchomp" }, { "key": "garchomp-mega-z", "dex": 445, "kind": "mega", "tag": "z", "name": "Mega Garchomp Z" }, { "key": "lucario-mega", "dex": 448, "kind": "mega", "tag": "", "name": "Mega Lucario" }, { "key": "lucario-mega-z", "dex": 448, "kind": "mega", "tag": "z", "name": "Mega Lucario Z" }, { "key": "abomasnow-mega", "dex": 460, "kind": "mega", "tag": "", "name": "Mega Abomasnow" }, { "key": "gallade-mega", "dex": 475, "kind": "mega", "tag": "", "name": "Mega Gallade" }, { "key": "froslass-mega", "dex": 478, "kind": "mega", "tag": "", "name": "Mega Froslass" }, { "key": "heatran-mega", "dex": 485, "kind": "mega", "tag": "", "name": "Mega Heatran" }, { "key": "darkrai-mega", "dex": 491, "kind": "mega", "tag": "", "name": "Mega Darkrai" }, { "key": "emboar-mega", "dex": 500, "kind": "mega", "tag": "", "name": "Mega Emboar" }, { "key": "samurott-hisui", "dex": 503, "kind": "regional", "tag": "hisuian", "name": "Hisuian Samurott" }, { "key": "excadrill-mega", "dex": 530, "kind": "mega", "tag": "", "name": "Mega Excadrill" }, { "key": "audino-mega", "dex": 531, "kind": "mega", "tag": "", "name": "Mega Audino" }, { "key": "scolipede-mega", "dex": 545, "kind": "mega", "tag": "", "name": "Mega Scolipede" }, { "key": "lilligant-hisui", "dex": 549, "kind": "regional", "tag": "hisuian", "name": "Hisuian Lilligant" }, { "key": "darumaka-galar", "dex": 554, "kind": "regional", "tag": "galarian", "name": "Galarian Darumaka" }, { "key": "darmanitan-galar-standard", "dex": 555, "kind": "regional", "tag": "galarian", "name": "Galarian Darmanitan" }, { "key": "scrafty-mega", "dex": 560, "kind": "mega", "tag": "", "name": "Mega Scrafty" }, { "key": "yamask-galar", "dex": 562, "kind": "regional", "tag": "galarian", "name": "Galarian Yamask" }, { "key": "zorua-hisui", "dex": 570, "kind": "regional", "tag": "hisuian", "name": "Hisuian Zorua" }, { "key": "zoroark-hisui", "dex": 571, "kind": "regional", "tag": "hisuian", "name": "Hisuian Zoroark" }, { "key": "eelektross-mega", "dex": 604, "kind": "mega", "tag": "", "name": "Mega Eelektross" }, { "key": "chandelure-mega", "dex": 609, "kind": "mega", "tag": "", "name": "Mega Chandelure" }, { "key": "stunfisk-galar", "dex": 618, "kind": "regional", "tag": "galarian", "name": "Galarian Stunfisk" }, { "key": "golurk-mega", "dex": 623, "kind": "mega", "tag": "", "name": "Mega Golurk" }, { "key": "braviary-hisui", "dex": 628, "kind": "regional", "tag": "hisuian", "name": "Hisuian Braviary" }, { "key": "chesnaught-mega", "dex": 652, "kind": "mega", "tag": "", "name": "Mega Chesnaught" }, { "key": "delphox-mega", "dex": 655, "kind": "mega", "tag": "", "name": "Mega Delphox" }, { "key": "greninja-mega", "dex": 658, "kind": "mega", "tag": "", "name": "Mega Greninja" }, { "key": "pyroar-mega", "dex": 668, "kind": "mega", "tag": "", "name": "Mega Pyroar" }, { "key": "floette-mega", "dex": 670, "kind": "mega", "tag": "", "name": "Mega Floette" }, { "key": "meowstic-mega", "dex": 678, "kind": "mega", "tag": "", "name": "Mega Meowstic" }, { "key": "malamar-mega", "dex": 687, "kind": "mega", "tag": "", "name": "Mega Malamar" }, { "key": "barbaracle-mega", "dex": 689, "kind": "mega", "tag": "", "name": "Mega Barbaracle" }, { "key": "dragalge-mega", "dex": 691, "kind": "mega", "tag": "", "name": "Mega Dragalge" }, { "key": "hawlucha-mega", "dex": 701, "kind": "mega", "tag": "", "name": "Mega Hawlucha" }, { "key": "sliggoo-hisui", "dex": 705, "kind": "regional", "tag": "hisuian", "name": "Hisuian Sliggoo" }, { "key": "goodra-hisui", "dex": 706, "kind": "regional", "tag": "hisuian", "name": "Hisuian Goodra" }, { "key": "avalugg-hisui", "dex": 713, "kind": "regional", "tag": "hisuian", "name": "Hisuian Avalugg" }, { "key": "zygarde-mega", "dex": 718, "kind": "mega", "tag": "", "name": "Mega Zygarde" }, { "key": "diancie-mega", "dex": 719, "kind": "mega", "tag": "", "name": "Mega Diancie" }, { "key": "decidueye-hisui", "dex": 724, "kind": "regional", "tag": "hisuian", "name": "Hisuian Decidueye" }, { "key": "crabominable-mega", "dex": 740, "kind": "mega", "tag": "", "name": "Mega Crabominable" }, { "key": "golisopod-mega", "dex": 768, "kind": "mega", "tag": "", "name": "Mega Golisopod" }, { "key": "drampa-mega", "dex": 780, "kind": "mega", "tag": "", "name": "Mega Drampa" }, { "key": "magearna-mega", "dex": 801, "kind": "mega", "tag": "", "name": "Mega Magearna" }, { "key": "zeraora-mega", "dex": 807, "kind": "mega", "tag": "", "name": "Mega Zeraora" }, { "key": "falinks-mega", "dex": 870, "kind": "mega", "tag": "", "name": "Mega Falinks" }, { "key": "scovillain-mega", "dex": 952, "kind": "mega", "tag": "", "name": "Mega Scovillain" }, { "key": "glimmora-mega", "dex": 970, "kind": "mega", "tag": "", "name": "Mega Glimmora" }, { "key": "tatsugiri-mega", "dex": 978, "kind": "mega", "tag": "", "name": "Mega Tatsugiri" }, { "key": "baxcalibur-mega", "dex": 998, "kind": "mega", "tag": "", "name": "Mega Baxcalibur" }];
 
   // js/store.js
   var DB_NAME = "living-dex";
-  var DB_VERSION = 1;
-  var TABLES = ["entries", "wish", "photos", "meta"];
+  var DB_VERSION = 2;
+  var TABLES = ["entries", "wish", "photos", "meta", "extras"];
   var dbPromise = null;
   function openDb() {
     if (!dbPromise) {
@@ -1233,10 +1246,52 @@ label textarea { resize: vertical; min-height: 54px; }
   var nameOf = (n) => NAMES[n - 1];
   var money = (v) => "\xA3" + (+v || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var euro = (v) => "\u20AC" + (+v || 0).toFixed(2);
-  var pagePos = (n) => `page ${Math.ceil(n / 9)}, slot ${(n - 1) % 9 + 1}`;
   var shortDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   var ageDays = (d) => d ? (Date.now() - Date.parse(d)) / DAY : Infinity;
+  var FORM_BY_KEY = new Map(FORMS.map((f) => [f.key, f]));
+  var FORMS_BY_DEX = /* @__PURE__ */ new Map();
+  for (const f of FORMS) {
+    if (!FORMS_BY_DEX.has(f.dex)) FORMS_BY_DEX.set(f.dex, []);
+    FORMS_BY_DEX.get(f.dex).push(f);
+  }
+  var isFormKey = (k) => typeof k === "string";
+  var parseKey = (s) => /^\d+$/.test(String(s)) ? +s : String(s);
+  var keyOf = (e) => e.slot || e.dex;
+  var slotDex = (k) => isFormKey(k) ? FORM_BY_KEY.get(k)?.dex : k;
+  var slotName = (k) => isFormKey(k) ? FORM_BY_KEY.get(k)?.name || k : nameOf(k);
+  var slotLabel = (k) => `#${pad(slotDex(k))} ${slotName(k)}`;
+  var SLOTS = [];
+  var SLOT_INDEX = /* @__PURE__ */ new Map();
+  function formOn(f) {
+    return f.kind === "regional" ? prefs.regional : prefs.megas;
+  }
+  function buildSlots() {
+    SLOTS = [];
+    for (let n = 1; n <= TOTAL; n++) {
+      SLOTS.push({ key: n, dex: n, name: nameOf(n) });
+      for (const f of FORMS_BY_DEX.get(n) || []) if (formOn(f)) SLOTS.push({ key: f.key, dex: n, name: f.name, form: f });
+    }
+    SLOT_INDEX = new Map(SLOTS.map((s, i) => [s.key, i]));
+  }
+  var slotOf = (k) => SLOTS[SLOT_INDEX.get(k)] || { key: k, dex: slotDex(k), name: slotName(k) };
+  var pagePos = (k) => {
+    const i = SLOT_INDEX.get(k) ?? slotDex(k) - 1;
+    return `page ${Math.floor(i / 9) + 1}, slot ${i % 9 + 1}`;
+  };
+  function cardForm(dex, cardName) {
+    const w = words(cardName);
+    const list = [...FORMS_BY_DEX.get(dex) || []].sort((a, b) => b.tag.length - a.tag.length);
+    for (const f of list) {
+      if (f.kind === "regional" ? w.includes(" " + f.tag + " ") : f.tag === "primal" ? w.includes(" primal ") : (w.includes(" mega ") || w.startsWith(" m ")) && (!f.tag || w.includes(" " + f.tag + " "))) return f;
+    }
+    return null;
+  }
+  function slotFor(dex, card) {
+    const f = card ? cardForm(dex, card.name) : null;
+    return f && formOn(f) ? f.key : dex;
+  }
   var owned = /* @__PURE__ */ new Map();
+  var extras = /* @__PURE__ */ new Map();
   var wish = /* @__PURE__ */ new Map();
   var photoUrls = /* @__PURE__ */ new Map();
   var view = "all";
@@ -1251,7 +1306,7 @@ label textarea { resize: vertical; min-height: 54px; }
   var dealCheck = null;
   var top = { status: "idle", data: null, limit: 100 };
   var prefs = (() => {
-    const d = { rapid: false, binder: "card", sort: "dex", gradingCost: DEFAULT_GRADING_COST };
+    const d = { rapid: false, binder: "card", sort: "dex", gradingCost: DEFAULT_GRADING_COST, regional: false, megas: false, cardsView: false };
     try {
       return { ...d, ...JSON.parse(localStorage.getItem("prefs") || "{}") };
     } catch {
@@ -1285,9 +1340,20 @@ label textarea { resize: vertical; min-height: 54px; }
     return best;
   }
   async function saveEntry(e) {
-    owned.set(e.dex, e);
-    await store.put("entries", e.dex, e);
+    if (!isFormKey(e.slot)) delete e.slot;
+    owned.set(keyOf(e), e);
+    await store.put("entries", keyOf(e), e);
   }
+  async function saveExtra(x) {
+    extras.set(x.id, x);
+    await store.put("extras", x.id, x);
+  }
+  async function removeExtra(id) {
+    extras.delete(id);
+    await store.remove("extras", id);
+  }
+  var newId = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+  var extrasIn = (k) => [...extras.values()].filter((x) => keyOf(x) === k);
   async function removeEntry(n) {
     owned.delete(n);
     await store.remove("entries", n);
@@ -1382,6 +1448,10 @@ label textarea { resize: vertical; min-height: 54px; }
     const res = await findCards({ species: nameOf(e.dex), dex: e.dex, number, total }, signal);
     if (!res.exactNumber || !res.cards.length) return null;
     let options = res.cards;
+    if (e.slot) {
+      const f = options.filter((c) => cardForm(e.dex, c.name)?.key === e.slot);
+      if (f.length) options = f;
+    }
     if (options.length > 1 && setText) {
       const named = options.filter((c) => c.setName && words(setText).includes(words(c.setName)));
       if (named.length) options = named;
@@ -1393,28 +1463,30 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   async function updateAllPrices() {
     if (updating) return;
-    const list = [...owned.values()];
-    if (!list.length) {
+    const jobs = [...[...owned.values()].map((e) => ({ kind: "binder", key: keyOf(e) })), ...[...extras.keys()].map((id) => ({ kind: "extra", id }))];
+    if (!jobs.length) {
       toast("Nothing collected yet.");
       return;
     }
     const ctl = new AbortController();
-    updating = { ctl, done: 0, failed: 0, linked: 0, unmatched: 0, total: list.length };
+    updating = { ctl, done: 0, failed: 0, linked: 0, unmatched: 0, total: jobs.length };
     render();
     fx = await eurToGbp();
-    for (let i = 0; i < list.length && !ctl.signal.aborted; i += 4) {
-      await Promise.all(list.slice(i, i + 4).map(async (e) => {
+    const current = (j) => j.kind === "binder" ? owned.get(j.key) : extras.get(j.id);
+    const save = (j, e) => j.kind === "binder" ? saveEntry(e) : saveExtra(e);
+    for (let i = 0; i < jobs.length && !ctl.signal.aborted; i += 4) {
+      await Promise.all(jobs.slice(i, i + 4).map(async (j) => {
         try {
-          const cur = owned.get(e.dex);
+          const cur = current(j);
           if (!cur) return;
           if (cur.cardId) {
             const card = await withPrice(await getCard(cur.cardId, cur.source, ctl.signal), { species: nameOf(cur.dex), dex: cur.dex }, ctl.signal);
-            const now = owned.get(e.dex);
-            if (now && now.cardId === cur.cardId) await saveEntry(applyCard(now, card));
+            const now = current(j);
+            if (now && now.cardId === cur.cardId) await save(j, applyCard(now, card));
           } else {
             const card = await linkEntry(cur, ctl.signal);
             if (card) {
-              await saveEntry(applyCard(owned.get(e.dex) || cur, card));
+              await save(j, applyCard(current(j) || cur, card));
               updating.linked++;
             } else updating.unmatched++;
           }
@@ -1444,36 +1516,49 @@ label textarea { resize: vertical; min-height: 54px; }
     toast(parts.join(". ") + ".");
   }
   function stats() {
-    const got = owned.size, pct = got / TOTAL * 100;
+    const slotsTotal = SLOTS.length;
+    const got = SLOTS.reduce((t, sl) => t + (owned.has(sl.key) ? 1 : 0), 0), pct = got / slotsTotal * 100;
     $("#pct").textContent = (pct >= 10 || pct === 0 ? Math.round(pct) : pct.toFixed(1)) + "%";
     $("#ringFill").setAttribute("stroke-dashoffset", String(100 - pct));
     $("#sGot").textContent = got.toLocaleString("en-GB");
-    $("#sLeft").textContent = (TOTAL - got).toLocaleString("en-GB");
-    let spent = 0, value = 0, leg = 0, stale = 0;
-    for (const [n, e] of owned) {
+    $("#sLeft").textContent = (slotsTotal - got).toLocaleString("en-GB");
+    let spent = 0, value = 0, leg = 0, stale = 0, cardsTotal = 0, priced = 0;
+    for (const e of [...owned.values(), ...extras.values()]) {
+      cardsTotal++;
       spent += +e.paid || 0;
       value += +e.value || 0;
-      if (LEGEND.has(n)) leg++;
+      if (e.value != null) priced++;
       if (!e.cardId || e.value == null || ageDays(e.checkedAt) > STALE_DAYS) stale++;
     }
+    for (const n of LEGEND) if (owned.has(n)) leg++;
     $("#sSpent").textContent = money(spent);
     $("#sValue").textContent = money(value);
-    const priced = [...owned.values()].filter((e) => e.value != null).length;
-    $("#sValueNote").textContent = owned.size ? `raw value of ${priced} priced card${priced === 1 ? "" : "s"}${priced < owned.size ? ` (${owned.size - priced} without a price yet)` : ""}` : "raw value of your collection";
+    $("#sValueNote").textContent = cardsTotal ? `raw value of ${priced} priced card${priced === 1 ? "" : "s"}${priced < cardsTotal ? ` (${cardsTotal - priced} without a price yet)` : ""}` : "raw value of your collection";
     $("#sLeg").textContent = leg + "/" + LEGEND.size;
     let wished = 0;
     for (const n of wish.keys()) if (!owned.has(n)) wished++;
     $("#cWish").textContent = wished || "";
     $("#cRe").textContent = stale || "";
-    const counts = Array(10).fill(0);
-    for (const n of owned.keys()) counts[genOf(n)]++;
+    const counts = Array(10).fill(0), sizes = Array(10).fill(0), baseCounts = Array(10).fill(0);
+    let baseGot = 0;
+    for (const sl of SLOTS) {
+      const g = genOf(sl.dex);
+      sizes[g]++;
+      if (owned.has(sl.key)) {
+        counts[g]++;
+        if (!sl.form) {
+          baseCounts[g]++;
+          baseGot++;
+        }
+      }
+    }
     if (loaded) {
       saveSnapshot(value, got, spent);
-      checkMilestones({ got, counts, leg, value });
+      checkMilestones({ got: baseGot, counts: baseCounts, leg, value });
     }
     $("#regions").innerHTML = `<button type="button" class="reg all" data-gen="0" aria-pressed="${gen === 0}">
-      <span class="rn">All</span><span class="rc">${got}/${TOTAL}</span><span class="bar"><i style="width:${got / TOTAL * 100}%"></i></span></button>` + REGIONS.map((r, i) => {
-      const g = i + 1, size = GEN_END[i] - (i ? GEN_END[i - 1] : 0);
+      <span class="rn">All</span><span class="rc">${got}/${slotsTotal}</span><span class="bar"><i style="width:${got / slotsTotal * 100}%"></i></span></button>` + REGIONS.map((r, i) => {
+      const g = i + 1, size = sizes[g];
       return `<button type="button" class="reg" data-gen="${g}" aria-pressed="${gen === g}">
       <span class="rn">${r}</span><span class="rc">${counts[g]}/${size}</span><span class="bar"><i style="width:${counts[g] / size * 100}%"></i></span></button>`;
     }).join("");
@@ -1484,31 +1569,35 @@ label textarea { resize: vertical; min-height: 54px; }
       $("#noticeUpdate").onclick = updateAllPrices;
     } else note.hidden = true;
   }
-  function slotHTML(n) {
-    const e = owned.get(n), w = !e && wish.get(n);
-    const photo = photoUrls.get(n);
+  function slotHTML(sl) {
+    const k = sl.key, n = sl.dex;
+    const e = owned.get(k), w = !e && !sl.form && wish.get(n);
+    const photo = photoUrls.get(k);
     const src = e ? prefs.binder === "photo" ? photo || e.image : e.image || photo : null;
-    const cls = ["slot", e ? "got" : "", w ? "wish" : "", src ? "hasimg" : "", LEGEND.has(n) && !src ? "legend" : ""].join(" ");
+    const cls = ["slot", e ? "got" : "", w ? "wish" : "", src ? "hasimg" : "", LEGEND.has(n) && !sl.form && !src ? "legend" : ""].join(" ");
     let badges = "";
-    if (e && e.spares) badges += `<span class="badge spare">+${e.spares}</span>`;
+    const more = prefs.cardsView ? extrasIn(k).length : 0;
+    if (more) badges += `<span class="badge spare">${(e ? 1 : 0) + more} cards</span>`;
+    else if (e && e.spares) badges += `<span class="badge spare">+${e.spares}</span>`;
     if (view === "prices" && e) badges += `<span class="badge val">${e.value != null ? money(e.value) : "\xA3 \u2013"}</span>`;
     else if (w && w.target != null) badges += `<span class="badge val">\u2264${money(w.target)}</span>`;
-    const label = `#${pad(n)} ${nameOf(n)}${e ? ", collected" : w ? ", on wishlist" : ", missing"}`;
+    const label = `${slotLabel(k)}${e ? ", collected" : w ? ", on wishlist" : ", missing"}`;
     const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove('hasimg')">` : "";
-    return `<button type="button" class="${cls}" data-dex="${n}" aria-label="${esc(label)}">${img}<span class="sn">#${pad(n)}${w ? " \u2605" : ""}</span><span class="nm">${esc(nameOf(n))}</span>${badges}</button>`;
+    return `<button type="button" class="${cls}" data-key="${esc(k)}" aria-label="${esc(label)}">${img}<span class="sn">#${pad(n)}${w ? " \u2605" : ""}</span><span class="nm">${esc(sl.name)}</span>${badges}</button>`;
   }
-  function matches(n) {
+  function matches(sl) {
+    const k = sl.key, n = sl.dex;
     if (gen && genOf(n) !== gen) return false;
     if (typeFilter && !typesOf(n).includes(typeFilter)) return false;
-    if (view === "have" && !owned.has(n)) return false;
-    if (view === "missing" && owned.has(n)) return false;
-    if (view === "wish" && (owned.has(n) || !wish.has(n))) return false;
-    if (view === "prices" && !owned.has(n)) return false;
+    if (view === "have" && !owned.has(k)) return false;
+    if (view === "missing" && owned.has(k)) return false;
+    if (view === "wish" && (sl.form || owned.has(n) || !wish.has(n))) return false;
+    if (view === "prices" && !owned.has(k)) return false;
     if (query) {
       const q = query.trim().toLowerCase();
       if (/^\d+$/.test(q)) return String(n).startsWith(String(+q)) || pad(n).startsWith(q);
-      const e = owned.get(n);
-      return nameOf(n).toLowerCase().includes(q) || (e?.illustrator || "").toLowerCase().includes(q);
+      const e = owned.get(k);
+      return sl.name.toLowerCase().includes(q) || (e?.illustrator || "").toLowerCase().includes(q) || extrasIn(k).some((x) => (x.illustrator || "").toLowerCase().includes(q));
     }
     return true;
   }
@@ -1586,15 +1675,14 @@ label textarea { resize: vertical; min-height: 54px; }
       if (top.status === "idle") loadTop();
       return;
     }
-    const nums = [];
-    for (let n = 1; n <= TOTAL; n++) if (matches(n)) nums.push(n);
+    const shown = SLOTS.filter(matches);
     const byValue = prefs.sort === "value" || view === "prices";
-    const val = (n) => {
-      const e = owned.get(n);
+    const val = (sl) => {
+      const e = owned.get(sl.key);
       return e ? e.value ?? 0 : -1;
     };
-    if (byValue) nums.sort((a, b) => val(b) - val(a) || a - b);
-    if (!nums.length) {
+    if (byValue) shown.sort((a, b) => val(b) - val(a) || SLOT_INDEX.get(a.key) - SLOT_INDEX.get(b.key));
+    if (!shown.length) {
       const msg = {
         have: owned.size ? "No collected Pok\xE9mon match that." : "Nothing collected yet. Tap <b>Scan a card</b> to add your first one.",
         wish: "Your wishlist is empty. Tap any missing slot in the binder to add it.",
@@ -1604,22 +1692,15 @@ label textarea { resize: vertical; min-height: 54px; }
       return;
     }
     if (view === "all" && !query && !typeFilter && !byValue) {
-      const pages = /* @__PURE__ */ new Map();
-      for (const n of nums) {
-        const p = Math.ceil(n / 9);
-        if (!pages.has(p)) pages.set(p, []);
-        pages.get(p).push(n);
-      }
+      const pages = new Set(shown.map((sl) => Math.floor(SLOT_INDEX.get(sl.key) / 9)));
       let html = '<div class="pages">';
-      for (const [p, arr] of pages) {
-        const first = (p - 1) * 9 + 1, last = Math.min(p * 9, TOTAL);
-        const have = arr.filter((n) => owned.has(n)).length;
-        let cells = "";
-        for (let n = first; n <= last; n++) cells += slotHTML(n);
-        html += `<section class="page"><h2><span>Page ${p}</span><span class="num">#${pad(first)}\u2013${pad(last)} \xB7 ${have}/${last - first + 1}</span></h2><div class="grid9">${cells}</div></section>`;
+      for (const p of pages) {
+        const page = SLOTS.slice(p * 9, p * 9 + 9);
+        const have = page.filter((sl) => owned.has(sl.key)).length;
+        html += `<section class="page"><h2><span>Page ${p + 1}</span><span class="num">#${pad(page[0].dex)}\u2013${pad(page[page.length - 1].dex)} \xB7 ${have}/${page.length}</span></h2><div class="grid9">${page.map(slotHTML).join("")}</div></section>`;
       }
       list.innerHTML = html + "</div>";
-    } else list.innerHTML = `<div class="flat">${nums.map(slotHTML).join("")}</div>`;
+    } else list.innerHTML = `<div class="flat">${shown.map(slotHTML).join("")}</div>`;
   }
   var dayKey = (d = /* @__PURE__ */ new Date()) => d.toLocaleDateString("en-CA");
   function saveSnapshot(value, count, spent) {
@@ -1741,9 +1822,9 @@ label textarea { resize: vertical; min-height: 54px; }
   function moversHTML() {
     const moved = [...owned.values()].filter((e) => e.prevValue != null && e.value != null && e.value !== e.prevValue).map((e) => ({ e, d: e.value - e.prevValue, pct: e.prevValue ? (e.value - e.prevValue) / e.prevValue * 100 : null }));
     if (!moved.length) return `<p class="lede">Once you've updated prices a second time, the cards whose prices changed most show here.</p>`;
-    const row = ({ e, d, pct }) => `<button type="button" class="mover" data-open="${e.dex}">
+    const row = ({ e, d, pct }) => `<button type="button" class="mover" data-open="${esc(keyOf(e))}">
       ${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy">` : `<span class="noimg"></span>`}
-      <span style="min-width:0"><span class="mn">#${pad(e.dex)} ${esc(nameOf(e.dex))}</span><br><span class="ms">${money(e.prevValue)} \u2192 ${money(e.value)}${e.set ? " \xB7 " + esc(e.set) : ""}</span></span>
+      <span style="min-width:0"><span class="mn">${esc(slotLabel(keyOf(e)))}</span><br><span class="ms">${money(e.prevValue)} \u2192 ${money(e.value)}${e.set ? " \xB7 " + esc(e.set) : ""}</span></span>
       <span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "\u2212"}${money(Math.abs(d))}<small>${pct != null ? (d > 0 ? "+" : "\u2212") + Math.abs(pct).toFixed(0) + "%" : ""}</small></span></button>`;
     const up = moved.filter((m) => m.d > 0).sort((a, b) => b.d - a.d).slice(0, 5);
     const down = moved.filter((m) => m.d < 0).sort((a, b) => a.d - b.d).slice(0, 5);
@@ -1823,8 +1904,8 @@ label textarea { resize: vertical; min-height: 54px; }
     const usable = rows.filter((r) => !r.a.tooWorn).sort((x, y) => y.a.gain - x.a.gain);
     const worth = usable.filter((r) => r.a.gain > 0), close = usable.filter((r) => r.a.gain <= 0).slice(0, 10);
     const worn = rows.length - usable.length;
-    const row = ({ e, a }) => `<button type="button" class="row-item" data-open="${e.dex}">${thumb(e.image || photoUrls.get(e.dex))}
-    <span style="min-width:0"><span class="rt">#${pad(e.dex)} ${esc(nameOf(e.dex))}${a.assumed ? `<span class="chip warn">condition not set</span>` : ""}</span>
+    const row = ({ e, a }) => `<button type="button" class="row-item" data-open="${esc(keyOf(e))}">${thumb(e.image || photoUrls.get(keyOf(e)))}
+    <span style="min-width:0"><span class="rt">${esc(slotLabel(keyOf(e)))}${a.assumed ? `<span class="chip warn">condition not set</span>` : ""}</span>
       <span class="rs">${esc([e.set, e.condition || "assumed Near Mint", a.vintage ? "vintage" : ""].filter(Boolean).join(" \xB7 "))}<br>
       Raw ${money(e.value)} \xB7 PSA 8 ~${money(a.est.p8)} \xB7 9 ~${money(a.est.p9)} \xB7 10 ~${money(a.est.p10)}</span></span>
     <span class="rv ${a.gain > 0 ? "up" : "down"}">${a.gain >= 0 ? "+" : "\u2212"}${money(Math.abs(a.gain))}<small>likely gain</small></span></button>`;
@@ -1838,7 +1919,7 @@ label textarea { resize: vertical; min-height: 54px; }
   </div>`;
   }
   function wishHTML() {
-    const items = [...wish.values()].filter((w) => !owned.has(w.dex) && matches(w.dex)).sort((a, b) => a.dex - b.dex);
+    const items = [...wish.values()].filter((w) => !owned.has(w.dex) && matches(slotOf(w.dex))).sort((a, b) => a.dex - b.dex);
     if (!items.length) return `<p class="empty">${wish.size ? "No wishlist Pok\xE9mon match that." : "Your wishlist is empty. Tap any missing slot in the binder to add it."}</p>`;
     let dealsFound = 0;
     const rows = items.map((w) => {
@@ -1918,6 +1999,9 @@ label textarea { resize: vertical; min-height: 54px; }
     if (view === "top") render();
   }
   function ownership(c) {
+    for (const x of extras.values()) {
+      if ((c.dex || []).includes(x.dex) && sameNumber(x.number, c.number) && (x.setTotal && c.total && x.setTotal === c.total || x.set && c.set && words(x.set) === words(c.set))) return "own";
+    }
     for (const n of c.dex || []) {
       const e = owned.get(n);
       if (!e) continue;
@@ -1969,13 +2053,14 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   function openCardSheet(ctx) {
     const { mode, photo } = ctx;
-    let dex = ctx.dex || 0;
-    const existing = mode === "edit" ? owned.get(dex) : null;
+    const slotKey = ctx.slot ?? (ctx.dex || 0);
+    let dex = ctx.dex || (ctx.slot ? slotDex(ctx.slot) : 0);
+    const existing = mode === "edit" ? owned.get(slotKey) : null;
     const d = existing || {};
-    const showWish = mode === "add" && dex && !owned.has(dex);
+    const showWish = mode === "add" && dex && !isFormKey(slotKey) && !owned.has(dex);
     const w = wish.get(dex);
-    const photoUrl = photo ? URL.createObjectURL(photo) : existing && photoUrls.get(dex) || null;
-    const title = mode === "edit" ? `#${pad(dex)} ${nameOf(dex)}` : mode === "scan" ? "New card" : dex ? `#${pad(dex)} ${nameOf(dex)}` : "Add a card";
+    const photoUrl = photo ? URL.createObjectURL(photo) : existing && photoUrls.get(slotKey) || null;
+    const title = mode === "scan" ? "New card" : slotKey ? slotLabel(slotKey) : "Add a card";
     const signal = sheetShell(title, `
     ${photoUrl ? `<div class="photo"><img src="${esc(photoUrl)}" alt="Your card photo"><p class="status" id="status" aria-live="polite"></p></div>` : `<p class="status" id="status" aria-live="polite" hidden></p>`}
     ${showWish ? `<div class="wishrow"><button type="button" class="wishbtn" id="wishBtn" aria-pressed="${!!w}">${w ? "\u2605 On wishlist" : "\u2606 Add to wishlist"}</button>
@@ -2014,11 +2099,19 @@ label textarea { resize: vertical; min-height: 54px; }
       st.className = "status " + cls;
       st.textContent = text || "";
     };
+    const targetKey = (n) => sel ? slotFor(n, sel) : isFormKey(slotKey) && slotDex(slotKey) === n ? slotKey : n;
     const updateMatch = () => {
       const n = resolveDex($("#fPoke").value), line = $("#matchLine");
-      if (!$("#fPoke").value.trim()) line.textContent = "";
-      else if (n) line.innerHTML = `Goes in <b>#${pad(n)} ${esc(nameOf(n))}</b> \xB7 ${pagePos(n)}${owned.has(n) && n !== existing?.dex ? " \xB7 <b>already collected</b>" : ""}`;
-      else line.textContent = "No matching Pok\xE9mon. Try the name or Dex number.";
+      if (!$("#fPoke").value.trim()) {
+        line.textContent = "";
+        return;
+      }
+      if (!n) {
+        line.textContent = "No matching Pok\xE9mon. Try the name or Dex number.";
+        return;
+      }
+      const k = targetKey(n);
+      line.innerHTML = `Goes in <b>${esc(slotLabel(k))}</b> \xB7 ${pagePos(k)}${owned.has(k) && k !== (existing && keyOf(existing)) ? " \xB7 <b>already collected</b>" : ""}`;
     };
     $("#fPoke").addEventListener("input", updateMatch);
     updateMatch();
@@ -2091,6 +2184,7 @@ label textarea { resize: vertical; min-height: 54px; }
       sel = card;
       selFresh = true;
       renderChosen();
+      updateMatch();
     }
     async function search(auto = false) {
       const n = resolveDex($("#fPoke").value);
@@ -2109,6 +2203,10 @@ label textarea { resize: vertical; min-height: 54px; }
         fx = rate;
         cards = res.cards;
         exactNumber = res.exactNumber !== false;
+        if (isFormKey(slotKey) && slotDex(slotKey) === n) {
+          const onlyForm = cards.filter((c) => cardForm(n, c.name)?.key === slotKey);
+          if (onlyForm.length) cards = onlyForm;
+        }
       } catch (e) {
         if (signal.aborted) return false;
         results.innerHTML = `<p class="status warn">Couldn't reach the card databases. Check your connection and tap Find again, or save without card details.</p>`;
@@ -2158,13 +2256,13 @@ label textarea { resize: vertical; min-height: 54px; }
       });
     }
     $("#rmBtn")?.addEventListener("click", () => {
-      $("#actions").innerHTML = `<span class="status" style="margin-right:auto">Remove #${pad(dex)} from your Dex?</span><button type="button" class="btn" id="keepBtn">Keep</button><button type="button" class="btn danger" id="yesRm">Remove</button>`;
+      $("#actions").innerHTML = `<span class="status" style="margin-right:auto">Remove ${esc(slotLabel(keyOf(existing)))} from your Dex?</span><button type="button" class="btn" id="keepBtn">Keep</button><button type="button" class="btn danger" id="yesRm">Remove</button>`;
       $("#keepBtn").onclick = closeSheet;
       $("#yesRm").onclick = async () => {
-        await removeEntry(existing.dex);
+        await removeEntry(keyOf(existing));
         closeSheet();
         render();
-        toast(`Removed #${pad(existing.dex)}`);
+        toast(`Removed ${slotLabel(keyOf(existing))}`);
       };
     });
     const readForm = () => ({
@@ -2184,26 +2282,40 @@ label textarea { resize: vertical; min-height: 54px; }
         toast("Tap the card you have first, or save without card details.");
         return;
       }
-      const prev = owned.get(n);
-      const sameSlot = mode === "edit" && n === existing.dex;
+      const key = withCard ? slotFor(n, sel) : isFormKey(slotKey) && slotDex(slotKey) === n ? slotKey : n;
+      const prev = owned.get(key);
+      const sameSlot = mode === "edit" && key === keyOf(existing);
       if (prev && !sameSlot && !force) {
-        $("#dupeBox").innerHTML = `<div class="dupe"><span>You already have <b>#${pad(n)} ${esc(nameOf(n))}</b>${prev.set ? " from " + esc(prev.set) : ""}.</span>
-        <div class="actions"><button type="button" class="btn" id="asSpare">Count as a spare</button><button type="button" class="btn primary" id="replace">Replace with this card</button></div></div>`;
+        const differentCard = withCard && sel.id && prev.cardId !== sel.id;
+        $("#dupeBox").innerHTML = `<div class="dupe"><span>You already have <b>${esc(slotLabel(key))}</b>${prev.set ? " from " + esc(prev.set) : ""}${differentCard ? ". This is a different card." : "."}</span>
+        <div class="actions"><button type="button" class="btn" id="asSpare">Count as a spare</button>
+        ${differentCard ? `<button type="button" class="btn" id="keepBoth">Keep both</button>` : ""}
+        <button type="button" class="btn primary" id="replace">Put this one in the binder</button></div></div>`;
         $("#asSpare").onclick = async () => {
           await saveEntry({ ...prev, spares: (prev.spares || 0) + 1 });
-          done(n, prev, true);
+          done(key, prev, true);
         };
         $("#replace").onclick = () => commit({ withCard, force: true });
+        $("#keepBoth")?.addEventListener("click", async () => {
+          const x = applyCard({ id: newId(), dex: n, slot: isFormKey(key) ? key : void 0, name: nameOf(n), finish, ...readForm(), addedAt: (/* @__PURE__ */ new Date()).toISOString() }, sel);
+          if (!isFormKey(x.slot)) delete x.slot;
+          await saveExtra(x);
+          render();
+          closeSheet();
+          toast(`Added to your ${slotName(key)} cards. Find it in the All cards view.`);
+        });
         return;
       }
       let entry = {
         ...sameSlot ? existing : {},
         dex: n,
+        slot: isFormKey(key) ? key : void 0,
         name: nameOf(n),
         finish,
         ...readForm(),
         addedAt: sameSlot && existing.addedAt || (/* @__PURE__ */ new Date()).toISOString()
       };
+      const bumped = prev && force && !sameSlot && prev.cardId && (!withCard || prev.cardId !== sel.id) ? prev : null;
       if (prev && force) entry.spares = Math.max(entry.spares, prev.spares || 0);
       if (withCard && sameSlot && !selFresh && sel.id === existing.cardId) {
         const eur = eurPrice(sel, finish);
@@ -2227,21 +2339,25 @@ label textarea { resize: vertical; min-height: 54px; }
       }
       $("#saveBtn").disabled = true;
       try {
-        if (mode === "edit" && n !== existing.dex) await removeEntry(existing.dex);
-        if (photo) entry.hasPhoto = await savePhoto(n, photo);
+        if (mode === "edit" && key !== keyOf(existing)) await removeEntry(keyOf(existing));
+        if (bumped) {
+          const { spares, ...rest } = bumped;
+          await saveExtra({ ...rest, id: newId() });
+        }
+        if (photo) entry.hasPhoto = await savePhoto(key, photo);
         await saveEntry(entry);
-        if (wish.has(n)) await saveWish(n, null);
-        done(n, prev || null, false);
+        if (!isFormKey(key) && wish.has(n)) await saveWish(n, null);
+        done(key, prev || null, false);
       } catch {
         $("#saveBtn").disabled = false;
         toast("Couldn't save. Your phone may be out of storage.");
       }
     }
-    function done(n, prev, spare) {
+    function done(k, prev, spare) {
       render();
-      if (prefs.rapid && mode === "scan") return showAdded({ n, prev, spare, photoUrl });
+      if (prefs.rapid && mode === "scan") return showAdded({ n: k, prev, spare, photoUrl });
       closeSheet();
-      toast(mode === "edit" ? "Saved" : spare ? `Spare #${pad(n)} counted` : `#${pad(n)} ${nameOf(n)} added \xB7 ${pagePos(n)}`);
+      toast(mode === "edit" ? "Saved" : spare ? `Spare ${slotLabel(k)} counted` : `${slotLabel(k)} added \xB7 ${pagePos(k)}`);
     }
     $("#saveBtn").onclick = () => commit({ withCard: !!sel });
     $("#plainBtn").onclick = () => commit({ withCard: false });
@@ -2271,10 +2387,11 @@ label textarea { resize: vertical; min-height: 54px; }
         $("#saveBtn").disabled = false;
         if (signal.aborted) return;
         if (unique && prefs.rapid && ocrDex) {
-          if (owned.has(ocrDex)) {
-            const prev = owned.get(ocrDex);
+          const k = slotFor(ocrDex, sel);
+          if (owned.has(k)) {
+            const prev = owned.get(k);
             await saveEntry({ ...prev, spares: (prev.spares || 0) + 1 });
-            done(ocrDex, prev, true);
+            done(k, prev, true);
           } else await commit({ withCard: true });
         } else if (!unique && cards.length > 1) setStatus("Several cards match. Tap the one you have.", "ok");
       } catch (e) {
@@ -2284,13 +2401,14 @@ label textarea { resize: vertical; min-height: 54px; }
       }
     })();
     else if (mode === "add" && dex) search(false);
+    else if (mode === "edit" && !existing?.cardId && dex) search(false);
   }
   function showAdded({ n, prev, spare, photoUrl }) {
     const e = owned.get(n);
     const img = e?.image || photoUrl;
     sheetShell(spare ? "Spare counted" : "Added", `
     <div class="added">${img ? `<img src="${esc(img)}" alt="">` : ""}<div>
-      <b>#${pad(n)} ${esc(nameOf(n))}</b>
+      <b>${esc(slotLabel(n))}</b>
       <span class="hint">${spare ? `You now have ${e?.spares || 1} spare${(e?.spares || 1) > 1 ? "s" : ""} of this one.` : `${e?.value != null ? money(e.value) + " \xB7 " : ""}Goes in ${pagePos(n)}.`}</span>
     </div></div>
     <div class="actions">
@@ -2306,13 +2424,127 @@ label textarea { resize: vertical; min-height: 54px; }
       render();
       toast("Undone");
     };
-    $("#editBtn").onclick = () => openCardSheet({ mode: "edit", dex: n });
+    $("#editBtn").onclick = () => openCardSheet({ mode: "edit", slot: n });
     $("#doneBtn").onclick = closeSheet;
     $("#nextBtn").onclick = () => {
       closeSheet();
       openCamera();
     };
     $("#nextBtn").focus();
+  }
+  async function openAllCards(k) {
+    const sl = slotOf(k), n = sl.dex;
+    const signal = sheetShell(`${slotLabel(k)}: all cards`, `<p class="hint" id="acSummary"><span class="dots">Loading every ${esc(sl.name)} card</span></p>
+    <div id="acChosen"></div><div id="acGrid" class="picker"></div>`);
+    let cards = [];
+    try {
+      const [res, rate] = await Promise.all([findCards({ species: nameOf(n), dex: n }, signal), eurToGbp()]);
+      fx = rate;
+      cards = res.cards;
+    } catch {
+      if (signal.aborted) return;
+      $("#acSummary").textContent = "Couldn't reach the card databases. Check your connection and try again.";
+      return;
+    }
+    if (signal.aborted) return;
+    if (sl.form) cards = cards.filter((c) => cardForm(n, c.name)?.key === k);
+    else cards = cards.filter((c) => {
+      const f = cardForm(n, c.name);
+      return !f || !formOn(f);
+    });
+    const binder = () => owned.get(k);
+    const mine = () => {
+      const m = /* @__PURE__ */ new Map(), b = binder();
+      if (b) m.set(b.cardId || "binder", { kind: "binder", e: b });
+      for (const x of extrasIn(k)) m.set(x.cardId || x.id, { kind: "extra", e: x });
+      return m;
+    };
+    let shown = [];
+    function draw() {
+      const own = mine();
+      const outside = [...own.values()].filter((o) => !o.e.cardId || !cards.some((c) => c.id === o.e.cardId)).map((o) => ({ ...entryAsCard(o.e), id: o.e.cardId || o.e.id, _own: o }));
+      shown = [...outside, ...cards];
+      $("#acSummary").innerHTML = `You own <b>${own.size}</b> of ${shown.length}${cards.length >= 250 ? "+" : ""} ${esc(sl.name)} cards. Tap one to add it to your collection or make it your binder card.`;
+      $("#acGrid").innerHTML = shown.map((c, i) => {
+        const o = c._own || own.get(c.id);
+        return `<button type="button" class="pick ${o ? "mine" : ""} ${o?.kind === "binder" ? "binder" : ""}" data-i="${i}">
+        ${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : `<span class="noimg" style="aspect-ratio:63/88;border-radius:5px;background:var(--line)"></span>`}
+        <b>${esc(c.number ? "#" + c.number : c.name)}</b><span>${esc(c.setName || c.setId || "")}</span>
+        ${o ? `<span class="tag">${o.kind === "binder" ? "\u2605 Binder" : "Owned"}</span>` : c.eur ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`;
+      }).join("");
+      $("#acGrid").querySelectorAll(".pick").forEach((b) => b.onclick = () => showCard(shown[+b.dataset.i]));
+    }
+    async function showCard(c) {
+      const box = $("#acChosen");
+      box.innerHTML = `<p class="status dots">Getting the price</p>`;
+      box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      let card = c;
+      try {
+        if (card.brief) card = await getCard(card.id, card.source, signal);
+        if (!c._own) card = await withPrice(card, { species: nameOf(n), dex: n }, signal);
+      } catch {
+        if (signal.aborted) return;
+        box.innerHTML = `<p class="status warn">Couldn't load that card. Try again.</p>`;
+        return;
+      }
+      const o = c._own || mine().get(card.id);
+      const p = o ? o.e.value : gbp(eurPrice(card, "standard"));
+      const meta = [card.setName, card.number ? card.setTotal ? `${card.number}/${card.setTotal}` : `#${card.number}` : "", card.rarity].filter(Boolean).join(" \xB7 ");
+      box.innerHTML = `<div class="chosen">${card.imageLarge || card.image ? `<img src="${esc(card.imageLarge || card.image)}" alt="${esc(card.name)}">` : "<div></div>"}
+      <div><div class="cn">${esc(card.name)}</div><div class="meta">${esc(meta || "Set unknown")}</div>
+        <div class="price">${p != null ? money(p) : "No price yet"}<small>${o ? o.kind === "binder" ? "Your binder card" : "In your collection" : "Cardmarket trend"}</small></div>
+        <div class="actions" style="justify-content:flex-start;margin-top:10px" id="acActs">
+          ${!o ? `<button type="button" class="btn primary small" id="acAdd">${binder() ? "Add to my collection" : "Add to my binder"}</button>` : ""}
+          ${o?.kind === "extra" ? `<button type="button" class="btn primary small" id="acMake">Make this my binder card</button><button type="button" class="btn small danger" id="acRm">Remove</button>` : ""}
+          ${o?.kind === "binder" ? `<button type="button" class="btn small" id="acEdit">Edit details</button>` : ""}
+        </div></div></div>`;
+      const slotField = isFormKey(k) ? k : void 0;
+      $("#acAdd")?.addEventListener("click", async () => {
+        const base = { dex: n, slot: slotField, name: nameOf(n), finish: "standard", spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() };
+        if (!binder()) {
+          await saveEntry(applyCard(base, card));
+          if (!isFormKey(k) && wish.has(n)) await saveWish(n, null);
+          toast(`Added to your binder \xB7 ${pagePos(k)}`);
+        } else {
+          const x = applyCard({ ...base, id: newId() }, card);
+          if (!slotField) delete x.slot;
+          await saveExtra(x);
+          toast("Added to your collection");
+        }
+        render();
+        draw();
+        showCard(card);
+      });
+      $("#acMake")?.addEventListener("click", async () => {
+        const x = o.e, b = binder();
+        const { id, ...asBinder } = x;
+        await saveEntry({ ...asBinder, slot: slotField, spares: b?.spares || 0 });
+        await removeExtra(x.id);
+        if (b) {
+          const { spares, ...rest } = b;
+          const keep = { ...rest, id: newId() };
+          if (!isFormKey(keep.slot)) delete keep.slot;
+          await saveExtra(keep);
+        }
+        render();
+        draw();
+        toast("Binder card changed");
+        box.innerHTML = "";
+      });
+      $("#acRm")?.addEventListener("click", () => {
+        $("#acActs").innerHTML = `<span class="status">Remove this card from your collection?</span><button type="button" class="btn small" id="acNo">Keep</button><button type="button" class="btn small danger" id="acYes">Remove</button>`;
+        $("#acNo").onclick = () => showCard(c);
+        $("#acYes").onclick = async () => {
+          await removeExtra(o.e.id);
+          render();
+          draw();
+          box.innerHTML = "";
+          toast("Removed");
+        };
+      });
+      $("#acEdit")?.addEventListener("click", () => openCardSheet({ mode: "edit", slot: k, dex: n }));
+    }
+    draw();
   }
   function openCamera() {
     $("#cam").value = "";
@@ -2333,12 +2565,12 @@ label textarea { resize: vertical; min-height: 54px; }
   function openSpares() {
     const lines = [];
     let total = 0;
-    for (let n = 1; n <= TOTAL; n++) {
-      const e = owned.get(n);
+    for (const sl of SLOTS) {
+      const e = owned.get(sl.key);
       if (!e || !e.spares) continue;
       total += e.spares;
       const card = [e.set, e.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : ""].filter(Boolean).join(" ");
-      lines.push(`#${pad(n)} ${nameOf(n)}${card ? " \u2013 " + card : ""}${e.condition ? ` (${COND_SHORT[e.condition]})` : ""} \xD7${e.spares}`);
+      lines.push(`${slotLabel(sl.key)}${card ? " \u2013 " + card : ""}${e.condition ? ` (${COND_SHORT[e.condition]})` : ""} \xD7${e.spares}`);
     }
     if (!total) {
       sheetShell("Spares list", `<p class="hint">No spares yet. When you scan a card you already have, choose <b>Count as a spare</b> (Rapid scan does this by itself) and it shows up here.</p>
@@ -2375,34 +2607,44 @@ label textarea { resize: vertical; min-height: 54px; }
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
   function exportCSV() {
-    const rows = [["Dex #", "Pok\xE9mon", "Gen", "Region", "Types", "Got it?", "Card", "Set", "Card number", "Finish", "Condition", "Paid (\xA3)", "Raw value (\xA3)", "Price checked", "Spares", "On wishlist", "Wishlist max (\xA3)", "Notes"]];
-    for (let n = 1; n <= TOTAL; n++) {
-      const e = owned.get(n), w = wish.get(n), g = genOf(n);
+    const rows = [["Dex #", "Pok\xE9mon", "Slot", "Gen", "Region", "Types", "Got it?", "In binder", "Card", "Set", "Card number", "Finish", "Condition", "Paid (\xA3)", "Raw value (\xA3)", "Price checked", "Spares", "On wishlist", "Wishlist max (\xA3)", "Notes"]];
+    const cardCols = (e) => [
+      e?.cardName || "",
+      e?.set || "",
+      e?.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : "",
+      e ? e.finish === "reverse" ? "Reverse holo" : "Standard" : "",
+      e?.condition || "",
+      e?.paid != null ? (+e.paid).toFixed(2) : "",
+      e?.value != null ? (+e.value).toFixed(2) : "",
+      e?.checkedAt ? e.checkedAt.slice(0, 10) : ""
+    ];
+    const base = (n) => {
+      const g = genOf(n);
+      return [g, REGIONS[g - 1], typesOf(n).map((t) => TYPES[t - 1]).join("/")];
+    };
+    for (const sl of SLOTS) {
+      const e = owned.get(sl.key), w = !sl.form && wish.get(sl.dex);
       rows.push([
-        n,
-        nameOf(n),
-        g,
-        REGIONS[g - 1],
-        typesOf(n).map((t) => TYPES[t - 1]).join("/"),
+        sl.dex,
+        sl.name,
+        sl.key,
+        ...base(sl.dex),
         e ? "Yes" : "",
-        e?.cardName || "",
-        e?.set || "",
-        e?.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : "",
-        e ? e.finish === "reverse" ? "Reverse holo" : "Standard" : "",
-        e?.condition || "",
-        e?.paid != null ? (+e.paid).toFixed(2) : "",
-        e?.value != null ? (+e.value).toFixed(2) : "",
-        e?.checkedAt ? e.checkedAt.slice(0, 10) : "",
+        e ? "Yes" : "",
+        ...cardCols(e),
         e?.spares || "",
         !e && w ? "Yes" : "",
         !e && w?.target != null ? (+w.target).toFixed(2) : "",
         e?.notes || ""
       ]);
     }
+    for (const x of [...extras.values()].sort((a, b) => (SLOT_INDEX.get(keyOf(a)) ?? 9e9) - (SLOT_INDEX.get(keyOf(b)) ?? 9e9))) {
+      rows.push([x.dex, slotName(keyOf(x)), keyOf(x), ...base(x.dex), "Yes", "No", ...cardCols(x), "", "", "", x.notes || ""]);
+    }
     download(`living-dex-${today()}.csv`, "\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
   }
   function exportBackup() {
-    const data = { app: "living-dex", version: 1, exportedAt: (/* @__PURE__ */ new Date()).toISOString(), entries: [...owned.values()], wish: [...wish.values()] };
+    const data = { app: "living-dex", version: 2, exportedAt: (/* @__PURE__ */ new Date()).toISOString(), entries: [...owned.values()], wish: [...wish.values()], extras: [...extras.values()] };
     download(`living-dex-backup-${today()}.json`, JSON.stringify(data), "application/json");
     try {
       localStorage.setItem("lastBackup", (/* @__PURE__ */ new Date()).toISOString());
@@ -2447,13 +2689,17 @@ label textarea { resize: vertical; min-height: 54px; }
       const data = JSON.parse(text);
       if (data.app !== "living-dex" || !Array.isArray(data.entries)) throw new Error("That isn't a Living Dex backup.");
       if (replace) {
-        await store.clear("entries");
-        await store.clear("wish");
+        for (const t of ["entries", "wish", "extras"]) await store.clear(t);
         owned = /* @__PURE__ */ new Map();
         wish = /* @__PURE__ */ new Map();
+        extras = /* @__PURE__ */ new Map();
       }
       for (const e of data.entries) if (e && e.dex >= 1 && e.dex <= TOTAL) {
         await saveEntry(e);
+        added++;
+      }
+      for (const x of data.extras || []) if (x && x.id && x.dex >= 1 && x.dex <= TOTAL) {
+        await saveExtra(x);
         added++;
       }
       for (const w of data.wish || []) if (w && w.dex >= 1 && w.dex <= TOTAL) {
@@ -2470,16 +2716,20 @@ label textarea { resize: vertical; min-height: 54px; }
         }
         return -1;
       };
-      const iDex = col("dex #"), iGot = col("got it?"), iCard = col("card used (set & number)", "set"), iNum = col("card number"), iCond = col("condition"), iPaid = col("paid (\xA3)"), iVal = col("raw value (\xA3)"), iSp = col("spares"), iWish = col("on wishlist"), iMax = col("wishlist max (\xA3)"), iNotes = col("notes");
+      const iDex = col("dex #"), iGot = col("got it?"), iCard = col("card used (set & number)", "set"), iNum = col("card number"), iSlot = col("slot"), iBinder = col("in binder"), iCond = col("condition"), iPaid = col("paid (\xA3)"), iVal = col("raw value (\xA3)"), iSp = col("spares"), iWish = col("on wishlist"), iMax = col("wishlist max (\xA3)"), iNotes = col("notes");
       if (iDex < 0 || iGot < 0) throw new Error("That spreadsheet doesn't have the Dex # and Got it? columns.");
       const numOr = (r, i) => i >= 0 && r[i] !== "" && !isNaN(+r[i]) ? +r[i] : null;
       for (const r of rows) {
         const n = parseInt(r[iDex], 10);
         if (!(n >= 1 && n <= TOTAL)) continue;
+        if (iBinder >= 0 && /^no$/i.test(r[iBinder] || "")) continue;
+        const slotCell = iSlot >= 0 ? r[iSlot] : "";
+        const formKey = slotCell && FORM_BY_KEY.has(slotCell) && FORM_BY_KEY.get(slotCell).dex === n ? slotCell : null;
         if (/^yes$/i.test(r[iGot] || "")) {
-          if (owned.has(n) && !replace) continue;
+          if (owned.has(formKey || n) && !replace) continue;
           await saveEntry({
             dex: n,
+            slot: formKey || void 0,
             name: nameOf(n),
             set: iCard >= 0 ? r[iCard] : "",
             number: iNum >= 0 ? r[iNum] : "",
@@ -2510,6 +2760,12 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     sheetShell("Settings & backup", `
     <div class="setting">
+      <h4>Extra binder slots</h4>
+      <p class="hint">Give regional forms and Megas their own slots, straight after their Pok\xE9mon. Your progress counts them too. Milestones stay based on the 1,025 Pok\xE9mon.</p>
+      <button type="button" class="switch" id="regionalSw" aria-pressed="${prefs.regional}"><span class="knob" aria-hidden="true"></span>Regional forms (${FORMS.filter((f) => f.kind === "regional").length}: Alolan, Galarian, Hisuian, Paldean)</button>
+      <button type="button" class="switch" id="megaSw" aria-pressed="${prefs.megas}"><span class="knob" aria-hidden="true"></span>Megas and Primal (${FORMS.filter((f) => f.kind === "mega").length})</button>
+    </div>
+    <div class="setting">
       <h4>Binder pictures</h4>
       <div class="finish" role="group" aria-label="Binder pictures">
         <button type="button" data-b="card" aria-pressed="${prefs.binder === "card"}">Official card images</button>
@@ -2518,7 +2774,7 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div class="setting">
       <h4>Backup</h4>
-      <p class="hint">Your collection is saved on this phone only. Save a backup now and then (to iCloud Drive or Files), so you can restore it if you change phones.${lastBackup ? ` Last backup ${shortDate(lastBackup)}.` : ""} Photos aren't included.</p>
+      <p class="hint">Your collection is saved on this phone only. Save a backup now and then (to iCloud Drive or Files), so you can restore it if you change phones. It includes extra cards from the All cards view.${lastBackup ? ` Last backup ${shortDate(lastBackup)}.` : ""} Photos aren't included.</p>
       <div class="actions" style="justify-content:flex-start"><button type="button" class="btn primary" id="bkBtn">Save a backup</button><button type="button" class="btn" id="rsBtn">Restore a backup</button></div>
     </div>
     <div class="setting">
@@ -2540,6 +2796,16 @@ label textarea { resize: vertical; min-height: 54px; }
       document.querySelectorAll("[data-b]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       render();
     });
+    const toggleForms = (prop, btn, label) => {
+      prefs[prop] = !prefs[prop];
+      savePrefs();
+      buildSlots();
+      render();
+      btn.setAttribute("aria-pressed", String(prefs[prop]));
+      toast(`${label} slots ${prefs[prop] ? "added to" : "removed from"} the binder`);
+    };
+    $("#regionalSw").onclick = (ev) => toggleForms("regional", ev.currentTarget, "Regional form");
+    $("#megaSw").onclick = (ev) => toggleForms("megas", ev.currentTarget, "Mega");
     $("#bkBtn").onclick = () => {
       exportBackup();
       toast("Backup saved to your downloads");
@@ -2571,11 +2837,12 @@ label textarea { resize: vertical; min-height: 54px; }
       $("#wipeRow").innerHTML = `<span class="status" style="margin-right:auto">Delete all ${owned.size} cards, your wishlist and photos? This can't be undone.</span><button type="button" class="btn" id="wNo">Keep</button><button type="button" class="btn danger" id="wYes">Delete</button>`;
       $("#wNo").onclick = openSettings;
       $("#wYes").onclick = async () => {
-        for (const t of ["entries", "wish", "photos"]) await store.clear(t);
+        for (const t of ["entries", "wish", "photos", "extras"]) await store.clear(t);
         for (const u of photoUrls.values()) URL.revokeObjectURL(u);
         owned = /* @__PURE__ */ new Map();
         wish = /* @__PURE__ */ new Map();
         photoUrls = /* @__PURE__ */ new Map();
+        extras = /* @__PURE__ */ new Map();
         closeSheet();
         render();
         toast("Collection deleted");
@@ -2618,8 +2885,20 @@ label textarea { resize: vertical; min-height: 54px; }
   $("#list").addEventListener("click", (ev) => {
     const s = ev.target.closest(".slot, [data-open]");
     if (!s) return;
-    const n = +(s.dataset.dex || s.dataset.open);
-    openCardSheet({ mode: owned.has(n) ? "edit" : "add", dex: n });
+    const k = parseKey(s.dataset.key ?? s.dataset.open);
+    if (prefs.cardsView && s.dataset.key) return openAllCards(k);
+    openCardSheet({ mode: owned.has(k) ? "edit" : "add", slot: isFormKey(k) ? k : void 0, dex: slotDex(k) });
+  });
+  var setCardsView = (on) => {
+    prefs.cardsView = on;
+    savePrefs();
+    document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === "cards" === on)));
+  };
+  setCardsView(prefs.cardsView);
+  document.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
+    setCardsView(b.dataset.mode === "cards");
+    render();
+    toast(prefs.cardsView ? "All cards view: tap a Pok\xE9mon to see every card printed for it" : "Dex view: one card per Pok\xE9mon");
   });
   var setRapid = (on) => {
     prefs.rapid = on;
@@ -2643,10 +2922,12 @@ label textarea { resize: vertical; min-height: 54px; }
     if (ev.key === "Escape" && !document.querySelector(".cropper")) closeSheet();
   });
   $("#dexList").innerHTML = NAMES.map((nm, i) => `<option value="#${pad(i + 1)} ${esc(nm)}"></option>`).join("");
+  buildSlots();
   render();
   (async () => {
     try {
       owned = await store.all("entries");
+      extras = await store.all("extras");
       wish = await store.all("wish");
       history = await store.get("meta", "history") || [];
       deals = new Map(Object.entries(await store.get("meta", "deals") || {}).map(([k, v]) => [+k, v]));
