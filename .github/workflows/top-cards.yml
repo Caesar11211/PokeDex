@@ -1,0 +1,31 @@
+# Rebuilds the app's Top cards list once a day and saves it to the site (data/top-cards.json).
+# You can also run it by hand: Actions tab → "Update top cards" → Run workflow.
+name: Update top cards
+
+on:
+  schedule:
+    - cron: "17 5 * * *"      # every day at 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write              # lets it save the list back to the repository
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build the list
+        run: node scripts/top-cards.mjs
+        env:
+          POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
+      - name: Save it to the site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/top-cards.json
+          git diff --staged --quiet || (git commit -m "Update top cards list" && git push)
