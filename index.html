@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Living Dex</title>
+  <meta name="description" content="Scan Pokémon cards into a 1,025-slot living Pokédex binder with live Cardmarket prices.">
+  <meta name="theme-color" content="#e2382a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Living Dex">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Tesseract.js reads text off your card photos, on the phone itself -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="ring" aria-hidden="true">
+      <svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="15.9" fill="none" stroke-width="3.2"/><circle id="ringFill" class="fill" cx="18" cy="18" r="15.9" fill="none" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="100 100" stroke-dashoffset="100"/></svg>
+      <b id="pct">0%</b>
+    </div>
+    <div>
+      <h1>Living Pokédex</h1>
+      <p class="sub">One card for each of the 1,025 Pokémon, in National Dex order.</p>
+      <div class="stats">
+        <span><strong id="sGot" class="num">0</strong> collected</span>
+        <span><strong id="sLeft" class="num">1025</strong> to find</span>
+        <span><strong id="sValue" class="num">£0.00</strong> raw value</span>
+        <span><strong id="sSpent" class="num">£0.00</strong> spent</span>
+        <span><strong id="sLeg" class="num">0/94</strong> legendary &amp; mythical</span>
+      </div>
+    </div>
+    <button type="button" class="gear" id="settingsBtn" aria-label="Settings and backup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="regions" id="regions" role="group" aria-label="Filter by region"></div>
+
+  <div class="controls">
+    <div class="segwrap"><div class="seg" role="group" aria-label="Show">
+      <button type="button" data-view="all" aria-pressed="true">Binder</button>
+      <button type="button" data-view="missing" aria-pressed="false">Missing</button>
+      <button type="button" data-view="have" aria-pressed="false">Got</button>
+      <button type="button" data-view="wish" aria-pressed="false">Wishlist<span class="count" id="cWish"></span></button>
+      <button type="button" data-view="prices" aria-pressed="false">Prices<span class="count" id="cRe"></span></button>
+    </div></div>
+    <div class="row">
+      <input id="q" class="search" type="search" placeholder="Search name or number" aria-label="Search name or number">
+      <select id="typeSel" class="typesel" aria-label="Filter by type"><option value="0">All types</option></select>
+    </div>
+    <div class="row">
+      <button type="button" class="switch" id="rapidBtn" aria-pressed="false"><span class="knob" aria-hidden="true"></span>Rapid scan</button>
+      <span class="spacer"></span>
+      <button type="button" class="textbtn" id="sparesBtn">Spares list</button>
+    </div>
+    <div class="row" id="viewBar" hidden></div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<div class="dock">
+  <button type="button" class="ghost" id="manualBtn">Add by hand</button>
+  <button type="button" class="scan" id="scanBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="8" y="7" width="8" height="10" rx="1"/></svg>
+    Scan a card
+  </button>
+  <input id="cam" class="sr" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+  <input id="fileIn" class="sr" type="file" accept=".json,.csv,application/json,text/csv" tabindex="-1" aria-hidden="true">
+</div>
+
+<div id="sheetRoot"></div>
+<datalist id="dexList"></datalist>
+<div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
