@@ -1,0 +1,40 @@
+# Fetches real PSA graded prices for the cards in data/graded-watch.json and saves them to the site
+# (data/graded.json). Runs every morning, and straight away whenever you update the watch list.
+# You can also run it by hand: Actions tab → "Update graded prices" → Run workflow.
+name: Update graded prices
+
+on:
+  schedule:
+    - cron: "41 6 * * *"      # every day at 06:41 UTC
+  push:
+    paths:
+      - data/graded-watch.json
+  workflow_dispatch:
+
+permissions:
+  contents: write              # lets it save the prices back to the repository
+
+concurrency:
+  group: graded-prices         # never two runs at once (they'd share the same daily credits)
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Fetch graded prices
+        env:
+          PPT_API_KEY: ${{ secrets.PPT_API_KEY }}
+        run: node scripts/graded-prices.mjs
+      - name: Save them to the site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/graded.json
+          git diff --staged --quiet && exit 0
+          git commit -m "Update graded prices"
+          git pull --rebase && git push
