@@ -247,6 +247,11 @@ label textarea { resize: vertical; min-height: 54px; }
 .price small { font: 500 12px var(--body); color: var(--muted); display: block; margin-top: 2px; }
 .finish { display: inline-flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
 .finish button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.edask { margin-top: 8px; padding: 10px 12px; border: 2px solid var(--amber); border-radius: 12px; background: var(--panel); }
+.edask p { margin: 4px 0 8px; font-size: 12.5px; color: var(--muted); }
+.edbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.edbtns button { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 8px; font-weight: 700; color: var(--ink); text-align: left; }
+.edbtns small { display: block; font-weight: 500; color: var(--muted); margin-top: 2px; }
 .finish button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .graded { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
 .graded b { color: var(--ink); font-family: var(--px); font-weight: 600; }
@@ -2540,6 +2545,9 @@ label textarea { resize: vertical; min-height: 54px; }
       const first = pts[0], last = pts[pts.length - 1], diff = last.v - first.v;
       title = "Price history";
       note = `${money(last.v)} now, ${diff >= 0 ? "up" : "down"} ${money(Math.abs(diff))}${first.v ? ` (${diff >= 0 ? "+" : "−"}${Math.abs(diff / first.v * 100).toFixed(0)}%)` : ""} since ${shortDate(first.t)}. A point is added each day the price is updated.`;
+    } else if ((!card?.lang || card.lang === "en") && isVintage(cardSetId(card)) && finish !== "reverse") {
+      if (hist.length === 1) return `<div class="pchart"><h4>Price history</h4><p class="hint">One saved price so far: ${money(hist[0].v)} on ${shortDate(hist[0].d + "T12:00:00")}. Each day the price is updated adds a point.</p></div>`;
+      return `<div class="pchart"><h4>Price history</h4><p class="hint">No history yet. For older cards Cardmarket's averages mix 1st Edition and Unlimited sales, so they aren't charted. ${entry ? "Your own history builds up each day you update prices." : "A history builds up once the card is in your Dex and you update prices."}</p></div>`;
     } else {
       const avg = recentAverages(card, finish).map((a) => ({ t: Date.now() - a.days * DAY, v: gbp(a.eur), label: a.label }));
       if (avg.length >= 2) {
@@ -2553,6 +2561,16 @@ label textarea { resize: vertical; min-height: 54px; }
       }
     }
     return `<div class="pchart"><h4>${title}</h4>${lineChartHTML(id, pts, W, `${title} for ${card?.name || "this card"}: ${pts.map((p) => `${p.label} ${money(p.v)}`).join(", ")}`)}<p class="hint">${note}</p></div>`;
+  }
+  function editionAskHTML(card, cond) {
+    const priceFor = (f) => {
+      const v = gbp(eurPrice(card, f));
+      return v != null ? money(byCondition(v, cond)) : "no price";
+    };
+    return `<div class="edask"><b>Is your card 1st Edition?</b>
+      <p>Look just below the bottom-left corner of the picture. 1st Edition cards have a small black stamp there with EDITION around a 1. The two are priced very differently.</p>
+      <div class="edbtns"><button type="button" data-ed="standard">No stamp<small>Unlimited · ${priceFor("standard")}</small></button>
+      <button type="button" data-ed="first">Has the stamp<small>1st Edition · ${priceFor("first")}</small></button></div></div>`;
   }
   function finishOptions(card) {
     const set = cardSetId(card), en = !card?.lang || card.lang === "en";
@@ -2631,6 +2649,10 @@ label textarea { resize: vertical; min-height: 54px; }
     let sel = existing?.cardId ? entryAsCard(existing) : null;
     let selFresh = false;
     let finish = existing?.finish || "standard";
+    // Older sets came out as 1st Edition and Unlimited, worth very different amounts, and a photo
+    // can't reliably show the small stamp. So for a new card the app asks before using a price.
+    let editionKnown = mode === "edit";
+    const needsEdition = () => !!sel && !editionKnown && finishOptions(sel).some(([f]) => f === "first");
     let cards = [];
     let pickerNote = "";
     let ocrNumber = "", ocrTotal = null, ocrDex = 0;
@@ -2677,14 +2699,15 @@ label textarea { resize: vertical; min-height: 54px; }
       <div>
         <div class="cn">${esc(sel.name)}</div>
         <div class="meta">${esc(meta || "Set unknown")}</div>
-        <div class="price">${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${condFactor(cond) !== 1 ? `For a ${esc(cond)} copy (Near Mint ${money(nmP)}). ` : ""}${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
-        <div class="finish" role="group" aria-label="Finish">${finishOptions(sel).map(([f, label]) => `
+        ${needsEdition() ? editionAskHTML(sel, cond) : ""}
+        <div class="price"${needsEdition() ? " hidden" : ""}>${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${condFactor(cond) !== 1 ? `For a ${esc(cond)} copy (Near Mint ${money(nmP)}). ` : ""}${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
+        <div class="finish" role="group" aria-label="Finish"${needsEdition() ? " hidden" : ""}>${finishOptions(sel).map(([f, label]) => `
           <button type="button" data-f="${f}" aria-pressed="${finish === f}">${label}</button>`).join("")}
         </div>
         ${dex && sel.id && !isFormKey(slotKey) && !(existing && sel.id === existing.cardId) ? `<div style="margin-top:10px"><button type="button" class="wishbtn" id="wishCardBtn" aria-pressed="${wantsCard(dex, sel.id)}">${wantsCard(dex, sel.id) ? "★ On your wishlist" : "☆ Add this card to wishlist"}</button></div>` : ""}
         ${(() => {
         const g = gradedFor(sel.id, nmP, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
-        if (!g) return "";
+        if (!g || needsEdition()) return "";
         const all = g.real[8] && g.real[9] && g.real[10];
         const note = g.any ? `<br><small>Recent eBay sales (median)${all ? "" : "; ~ is a rough guide"}, updated ${shortDate(g.checked)}${finish === "first" ? ". Sales may include Unlimited copies" : ""}.</small>` : "";
         return `<p class="graded">${g.any ? "If graded:" : "If graded (rough guide):"} ${gradeText(g, 8)} · ${gradeText(g, 9)} · ${gradeText(g, 10)}${note}</p>`;
@@ -2706,6 +2729,13 @@ label textarea { resize: vertical; min-height: 54px; }
       });
       results.querySelectorAll(".finish button").forEach((b) => b.onclick = () => {
         finish = b.dataset.f;
+        editionKnown = true;
+        renderChosen();
+      });
+      results.querySelectorAll(".edbtns button").forEach((b) => b.onclick = () => {
+        finish = b.dataset.ed;
+        editionKnown = true;
+        setStatus("", "");
         renderChosen();
       });
       $("#showAll", results)?.addEventListener("click", () => renderPicker());
@@ -2927,7 +2957,14 @@ label textarea { resize: vertical; min-height: 54px; }
       closeSheet();
       toast(mode === "edit" ? "Saved" : spare ? `Spare ${slotLabel(k)} counted` : `${slotLabel(k)} added · ${pagePos(k)}`);
     }
-    $("#saveBtn").onclick = () => commit({ withCard: !!sel });
+    $("#saveBtn").onclick = () => {
+      if (needsEdition()) {
+        setStatus("Check for the 1st Edition stamp and tap your answer first.", "warn");
+        results.querySelector(".edask")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      commit({ withCard: !!sel });
+    };
     $("#plainBtn").onclick = () => commit({ withCard: false });
     if (sel) renderChosen();
     if (mode === "scan") (async () => {
@@ -2958,7 +2995,9 @@ label textarea { resize: vertical; min-height: 54px; }
         $("#saveBtn").disabled = false;
         if (signal.aborted) return;
         document.body.classList.remove("busy");
-        if (unique && prefs.rapid && ocrDex) {
+        if (unique && prefs.rapid && ocrDex && needsEdition()) {
+          setStatus("Is it 1st Edition? Check for the stamp and tap your answer.", "ok");
+        } else if (unique && prefs.rapid && ocrDex) {
           const k = slotFor(ocrDex, sel);
           if (owned.has(k)) {
             const prev = owned.get(k);
