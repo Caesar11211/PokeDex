@@ -29,6 +29,12 @@ websites you haven't visited in a while, but not for apps on your home screen.
 
 ## Using it
 
+**Getting around:** the bottom bar has the four sections, with **Scan** in the middle: **Binder**
+(All, Missing, Got), **Value** (Prices, Grading, Top cards), **Wishlist** and **Stats**. The red bar at
+the top switches collection (English, Japanese, Korean, Chinese), adds a card by hand (**+**) and opens
+settings. The filter button next to search holds region, type, sort, the Dex / All cards switch, Rapid
+scan and the Spares list. The light on the red bar blinks while a card is being read or prices checked.
+
 - **Scan a card**: take a photo, check the crop (it finds the card's edges by itself), and tap
   **Use this crop**. It reads the name and the number at the bottom (like `025/165`), finds that
   exact card, and shows the price. Tap **Add to Dex**.
@@ -36,7 +42,7 @@ websites you haven't visited in a while, but not for apps on your home screen.
   - Couldn't read it? Type the Pokémon and the card number, then tap **Find**.
   - **Reverse holo**? Tap it under the price, since those are often worth more.
 - **The first scan takes longer**: it downloads the text reader (a few MB). After that it's cached.
-- **Rapid scan** (under the search bar): skips the crop screen when the card is found, and adds clear
+- **Rapid scan** (in the filter sheet; the Scan button turns to Rapid when it's on): skips the crop screen when the card is found, and adds clear
   matches by itself. Duplicates count as spares. Great for bulk lots.
 - **Prices tab**: your collection, most valuable first. **Update all prices** refreshes every card.
   The app reminds you when prices are over a week old. Cardmarket updates them daily.
