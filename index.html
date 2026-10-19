@@ -554,6 +554,18 @@ label textarea { resize: vertical; min-height: 54px; }
     if (/^\d+$/.test(x) && /^\d+$/.test(y)) return parseInt(x, 10) === parseInt(y, 10);
     return x.replace(/^0+/, "") === y.replace(/^0+/, "");
   };
+  function tpEditions(tp, field) {
+    if (!tp || typeof tp !== "object") return null;
+    let first = null, unlimited = null;
+    for (const [k, v] of Object.entries(tp)) {
+      if (!v || typeof v !== "object" || /reverse/i.test(k)) continue;
+      const p = num(v[field]) ?? num(v.mid ?? v.midPrice);
+      if (p == null) continue;
+      if (/1st/i.test(k)) first = first == null ? p : Math.min(first, p);
+      else unlimited = unlimited == null ? p : Math.min(unlimited, p);
+    }
+    return first == null && unlimited == null ? null : { first, unlimited };
+  }
   function fromTcgdex(c, lang = "en") {
     const cm = c.pricing?.cardmarket, tp = c.pricing?.tcgplayer;
     const usd = tp && (tp.normal?.marketPrice ?? tp.holofoil?.marketPrice ?? tp.holo?.marketPrice ?? tp["reverse-holofoil"]?.marketPrice ?? tp.reverse?.marketPrice);
@@ -584,7 +596,8 @@ label textarea { resize: vertical; min-height: 54px; }
         low: num(cm.low),
         updated: cm.updated ?? null
       } : null,
-      usd: num(usd)
+      usd: num(usd),
+      usdEd: tpEditions(tp, "marketPrice")
     };
   }
   var briefFromTcgdex = (b, lang = "en") => ({
@@ -655,9 +668,11 @@ label textarea { resize: vertical; min-height: 54px; }
         avg7Holo: num(p.reverseHoloAvg7),
         avg30Holo: num(p.reverseHoloAvg30),
         low: num(p.lowPrice),
+        lowEx: num(p.lowPriceExPlus),
         updated: c.cardmarket?.updatedAt ?? null
       } : null,
-      usd: num(usd)
+      usd: num(usd),
+      usdEd: tpEditions(tp, "market")
     };
   }
   var FIELDS = "id,name,number,set,images,cardmarket,tcgplayer,nationalPokedexNumbers,rarity,artist";
@@ -716,16 +731,23 @@ label textarea { resize: vertical; min-height: 54px; }
     return fromTcgdex(await getJSON(`${tcgdexUrl(lang || "en")}/cards/${encodeURIComponent(id)}`, { signal }), lang || "en");
   }
   async function withPrice(card, { species, dex }, signal) {
-    if (!card || eurPrice(card, "standard") != null || !card.number) return card;
+    if (!card || !card.number) return card;
     if (card.lang && card.lang !== "en") return card;
+    const old = isVintage(cardSetId(card));
+    if (eurPrice(card, "standard") != null && (!old || card.usdEd)) return card;
     try {
       const other = card.source === "ptcg" ? await tcgdexSearch({ species, number: card.number }, signal) : await ptcgSearch({ species, number: card.number, dex }, signal);
       if (!other.exactNumber) return card;
       const sameSet = other.cards.filter((c) => card.setTotal && c.setTotal === card.setTotal || card.setName && c.setName && words(c.setName) === words(card.setName));
       let match = sameSet.length === 1 ? sameSet[0] : !card.setTotal && !card.setName && other.cards.length === 1 ? other.cards[0] : null;
       if (match?.brief) match = await getCard(match.id, match.source, signal);
+      if (match && old && (match.usdEd || match.eur)) {
+        const eur = card.eur || match.eur ? { ...match.eur || {}, ...card.eur || {} } : null;
+        if (eur) eur.lowEx = card.eur?.lowEx ?? match.eur?.lowEx ?? null;
+        return { ...card, eur, usd: card.usd ?? match.usd, usdEd: card.usdEd || match.usdEd || null, cardmarketUrl: card.cardmarketUrl || match.cardmarketUrl, priceFrom: card.eur ? card.priceFrom : match.source };
+      }
       if (match && eurPrice(match, "standard") != null) {
-        return { ...card, eur: match.eur, usd: card.usd ?? match.usd, cardmarketUrl: card.cardmarketUrl || match.cardmarketUrl, priceFrom: match.source };
+        return { ...card, eur: match.eur, usd: card.usd ?? match.usd, usdEd: card.usdEd || match.usdEd || null, cardmarketUrl: card.cardmarketUrl || match.cardmarketUrl, priceFrom: match.source };
       }
     } catch (e) {
       if (signal?.aborted) throw e;
@@ -754,30 +776,56 @@ label textarea { resize: vertical; min-height: 54px; }
       { days: 30, label: "30-day average", eur: h ? e.avg30Holo : e.avg30 },
       { days: 7, label: "7-day average", eur: h ? e.avg7Holo : e.avg7 },
       { days: 1, label: "Yesterday's average", eur: h ? e.avg1Holo : e.avg1 },
-      { days: 0, label: "Trend price now", eur: h ? e.trendHolo : e.trend ?? e.avg30 }
+      { days: 0, label: "Price used now", eur: eurPrice(card, finish) }
     ].filter((p) => p.eur != null);
   }
-  function eurPrice(card, finish) {
+  // Older (WOTC-era) sets: Cardmarket lumps 1st Edition and Unlimited together and its trend
+  // ignores condition, so one high sale can inflate it. For those we prefer TCGplayer's
+  // edition-split market price, then the cheapest Excellent-or-better listing, then the
+  // lowest of Cardmarket's recent averages. Newer sets keep the Cardmarket trend.
+  var NO_REVERSE_SET = /^(base[1-6]|basep|gym[12]|neo[1-4]|si1|wp)$/i;
+  var FIRST_ED_SET = /^(base[1235]|gym[12]|neo[1-4])$/i;
+  var cardSetId = (c) => c?.setId || (c?.id ? String(c.id).replace(/-[^-]+$/, "") : "");
+  function priceInfo(card, finish) {
     const e = card?.eur;
+    const old = (!card?.lang || card.lang === "en") && isVintage(cardSetId(card));
+    if (old && finish !== "reverse") {
+      const first = finish === "first", ed = card.usdEd;
+      const usd = ed ? first ? ed.first : ed.unlimited : null;
+      if (usd != null) return { eur: usd / (fx.usd || FALLBACK_USD), basis: `TCGplayer ${first ? "1st Edition" : "Unlimited"} market price ($${usd.toFixed(2)})`, solid: true };
+      if (first) {
+        const v = e?.trend ?? e?.avg30;
+        return v != null ? { eur: v, basis: `Cardmarket trend ${euro(v)}, which mixes editions, so treat it as rough` } : null;
+      }
+      if (e?.lowEx != null) return { eur: e.lowEx, basis: `Cheapest Excellent-or-better listing on Cardmarket (${euro(e.lowEx)})`, solid: true };
+      const vals = [e?.avg1, e?.avg7, e?.trend, e?.avg30].filter((v) => v != null);
+      if (vals.length) {
+        const v = Math.min(...vals);
+        return { eur: v, basis: `Lowest of Cardmarket's recent averages (${euro(v)}), as the trend is unreliable for older cards` };
+      }
+      return null;
+    }
     if (!e) return null;
-    if (finish === "reverse") return e.trendHolo ?? e.trend ?? e.avg30 ?? null;
-    return e.trend ?? e.avg30 ?? e.trendHolo ?? null;
+    const v = finish === "reverse" ? e.trendHolo ?? e.trend ?? e.avg30 : e.trend ?? e.avg30 ?? e.trendHolo;
+    return v != null ? { eur: v, basis: `Cardmarket trend ${euro(v)}`, solid: true } : null;
   }
-  var FX_KEY = "fx-eur-gbp";
+  var eurPrice = (card, finish) => priceInfo(card, finish)?.eur ?? null;
+  var FX_KEY = "fx-eur-gbp-usd";
   var FALLBACK_RATE = 0.85;
+  var FALLBACK_USD = 1.12;
   async function eurToGbp() {
     let cached = null;
     try {
       cached = JSON.parse(localStorage.getItem(FX_KEY) || "null");
     } catch {
     }
-    if (cached && Date.now() - cached.at < 12 * 36e5) return cached;
-    for (const url of ["https://api.frankfurter.dev/v1/latest?base=EUR&symbols=GBP", "https://api.frankfurter.app/latest?from=EUR&to=GBP"]) {
+    if (cached && cached.usd && Date.now() - cached.at < 12 * 36e5) return cached;
+    for (const url of ["https://api.frankfurter.dev/v1/latest?base=EUR&symbols=GBP,USD", "https://api.frankfurter.app/latest?from=EUR&to=GBP,USD"]) {
       try {
         const r = await getJSON(url, { timeout: 8e3 });
-        const rate = r?.rates?.GBP;
+        const rate = r?.rates?.GBP, usd = r?.rates?.USD;
         if (rate > 0.5 && rate < 1.5) {
-          const v = { rate, at: Date.now(), live: true };
+          const v = { rate, usd: usd > 0.7 && usd < 1.6 ? usd : FALLBACK_USD, at: Date.now(), live: true };
           try {
             localStorage.setItem(FX_KEY, JSON.stringify(v));
           } catch {
@@ -787,7 +835,7 @@ label textarea { resize: vertical; min-height: 54px; }
       } catch {
       }
     }
-    return cached || { rate: FALLBACK_RATE, at: 0, live: false };
+    return cached ? { usd: FALLBACK_USD, ...cached } : { rate: FALLBACK_RATE, usd: FALLBACK_USD, at: 0, live: false };
   }
 
   // js/grading.js
@@ -1519,7 +1567,7 @@ label textarea { resize: vertical; min-height: 54px; }
   var gen = 0;
   var query = "";
   var typeFilter = 0;
-  var fx = { rate: FALLBACK_RATE, live: false, at: 0 };
+  var fx = { rate: FALLBACK_RATE, usd: FALLBACK_USD, live: false, at: 0 };
   var updating = null;
   var history = [];
   var loaded = false;
@@ -1666,6 +1714,7 @@ label textarea { resize: vertical; min-height: 54px; }
       cardmarketUrl: card.cardmarketUrl || null,
       eur: card.eur || null,
       usd: card.usd ?? null,
+      usdEd: card.usdEd || null,
       cardLang: card.lang || "en",
       value,
       checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -1686,6 +1735,7 @@ label textarea { resize: vertical; min-height: 54px; }
     cardmarketUrl: e.cardmarketUrl,
     eur: e.eur,
     usd: e.usd,
+    usdEd: e.usdEd || null,
     illustrator: e.illustrator,
     setId: setIdOf(e),
     lang: e.cardLang || "en"
@@ -2397,7 +2447,7 @@ label textarea { resize: vertical; min-height: 54px; }
       if (avg.length >= 2) {
         pts = avg;
         title = "Recent price";
-        note = `Cardmarket's 30-day, 7-day and yesterday's averages, then today's trend.${entry ? " Your own price history builds up as you update prices." : ""}`;
+        note = `Cardmarket's 30-day, 7-day and yesterday's averages, then the price the app uses${priceInfo(card, finish) ? `: ${esc(priceInfo(card, finish).basis)}` : ""}.${entry ? " Your own price history builds up as you update prices." : ""}`;
       } else if (hist.length === 1) {
         return `<div class="pchart"><h4>Price history</h4><p class="hint">One saved price so far: ${money(hist[0].v)} on ${shortDate(hist[0].d + "T12:00:00")}. Each day the price is updated adds a point.</p></div>`;
       } else {
@@ -2406,6 +2456,15 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     return `<div class="pchart"><h4>${title}</h4>${lineChartHTML(id, pts, W, `${title} for ${card?.name || "this card"}: ${pts.map((p) => `${p.label} ${money(p.v)}`).join(", ")}`)}<p class="hint">${note}</p></div>`;
   }
+  function finishOptions(card) {
+    const set = cardSetId(card), en = !card?.lang || card.lang === "en";
+    const opts = [];
+    if (en && (FIRST_ED_SET.test(set) || card?.usdEd?.first != null)) opts.push(["standard", "Unlimited"], ["first", "1st Edition"]);
+    else opts.push(["standard", "Standard"]);
+    if (!(en && NO_REVERSE_SET.test(set))) opts.push(["reverse", "Reverse holo"]);
+    return opts;
+  }
+  var finishLabel = (f) => f === "reverse" ? "Reverse holo" : f === "first" ? "1st Edition" : "Standard";
   var bindCardCharts = (root) => root.querySelectorAll(".pchart .chart").forEach((el) => bindLineChart(el.id, root));
   var sheetCtl = null;
   function closeSheet() {
@@ -2504,6 +2563,7 @@ label textarea { resize: vertical; min-height: 54px; }
     $("#fPoke").addEventListener("input", updateMatch);
     updateMatch();
     function renderChosen() {
+      if (sel && !finishOptions(sel).some(([f]) => f === finish)) finish = "standard";
       syncManual();
       if (!sel) {
         results.innerHTML = "";
@@ -2518,10 +2578,9 @@ label textarea { resize: vertical; min-height: 54px; }
       <div>
         <div class="cn">${esc(sel.name)}</div>
         <div class="meta">${esc(meta || "Set unknown")}</div>
-        <div class="price">${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `Cardmarket trend ${euro(eur)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
-        <div class="finish" role="group" aria-label="Finish">
-          <button type="button" data-f="standard" aria-pressed="${finish === "standard"}">Standard</button>
-          <button type="button" data-f="reverse" aria-pressed="${finish === "reverse"}">Reverse holo</button>
+        <div class="price">${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
+        <div class="finish" role="group" aria-label="Finish">${finishOptions(sel).map(([f, label]) => `
+          <button type="button" data-f="${f}" aria-pressed="${finish === f}">${label}</button>`).join("")}
         </div>
         ${(() => {
         const g = gradedEstimates(p, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
@@ -3015,7 +3074,7 @@ label textarea { resize: vertical; min-height: 54px; }
       e?.cardName || "",
       e?.set || "",
       e?.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : "",
-      e ? e.finish === "reverse" ? "Reverse holo" : "Standard" : "",
+      e ? finishLabel(e.finish) : "",
       e?.condition || "",
       e?.paid != null ? (+e.paid).toFixed(2) : "",
       e?.value != null ? (+e.value).toFixed(2) : "",
@@ -3212,7 +3271,7 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div class="setting">
       <h4>Prices</h4>
-      <p class="hint">Cardmarket trend prices, from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
+      <p class="hint">Cardmarket trend prices for newer cards. For older Wizards-era cards (Base to Neo and e-Card), where Cardmarket mixes 1st Edition with Unlimited and one high sale can skew the trend, the app uses TCGplayer's edition-split price, then the cheapest Excellent-or-better Cardmarket listing, then the lowest recent Cardmarket average. Prices come from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
     </div>
     <div class="setting">
       <h4>Start over</h4>
