@@ -286,6 +286,17 @@ label textarea { resize: vertical; min-height: 54px; }
 .pick.binder { border-color: var(--got); box-shadow: inset 0 0 0 1px var(--got); }
 .setting .switch { justify-content: flex-start; }
 
+/* Collections: English, Japanese, Korean, Chinese, each a separate binder */
+.seg.coll button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.collbadge { display: inline-block; vertical-align: 4px; margin-left: 6px; font-family: var(--body); font-size: 12px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 2px 9px; }
+body:not([data-coll="en"]) .page { box-shadow: var(--shadow), inset 0 3px 0 var(--accent); }
+
+/* Price chart on a card */
+.pchart { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; min-width: 0; }
+.chart .pt { fill: var(--got); }
+#manualRow input { border-color: var(--accent); }
+
 </style>
   <!-- Tesseract.js reads text off your card photos, on the phone itself -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
@@ -298,8 +309,8 @@ label textarea { resize: vertical; min-height: 54px; }
       <b id="pct">0%</b>
     </div>
     <div>
-      <h1>Living Pokédex</h1>
-      <p class="sub">One card for each of the 1,025 Pokémon, in National Dex order.</p>
+      <h1>Living Pokédex <span class="collbadge" id="collBadge" hidden></span></h1>
+      <p class="sub" id="subTxt">One card for each of the 1,025 Pokémon, in National Dex order.</p>
       <div class="worth"><strong id="sValue" class="num">£0.00</strong><span id="sValueNote">raw value of your collection</span></div>
       <div class="stats">
         <span><strong id="sGot" class="num">0</strong> collected</span>
@@ -313,12 +324,19 @@ label textarea { resize: vertical; min-height: 54px; }
     </button>
   </header>
 
+  <div class="segwrap"><div class="seg coll" id="collSeg" role="group" aria-label="Collection">
+    <button type="button" data-coll="en" aria-pressed="true">English</button>
+    <button type="button" data-coll="ja" aria-pressed="false">Japanese</button>
+    <button type="button" data-coll="ko" aria-pressed="false">Korean</button>
+    <button type="button" data-coll="zh" aria-pressed="false">Chinese</button>
+  </div></div>
+
   <div id="notice" class="notice" hidden></div>
 
   <div class="regions" id="regions" role="group" aria-label="Filter by region"></div>
 
   <div class="controls">
-    <div class="segwrap"><div class="seg" role="group" aria-label="Show">
+    <div class="segwrap"><div class="seg" id="viewSeg" role="group" aria-label="Show">
       <button type="button" data-view="all" aria-pressed="true">Binder</button>
       <button type="button" data-view="missing" aria-pressed="false">Missing</button>
       <button type="button" data-view="have" aria-pressed="false">Got</button>
@@ -365,7 +383,7 @@ label textarea { resize: vertical; min-height: 54px; }
 // Living Dex app, built from the js/ source files
 (() => {
   // js/data.js
-  var NAMES = ["Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon", "Charizard", "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod", "Butterfree", "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot", "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok", "Pikachu", "Raichu", "Sandshrew", "Sandslash", "Nidoran\u2640", "Nidorina", "Nidoqueen", "Nidoran\u2642", "Nidorino", "Nidoking", "Clefairy", "Clefable", "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat", "Golbat", "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat", "Venomoth", "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck", "Golduck", "Mankey", "Primeape", "Growlithe", "Arcanine", "Poliwag", "Poliwhirl", "Poliwrath", "Abra", "Kadabra", "Alakazam", "Machop", "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel", "Tentacool", "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash", "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch\u2019d", "Doduo", "Dodrio", "Seel", "Dewgong", "Grimer", "Muk", "Shellder", "Cloyster", "Gastly", "Haunter", "Gengar", "Onix", "Drowzee", "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode", "Exeggcute", "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung", "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela", "Kangaskhan", "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu", "Starmie", "Mr. Mime", "Scyther", "Jynx", "Electabuzz", "Magmar", "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras", "Ditto", "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte", "Omastar", "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno", "Zapdos", "Moltres", "Dratini", "Dragonair", "Dragonite", "Mewtwo", "Mew", "Chikorita", "Bayleef", "Meganium", "Cyndaquil", "Quilava", "Typhlosion", "Totodile", "Croconaw", "Feraligatr", "Sentret", "Furret", "Hoothoot", "Noctowl", "Ledyba", "Ledian", "Spinarak", "Ariados", "Crobat", "Chinchou", "Lanturn", "Pichu", "Cleffa", "Igglybuff", "Togepi", "Togetic", "Natu", "Xatu", "Mareep", "Flaaffy", "Ampharos", "Bellossom", "Marill", "Azumarill", "Sudowoodo", "Politoed", "Hoppip", "Skiploom", "Jumpluff", "Aipom", "Sunkern", "Sunflora", "Yanma", "Wooper", "Quagsire", "Espeon", "Umbreon", "Murkrow", "Slowking", "Misdreavus", "Unown", "Wobbuffet", "Girafarig", "Pineco", "Forretress", "Dunsparce", "Gligar", "Steelix", "Snubbull", "Granbull", "Qwilfish", "Scizor", "Shuckle", "Heracross", "Sneasel", "Teddiursa", "Ursaring", "Slugma", "Magcargo", "Swinub", "Piloswine", "Corsola", "Remoraid", "Octillery", "Delibird", "Mantine", "Skarmory", "Houndour", "Houndoom", "Kingdra", "Phanpy", "Donphan", "Porygon2", "Stantler", "Smeargle", "Tyrogue", "Hitmontop", "Smoochum", "Elekid", "Magby", "Miltank", "Blissey", "Raikou", "Entei", "Suicune", "Larvitar", "Pupitar", "Tyranitar", "Lugia", "Ho-Oh", "Celebi", "Treecko", "Grovyle", "Sceptile", "Torchic", "Combusken", "Blaziken", "Mudkip", "Marshtomp", "Swampert", "Poochyena", "Mightyena", "Zigzagoon", "Linoone", "Wurmple", "Silcoon", "Beautifly", "Cascoon", "Dustox", "Lotad", "Lombre", "Ludicolo", "Seedot", "Nuzleaf", "Shiftry", "Taillow", "Swellow", "Wingull", "Pelipper", "Ralts", "Kirlia", "Gardevoir", "Surskit", "Masquerain", "Shroomish", "Breloom", "Slakoth", "Vigoroth", "Slaking", "Nincada", "Ninjask", "Shedinja", "Whismur", "Loudred", "Exploud", "Makuhita", "Hariyama", "Azurill", "Nosepass", "Skitty", "Delcatty", "Sableye", "Mawile", "Aron", "Lairon", "Aggron", "Meditite", "Medicham", "Electrike", "Manectric", "Plusle", "Minun", "Volbeat", "Illumise", "Roselia", "Gulpin", "Swalot", "Carvanha", "Sharpedo", "Wailmer", "Wailord", "Numel", "Camerupt", "Torkoal", "Spoink", "Grumpig", "Spinda", "Trapinch", "Vibrava", "Flygon", "Cacnea", "Cacturne", "Swablu", "Altaria", "Zangoose", "Seviper", "Lunatone", "Solrock", "Barboach", "Whiscash", "Corphish", "Crawdaunt", "Baltoy", "Claydol", "Lileep", "Cradily", "Anorith", "Armaldo", "Feebas", "Milotic", "Castform", "Kecleon", "Shuppet", "Banette", "Duskull", "Dusclops", "Tropius", "Chimecho", "Absol", "Wynaut", "Snorunt", "Glalie", "Spheal", "Sealeo", "Walrein", "Clamperl", "Huntail", "Gorebyss", "Relicanth", "Luvdisc", "Bagon", "Shelgon", "Salamence", "Beldum", "Metang", "Metagross", "Regirock", "Regice", "Registeel", "Latias", "Latios", "Kyogre", "Groudon", "Rayquaza", "Jirachi", "Deoxys", "Turtwig", "Grotle", "Torterra", "Chimchar", "Monferno", "Infernape", "Piplup", "Prinplup", "Empoleon", "Starly", "Staravia", "Staraptor", "Bidoof", "Bibarel", "Kricketot", "Kricketune", "Shinx", "Luxio", "Luxray", "Budew", "Roserade", "Cranidos", "Rampardos", "Shieldon", "Bastiodon", "Burmy", "Wormadam", "Mothim", "Combee", "Vespiquen", "Pachirisu", "Buizel", "Floatzel", "Cherubi", "Cherrim", "Shellos", "Gastrodon", "Ambipom", "Drifloon", "Drifblim", "Buneary", "Lopunny", "Mismagius", "Honchkrow", "Glameow", "Purugly", "Chingling", "Stunky", "Skuntank", "Bronzor", "Bronzong", "Bonsly", "Mime Jr.", "Happiny", "Chatot", "Spiritomb", "Gible", "Gabite", "Garchomp", "Munchlax", "Riolu", "Lucario", "Hippopotas", "Hippowdon", "Skorupi", "Drapion", "Croagunk", "Toxicroak", "Carnivine", "Finneon", "Lumineon", "Mantyke", "Snover", "Abomasnow", "Weavile", "Magnezone", "Lickilicky", "Rhyperior", "Tangrowth", "Electivire", "Magmortar", "Togekiss", "Yanmega", "Leafeon", "Glaceon", "Gliscor", "Mamoswine", "Porygon-Z", "Gallade", "Probopass", "Dusknoir", "Froslass", "Rotom", "Uxie", "Mesprit", "Azelf", "Dialga", "Palkia", "Heatran", "Regigigas", "Giratina", "Cresselia", "Phione", "Manaphy", "Darkrai", "Shaymin", "Arceus", "Victini", "Snivy", "Servine", "Serperior", "Tepig", "Pignite", "Emboar", "Oshawott", "Dewott", "Samurott", "Patrat", "Watchog", "Lillipup", "Herdier", "Stoutland", "Purrloin", "Liepard", "Pansage", "Simisage", "Pansear", "Simisear", "Panpour", "Simipour", "Munna", "Musharna", "Pidove", "Tranquill", "Unfezant", "Blitzle", "Zebstrika", "Roggenrola", "Boldore", "Gigalith", "Woobat", "Swoobat", "Drilbur", "Excadrill", "Audino", "Timburr", "Gurdurr", "Conkeldurr", "Tympole", "Palpitoad", "Seismitoad", "Throh", "Sawk", "Sewaddle", "Swadloon", "Leavanny", "Venipede", "Whirlipede", "Scolipede", "Cottonee", "Whimsicott", "Petilil", "Lilligant", "Basculin", "Sandile", "Krokorok", "Krookodile", "Darumaka", "Darmanitan", "Maractus", "Dwebble", "Crustle", "Scraggy", "Scrafty", "Sigilyph", "Yamask", "Cofagrigus", "Tirtouga", "Carracosta", "Archen", "Archeops", "Trubbish", "Garbodor", "Zorua", "Zoroark", "Minccino", "Cinccino", "Gothita", "Gothorita", "Gothitelle", "Solosis", "Duosion", "Reuniclus", "Ducklett", "Swanna", "Vanillite", "Vanillish", "Vanilluxe", "Deerling", "Sawsbuck", "Emolga", "Karrablast", "Escavalier", "Foongus", "Amoonguss", "Frillish", "Jellicent", "Alomomola", "Joltik", "Galvantula", "Ferroseed", "Ferrothorn", "Klink", "Klang", "Klinklang", "Tynamo", "Eelektrik", "Eelektross", "Elgyem", "Beheeyem", "Litwick", "Lampent", "Chandelure", "Axew", "Fraxure", "Haxorus", "Cubchoo", "Beartic", "Cryogonal", "Shelmet", "Accelgor", "Stunfisk", "Mienfoo", "Mienshao", "Druddigon", "Golett", "Golurk", "Pawniard", "Bisharp", "Bouffalant", "Rufflet", "Braviary", "Vullaby", "Mandibuzz", "Heatmor", "Durant", "Deino", "Zweilous", "Hydreigon", "Larvesta", "Volcarona", "Cobalion", "Terrakion", "Virizion", "Tornadus", "Thundurus", "Reshiram", "Zekrom", "Landorus", "Kyurem", "Keldeo", "Meloetta", "Genesect", "Chespin", "Quilladin", "Chesnaught", "Fennekin", "Braixen", "Delphox", "Froakie", "Frogadier", "Greninja", "Bunnelby", "Diggersby", "Fletchling", "Fletchinder", "Talonflame", "Scatterbug", "Spewpa", "Vivillon", "Litleo", "Pyroar", "Flab\xE9b\xE9", "Floette", "Florges", "Skiddo", "Gogoat", "Pancham", "Pangoro", "Furfrou", "Espurr", "Meowstic", "Honedge", "Doublade", "Aegislash", "Spritzee", "Aromatisse", "Swirlix", "Slurpuff", "Inkay", "Malamar", "Binacle", "Barbaracle", "Skrelp", "Dragalge", "Clauncher", "Clawitzer", "Helioptile", "Heliolisk", "Tyrunt", "Tyrantrum", "Amaura", "Aurorus", "Sylveon", "Hawlucha", "Dedenne", "Carbink", "Goomy", "Sliggoo", "Goodra", "Klefki", "Phantump", "Trevenant", "Pumpkaboo", "Gourgeist", "Bergmite", "Avalugg", "Noibat", "Noivern", "Xerneas", "Yveltal", "Zygarde", "Diancie", "Hoopa", "Volcanion", "Rowlet", "Dartrix", "Decidueye", "Litten", "Torracat", "Incineroar", "Popplio", "Brionne", "Primarina", "Pikipek", "Trumbeak", "Toucannon", "Yungoos", "Gumshoos", "Grubbin", "Charjabug", "Vikavolt", "Crabrawler", "Crabominable", "Oricorio", "Cutiefly", "Ribombee", "Rockruff", "Lycanroc", "Wishiwashi", "Mareanie", "Toxapex", "Mudbray", "Mudsdale", "Dewpider", "Araquanid", "Fomantis", "Lurantis", "Morelull", "Shiinotic", "Salandit", "Salazzle", "Stufful", "Bewear", "Bounsweet", "Steenee", "Tsareena", "Comfey", "Oranguru", "Passimian", "Wimpod", "Golisopod", "Sandygast", "Palossand", "Pyukumuku", "Type: Null", "Silvally", "Minior", "Komala", "Turtonator", "Togedemaru", "Mimikyu", "Bruxish", "Drampa", "Dhelmise", "Jangmo-o", "Hakamo-o", "Kommo-o", "Tapu Koko", "Tapu Lele", "Tapu Bulu", "Tapu Fini", "Cosmog", "Cosmoem", "Solgaleo", "Lunala", "Nihilego", "Buzzwole", "Pheromosa", "Xurkitree", "Celesteela", "Kartana", "Guzzlord", "Necrozma", "Magearna", "Marshadow", "Poipole", "Naganadel", "Stakataka", "Blacephalon", "Zeraora", "Meltan", "Melmetal", "Grookey", "Thwackey", "Rillaboom", "Scorbunny", "Raboot", "Cinderace", "Sobble", "Drizzile", "Inteleon", "Skwovet", "Greedent", "Rookidee", "Corvisquire", "Corviknight", "Blipbug", "Dottler", "Orbeetle", "Nickit", "Thievul", "Gossifleur", "Eldegoss", "Wooloo", "Dubwool", "Chewtle", "Drednaw", "Yamper", "Boltund", "Rolycoly", "Carkol", "Coalossal", "Applin", "Flapple", "Appletun", "Silicobra", "Sandaconda", "Cramorant", "Arrokuda", "Barraskewda", "Toxel", "Toxtricity", "Sizzlipede", "Centiskorch", "Clobbopus", "Grapploct", "Sinistea", "Polteageist", "Hatenna", "Hattrem", "Hatterene", "Impidimp", "Morgrem", "Grimmsnarl", "Obstagoon", "Perrserker", "Cursola", "Sirfetch\u2019d", "Mr. Rime", "Runerigus", "Milcery", "Alcremie", "Falinks", "Pincurchin", "Snom", "Frosmoth", "Stonjourner", "Eiscue", "Indeedee", "Morpeko", "Cufant", "Copperajah", "Dracozolt", "Arctozolt", "Dracovish", "Arctovish", "Duraludon", "Dreepy", "Drakloak", "Dragapult", "Zacian", "Zamazenta", "Eternatus", "Kubfu", "Urshifu", "Zarude", "Regieleki", "Regidrago", "Glastrier", "Spectrier", "Calyrex", "Wyrdeer", "Kleavor", "Ursaluna", "Basculegion", "Sneasler", "Overqwil", "Enamorus", "Sprigatito", "Floragato", "Meowscarada", "Fuecoco", "Crocalor", "Skeledirge", "Quaxly", "Quaxwell", "Quaquaval", "Lechonk", "Oinkologne", "Tarountula", "Spidops", "Nymble", "Lokix", "Pawmi", "Pawmo", "Pawmot", "Tandemaus", "Maushold", "Fidough", "Dachsbun", "Smoliv", "Dolliv", "Arboliva", "Squawkabilly", "Nacli", "Naclstack", "Garganacl", "Charcadet", "Armarouge", "Ceruledge", "Tadbulb", "Bellibolt", "Wattrel", "Kilowattrel", "Maschiff", "Mabosstiff", "Shroodle", "Grafaiai", "Bramblin", "Brambleghast", "Toedscool", "Toedscruel", "Klawf", "Capsakid", "Scovillain", "Rellor", "Rabsca", "Flittle", "Espathra", "Tinkatink", "Tinkatuff", "Tinkaton", "Wiglett", "Wugtrio", "Bombirdier", "Finizen", "Palafin", "Varoom", "Revavroom", "Cyclizar", "Orthworm", "Glimmet", "Glimmora", "Greavard", "Houndstone", "Flamigo", "Cetoddle", "Cetitan", "Veluza", "Dondozo", "Tatsugiri", "Annihilape", "Clodsire", "Farigiraf", "Dudunsparce", "Kingambit", "Great Tusk", "Scream Tail", "Brute Bonnet", "Flutter Mane", "Slither Wing", "Sandy Shocks", "Iron Treads", "Iron Bundle", "Iron Hands", "Iron Jugulis", "Iron Moth", "Iron Thorns", "Frigibax", "Arctibax", "Baxcalibur", "Gimmighoul", "Gholdengo", "Wo-Chien", "Chien-Pao", "Ting-Lu", "Chi-Yu", "Roaring Moon", "Iron Valiant", "Koraidon", "Miraidon", "Walking Wake", "Iron Leaves", "Dipplin", "Poltchageist", "Sinistcha", "Okidogi", "Munkidori", "Fezandipiti", "Ogerpon", "Archaludon", "Hydrapple", "Gouging Fire", "Raging Bolt", "Iron Boulder", "Iron Crown", "Terapagos", "Pecharunt"];
+  var NAMES = ["Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon", "Charizard", "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod", "Butterfree", "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot", "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok", "Pikachu", "Raichu", "Sandshrew", "Sandslash", "Nidoran♀", "Nidorina", "Nidoqueen", "Nidoran♂", "Nidorino", "Nidoking", "Clefairy", "Clefable", "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat", "Golbat", "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat", "Venomoth", "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck", "Golduck", "Mankey", "Primeape", "Growlithe", "Arcanine", "Poliwag", "Poliwhirl", "Poliwrath", "Abra", "Kadabra", "Alakazam", "Machop", "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel", "Tentacool", "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash", "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch’d", "Doduo", "Dodrio", "Seel", "Dewgong", "Grimer", "Muk", "Shellder", "Cloyster", "Gastly", "Haunter", "Gengar", "Onix", "Drowzee", "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode", "Exeggcute", "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung", "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela", "Kangaskhan", "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu", "Starmie", "Mr. Mime", "Scyther", "Jynx", "Electabuzz", "Magmar", "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras", "Ditto", "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte", "Omastar", "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno", "Zapdos", "Moltres", "Dratini", "Dragonair", "Dragonite", "Mewtwo", "Mew", "Chikorita", "Bayleef", "Meganium", "Cyndaquil", "Quilava", "Typhlosion", "Totodile", "Croconaw", "Feraligatr", "Sentret", "Furret", "Hoothoot", "Noctowl", "Ledyba", "Ledian", "Spinarak", "Ariados", "Crobat", "Chinchou", "Lanturn", "Pichu", "Cleffa", "Igglybuff", "Togepi", "Togetic", "Natu", "Xatu", "Mareep", "Flaaffy", "Ampharos", "Bellossom", "Marill", "Azumarill", "Sudowoodo", "Politoed", "Hoppip", "Skiploom", "Jumpluff", "Aipom", "Sunkern", "Sunflora", "Yanma", "Wooper", "Quagsire", "Espeon", "Umbreon", "Murkrow", "Slowking", "Misdreavus", "Unown", "Wobbuffet", "Girafarig", "Pineco", "Forretress", "Dunsparce", "Gligar", "Steelix", "Snubbull", "Granbull", "Qwilfish", "Scizor", "Shuckle", "Heracross", "Sneasel", "Teddiursa", "Ursaring", "Slugma", "Magcargo", "Swinub", "Piloswine", "Corsola", "Remoraid", "Octillery", "Delibird", "Mantine", "Skarmory", "Houndour", "Houndoom", "Kingdra", "Phanpy", "Donphan", "Porygon2", "Stantler", "Smeargle", "Tyrogue", "Hitmontop", "Smoochum", "Elekid", "Magby", "Miltank", "Blissey", "Raikou", "Entei", "Suicune", "Larvitar", "Pupitar", "Tyranitar", "Lugia", "Ho-Oh", "Celebi", "Treecko", "Grovyle", "Sceptile", "Torchic", "Combusken", "Blaziken", "Mudkip", "Marshtomp", "Swampert", "Poochyena", "Mightyena", "Zigzagoon", "Linoone", "Wurmple", "Silcoon", "Beautifly", "Cascoon", "Dustox", "Lotad", "Lombre", "Ludicolo", "Seedot", "Nuzleaf", "Shiftry", "Taillow", "Swellow", "Wingull", "Pelipper", "Ralts", "Kirlia", "Gardevoir", "Surskit", "Masquerain", "Shroomish", "Breloom", "Slakoth", "Vigoroth", "Slaking", "Nincada", "Ninjask", "Shedinja", "Whismur", "Loudred", "Exploud", "Makuhita", "Hariyama", "Azurill", "Nosepass", "Skitty", "Delcatty", "Sableye", "Mawile", "Aron", "Lairon", "Aggron", "Meditite", "Medicham", "Electrike", "Manectric", "Plusle", "Minun", "Volbeat", "Illumise", "Roselia", "Gulpin", "Swalot", "Carvanha", "Sharpedo", "Wailmer", "Wailord", "Numel", "Camerupt", "Torkoal", "Spoink", "Grumpig", "Spinda", "Trapinch", "Vibrava", "Flygon", "Cacnea", "Cacturne", "Swablu", "Altaria", "Zangoose", "Seviper", "Lunatone", "Solrock", "Barboach", "Whiscash", "Corphish", "Crawdaunt", "Baltoy", "Claydol", "Lileep", "Cradily", "Anorith", "Armaldo", "Feebas", "Milotic", "Castform", "Kecleon", "Shuppet", "Banette", "Duskull", "Dusclops", "Tropius", "Chimecho", "Absol", "Wynaut", "Snorunt", "Glalie", "Spheal", "Sealeo", "Walrein", "Clamperl", "Huntail", "Gorebyss", "Relicanth", "Luvdisc", "Bagon", "Shelgon", "Salamence", "Beldum", "Metang", "Metagross", "Regirock", "Regice", "Registeel", "Latias", "Latios", "Kyogre", "Groudon", "Rayquaza", "Jirachi", "Deoxys", "Turtwig", "Grotle", "Torterra", "Chimchar", "Monferno", "Infernape", "Piplup", "Prinplup", "Empoleon", "Starly", "Staravia", "Staraptor", "Bidoof", "Bibarel", "Kricketot", "Kricketune", "Shinx", "Luxio", "Luxray", "Budew", "Roserade", "Cranidos", "Rampardos", "Shieldon", "Bastiodon", "Burmy", "Wormadam", "Mothim", "Combee", "Vespiquen", "Pachirisu", "Buizel", "Floatzel", "Cherubi", "Cherrim", "Shellos", "Gastrodon", "Ambipom", "Drifloon", "Drifblim", "Buneary", "Lopunny", "Mismagius", "Honchkrow", "Glameow", "Purugly", "Chingling", "Stunky", "Skuntank", "Bronzor", "Bronzong", "Bonsly", "Mime Jr.", "Happiny", "Chatot", "Spiritomb", "Gible", "Gabite", "Garchomp", "Munchlax", "Riolu", "Lucario", "Hippopotas", "Hippowdon", "Skorupi", "Drapion", "Croagunk", "Toxicroak", "Carnivine", "Finneon", "Lumineon", "Mantyke", "Snover", "Abomasnow", "Weavile", "Magnezone", "Lickilicky", "Rhyperior", "Tangrowth", "Electivire", "Magmortar", "Togekiss", "Yanmega", "Leafeon", "Glaceon", "Gliscor", "Mamoswine", "Porygon-Z", "Gallade", "Probopass", "Dusknoir", "Froslass", "Rotom", "Uxie", "Mesprit", "Azelf", "Dialga", "Palkia", "Heatran", "Regigigas", "Giratina", "Cresselia", "Phione", "Manaphy", "Darkrai", "Shaymin", "Arceus", "Victini", "Snivy", "Servine", "Serperior", "Tepig", "Pignite", "Emboar", "Oshawott", "Dewott", "Samurott", "Patrat", "Watchog", "Lillipup", "Herdier", "Stoutland", "Purrloin", "Liepard", "Pansage", "Simisage", "Pansear", "Simisear", "Panpour", "Simipour", "Munna", "Musharna", "Pidove", "Tranquill", "Unfezant", "Blitzle", "Zebstrika", "Roggenrola", "Boldore", "Gigalith", "Woobat", "Swoobat", "Drilbur", "Excadrill", "Audino", "Timburr", "Gurdurr", "Conkeldurr", "Tympole", "Palpitoad", "Seismitoad", "Throh", "Sawk", "Sewaddle", "Swadloon", "Leavanny", "Venipede", "Whirlipede", "Scolipede", "Cottonee", "Whimsicott", "Petilil", "Lilligant", "Basculin", "Sandile", "Krokorok", "Krookodile", "Darumaka", "Darmanitan", "Maractus", "Dwebble", "Crustle", "Scraggy", "Scrafty", "Sigilyph", "Yamask", "Cofagrigus", "Tirtouga", "Carracosta", "Archen", "Archeops", "Trubbish", "Garbodor", "Zorua", "Zoroark", "Minccino", "Cinccino", "Gothita", "Gothorita", "Gothitelle", "Solosis", "Duosion", "Reuniclus", "Ducklett", "Swanna", "Vanillite", "Vanillish", "Vanilluxe", "Deerling", "Sawsbuck", "Emolga", "Karrablast", "Escavalier", "Foongus", "Amoonguss", "Frillish", "Jellicent", "Alomomola", "Joltik", "Galvantula", "Ferroseed", "Ferrothorn", "Klink", "Klang", "Klinklang", "Tynamo", "Eelektrik", "Eelektross", "Elgyem", "Beheeyem", "Litwick", "Lampent", "Chandelure", "Axew", "Fraxure", "Haxorus", "Cubchoo", "Beartic", "Cryogonal", "Shelmet", "Accelgor", "Stunfisk", "Mienfoo", "Mienshao", "Druddigon", "Golett", "Golurk", "Pawniard", "Bisharp", "Bouffalant", "Rufflet", "Braviary", "Vullaby", "Mandibuzz", "Heatmor", "Durant", "Deino", "Zweilous", "Hydreigon", "Larvesta", "Volcarona", "Cobalion", "Terrakion", "Virizion", "Tornadus", "Thundurus", "Reshiram", "Zekrom", "Landorus", "Kyurem", "Keldeo", "Meloetta", "Genesect", "Chespin", "Quilladin", "Chesnaught", "Fennekin", "Braixen", "Delphox", "Froakie", "Frogadier", "Greninja", "Bunnelby", "Diggersby", "Fletchling", "Fletchinder", "Talonflame", "Scatterbug", "Spewpa", "Vivillon", "Litleo", "Pyroar", "Flabébé", "Floette", "Florges", "Skiddo", "Gogoat", "Pancham", "Pangoro", "Furfrou", "Espurr", "Meowstic", "Honedge", "Doublade", "Aegislash", "Spritzee", "Aromatisse", "Swirlix", "Slurpuff", "Inkay", "Malamar", "Binacle", "Barbaracle", "Skrelp", "Dragalge", "Clauncher", "Clawitzer", "Helioptile", "Heliolisk", "Tyrunt", "Tyrantrum", "Amaura", "Aurorus", "Sylveon", "Hawlucha", "Dedenne", "Carbink", "Goomy", "Sliggoo", "Goodra", "Klefki", "Phantump", "Trevenant", "Pumpkaboo", "Gourgeist", "Bergmite", "Avalugg", "Noibat", "Noivern", "Xerneas", "Yveltal", "Zygarde", "Diancie", "Hoopa", "Volcanion", "Rowlet", "Dartrix", "Decidueye", "Litten", "Torracat", "Incineroar", "Popplio", "Brionne", "Primarina", "Pikipek", "Trumbeak", "Toucannon", "Yungoos", "Gumshoos", "Grubbin", "Charjabug", "Vikavolt", "Crabrawler", "Crabominable", "Oricorio", "Cutiefly", "Ribombee", "Rockruff", "Lycanroc", "Wishiwashi", "Mareanie", "Toxapex", "Mudbray", "Mudsdale", "Dewpider", "Araquanid", "Fomantis", "Lurantis", "Morelull", "Shiinotic", "Salandit", "Salazzle", "Stufful", "Bewear", "Bounsweet", "Steenee", "Tsareena", "Comfey", "Oranguru", "Passimian", "Wimpod", "Golisopod", "Sandygast", "Palossand", "Pyukumuku", "Type: Null", "Silvally", "Minior", "Komala", "Turtonator", "Togedemaru", "Mimikyu", "Bruxish", "Drampa", "Dhelmise", "Jangmo-o", "Hakamo-o", "Kommo-o", "Tapu Koko", "Tapu Lele", "Tapu Bulu", "Tapu Fini", "Cosmog", "Cosmoem", "Solgaleo", "Lunala", "Nihilego", "Buzzwole", "Pheromosa", "Xurkitree", "Celesteela", "Kartana", "Guzzlord", "Necrozma", "Magearna", "Marshadow", "Poipole", "Naganadel", "Stakataka", "Blacephalon", "Zeraora", "Meltan", "Melmetal", "Grookey", "Thwackey", "Rillaboom", "Scorbunny", "Raboot", "Cinderace", "Sobble", "Drizzile", "Inteleon", "Skwovet", "Greedent", "Rookidee", "Corvisquire", "Corviknight", "Blipbug", "Dottler", "Orbeetle", "Nickit", "Thievul", "Gossifleur", "Eldegoss", "Wooloo", "Dubwool", "Chewtle", "Drednaw", "Yamper", "Boltund", "Rolycoly", "Carkol", "Coalossal", "Applin", "Flapple", "Appletun", "Silicobra", "Sandaconda", "Cramorant", "Arrokuda", "Barraskewda", "Toxel", "Toxtricity", "Sizzlipede", "Centiskorch", "Clobbopus", "Grapploct", "Sinistea", "Polteageist", "Hatenna", "Hattrem", "Hatterene", "Impidimp", "Morgrem", "Grimmsnarl", "Obstagoon", "Perrserker", "Cursola", "Sirfetch’d", "Mr. Rime", "Runerigus", "Milcery", "Alcremie", "Falinks", "Pincurchin", "Snom", "Frosmoth", "Stonjourner", "Eiscue", "Indeedee", "Morpeko", "Cufant", "Copperajah", "Dracozolt", "Arctozolt", "Dracovish", "Arctovish", "Duraludon", "Dreepy", "Drakloak", "Dragapult", "Zacian", "Zamazenta", "Eternatus", "Kubfu", "Urshifu", "Zarude", "Regieleki", "Regidrago", "Glastrier", "Spectrier", "Calyrex", "Wyrdeer", "Kleavor", "Ursaluna", "Basculegion", "Sneasler", "Overqwil", "Enamorus", "Sprigatito", "Floragato", "Meowscarada", "Fuecoco", "Crocalor", "Skeledirge", "Quaxly", "Quaxwell", "Quaquaval", "Lechonk", "Oinkologne", "Tarountula", "Spidops", "Nymble", "Lokix", "Pawmi", "Pawmo", "Pawmot", "Tandemaus", "Maushold", "Fidough", "Dachsbun", "Smoliv", "Dolliv", "Arboliva", "Squawkabilly", "Nacli", "Naclstack", "Garganacl", "Charcadet", "Armarouge", "Ceruledge", "Tadbulb", "Bellibolt", "Wattrel", "Kilowattrel", "Maschiff", "Mabosstiff", "Shroodle", "Grafaiai", "Bramblin", "Brambleghast", "Toedscool", "Toedscruel", "Klawf", "Capsakid", "Scovillain", "Rellor", "Rabsca", "Flittle", "Espathra", "Tinkatink", "Tinkatuff", "Tinkaton", "Wiglett", "Wugtrio", "Bombirdier", "Finizen", "Palafin", "Varoom", "Revavroom", "Cyclizar", "Orthworm", "Glimmet", "Glimmora", "Greavard", "Houndstone", "Flamigo", "Cetoddle", "Cetitan", "Veluza", "Dondozo", "Tatsugiri", "Annihilape", "Clodsire", "Farigiraf", "Dudunsparce", "Kingambit", "Great Tusk", "Scream Tail", "Brute Bonnet", "Flutter Mane", "Slither Wing", "Sandy Shocks", "Iron Treads", "Iron Bundle", "Iron Hands", "Iron Jugulis", "Iron Moth", "Iron Thorns", "Frigibax", "Arctibax", "Baxcalibur", "Gimmighoul", "Gholdengo", "Wo-Chien", "Chien-Pao", "Ting-Lu", "Chi-Yu", "Roaring Moon", "Iron Valiant", "Koraidon", "Miraidon", "Walking Wake", "Iron Leaves", "Dipplin", "Poltchageist", "Sinistcha", "Okidogi", "Munkidori", "Fezandipiti", "Ogerpon", "Archaludon", "Hydrapple", "Gouging Fire", "Raging Bolt", "Iron Boulder", "Iron Crown", "Terapagos", "Pecharunt"];
   var LEGEND = /* @__PURE__ */ new Set([144, 145, 146, 150, 151, 243, 244, 245, 249, 250, 251, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649, 716, 717, 718, 719, 720, 721, 772, 773, 785, 786, 787, 788, 789, 790, 791, 792, 800, 801, 802, 807, 808, 809, 888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 905, 1001, 1002, 1003, 1004, 1007, 1008, 1014, 1015, 1016, 1017, 1024, 1025]);
   var TYPECODES = "ldldldj_j_jck_k_k_g_g_gcgdgdgdacacaca_a_acacd_d_m_m_e_e_d_d_ded_d_der_r_j_j_arardcdcldldldglglgdgde_e_a_a_k_k_b_b_j_j_k_k_kbn_n_n_b_b_b_ldldldkdkdfefefej_j_knknmimiacacack_kod_d_k_kohdhdhdfen_n_k_k_m_m_lnlne_e_b_b_a_d_d_efefa_l_a_k_k_k_k_k_knnrgconm_j_g_a_k_kckoa_a_k_m_j_a_fkfkfkfkfca_ocmcjcp_p_pcn_n_l_l_l_j_j_j_k_k_k_a_a_acacgcgcgdgddckmkmm_r_arr_rcncncm_m_m_l_krkrf_k_lclclca_l_l_gckeken_q_qcknh_n_n_ang_gia_ecier_r_kdgigfgbqoa_a_j_jfoeoekfk_k_ockcicqjqjkpe_e_a_a_a_b_b_onm_j_a_a_m_j_k_fefefqncjcnll_l_l_j_jbjbk_kekeq_q_a_a_g_g_gcg_gdklklkll_lqlqacackckcnrnrnrgkgcl_lba_a_a_gegcgha_a_a_b_b_arf_a_a_qhirifififbnbnm_m_m_m_g_g_ldd_d_kqkqk_k_jejej_n_n_a_e_epepl_lqacpca_d_fnfnkekek_kqenenflflfgfgk_k_a_a_h_h_h_h_lcn_q_n_o_o_okokokk_k_k_kfk_p_p_pcinininf_o_i_pnpnk_e_pcinn_l_l_lej_jbjbk_k_kiacacaca_akg_g_m_m_m_ldldf_f_fifig_glgcgcgcm_k_k_l_l_k_kea_hchca_a_h_qca_a_n_dqdqininf_nra_achqpepepea_b_bie_e_dgdqdbdbl_k_k_kcloloqomia_efl_m_j_rcgcl_o_ecoea_nbfih_ohmhn_n_n_ipkpjia_hpn_k_k_q_l_a_njl_l_l_j_jbjbk_k_k_a_a_a_a_a_q_q_l_l_j_j_k_k_n_n_acacacm_m_f_f_f_ncnce_eia_b_b_b_k_kekeb_b_glglglgdgdgdlrlrl_l_k_eqeqeqj_j_l_gfgfqbqbnch_h_kfkffcfcd_d_q_q_a_a_n_n_n_n_n_n_kckco_o_o_alalmcg_gildldkhkhk_gmgmlilii_i_i_m_m_m_n_n_hjhjhjp_p_p_o_o_o_g_g_emb_b_p_ehehqiqia_acacqcqcj_giqpqpqpgjgjibfblbc_mcpjpmecpokbangil_l_lbj_j_jnk_k_kqa_aeacjcjcg_g_gcjajar_r_r_l_l_b_bqa_n_n_ihihihr_r_r_r_qnqnfkfkdkdpk_k_mamafpfpfofor_bcmrfrp_p_p_irhlhlhlhlo_o_cpcpr_qcpefrnhjklclclhj_j_jqk_k_kracacaca_a_g_gmgmb_bojcgrgrf_f_k_dkdke_e_kgkgl_l_lrlrdjdjababl_l_l_r_anb_gkgkhehek_a_a_fca_jpmihrknaphlp_pbpbmrnrlrkrn_n_ninhfdgbgbm_icliqpn_irbhd_dpfijhm_i_i_l_l_l_j_j_j_k_k_k_a_a_c_c_cig_gngnq_q_l_l_a_a_k_kfm_m_f_fjfjlplplpe_e_ckk_k_mdmdjgjgb_b_h_h_n_n_nrqrqrqrqai_h_b_onehr_r_b_m_ogogf_o_namqi_i_mpmokpkoipphphphr_b_dpb_bqqlm_p_o_h_nlangfeakhbdqdrcl_l_lqj_j_jhk_k_kba_a_g_g_g_gqm_mbmba_a_r_r_lalalaacf_f_f_j_jnjhm_m_mcmcq_q_dadalhlhelelf_l_ljg_gnn_n_riririk_k_cqk_k_ididpai_fdfdh_h_cbo_o_knk_pkbhdeana_qiebrnlqhrgbmeeiokbmqcjdfmpopopoh_ihqlqoqeqjpqrbbpmpkplnlplhlhdbdndrl_iplpjpmpfnina_dh";
   var TYPES = ["Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel", "Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark", "Fairy"];
@@ -373,59 +391,81 @@ label textarea { resize: vertical; min-height: 54px; }
   var GEN_END = [151, 251, 386, 493, 649, 721, 809, 905, 1025];
   var REGIONS = ["Kanto", "Johto", "Hoenn", "Sinnoh", "Unova", "Kalos", "Alola", "Galar", "Paldea"];
   var genOf = (n) => GEN_END.findIndex((e) => n <= e) + 1;
-  var FORMS = [{ "key": "venusaur-mega", "dex": 3, "kind": "mega", "tag": "", "name": "Mega Venusaur" }, { "key": "charizard-mega-x", "dex": 6, "kind": "mega", "tag": "x", "name": "Mega Charizard X" }, { "key": "charizard-mega-y", "dex": 6, "kind": "mega", "tag": "y", "name": "Mega Charizard Y" }, { "key": "blastoise-mega", "dex": 9, "kind": "mega", "tag": "", "name": "Mega Blastoise" }, { "key": "beedrill-mega", "dex": 15, "kind": "mega", "tag": "", "name": "Mega Beedrill" }, { "key": "pidgeot-mega", "dex": 18, "kind": "mega", "tag": "", "name": "Mega Pidgeot" }, { "key": "rattata-alola", "dex": 19, "kind": "regional", "tag": "alolan", "name": "Alolan Rattata" }, { "key": "raticate-alola", "dex": 20, "kind": "regional", "tag": "alolan", "name": "Alolan Raticate" }, { "key": "raichu-alola", "dex": 26, "kind": "regional", "tag": "alolan", "name": "Alolan Raichu" }, { "key": "raichu-mega-x", "dex": 26, "kind": "mega", "tag": "x", "name": "Mega Raichu X" }, { "key": "raichu-mega-y", "dex": 26, "kind": "mega", "tag": "y", "name": "Mega Raichu Y" }, { "key": "sandshrew-alola", "dex": 27, "kind": "regional", "tag": "alolan", "name": "Alolan Sandshrew" }, { "key": "sandslash-alola", "dex": 28, "kind": "regional", "tag": "alolan", "name": "Alolan Sandslash" }, { "key": "clefable-mega", "dex": 36, "kind": "mega", "tag": "", "name": "Mega Clefable" }, { "key": "vulpix-alola", "dex": 37, "kind": "regional", "tag": "alolan", "name": "Alolan Vulpix" }, { "key": "ninetales-alola", "dex": 38, "kind": "regional", "tag": "alolan", "name": "Alolan Ninetales" }, { "key": "diglett-alola", "dex": 50, "kind": "regional", "tag": "alolan", "name": "Alolan Diglett" }, { "key": "dugtrio-alola", "dex": 51, "kind": "regional", "tag": "alolan", "name": "Alolan Dugtrio" }, { "key": "meowth-alola", "dex": 52, "kind": "regional", "tag": "alolan", "name": "Alolan Meowth" }, { "key": "meowth-galar", "dex": 52, "kind": "regional", "tag": "galarian", "name": "Galarian Meowth" }, { "key": "persian-alola", "dex": 53, "kind": "regional", "tag": "alolan", "name": "Alolan Persian" }, { "key": "growlithe-hisui", "dex": 58, "kind": "regional", "tag": "hisuian", "name": "Hisuian Growlithe" }, { "key": "arcanine-hisui", "dex": 59, "kind": "regional", "tag": "hisuian", "name": "Hisuian Arcanine" }, { "key": "alakazam-mega", "dex": 65, "kind": "mega", "tag": "", "name": "Mega Alakazam" }, { "key": "victreebel-mega", "dex": 71, "kind": "mega", "tag": "", "name": "Mega Victreebel" }, { "key": "geodude-alola", "dex": 74, "kind": "regional", "tag": "alolan", "name": "Alolan Geodude" }, { "key": "graveler-alola", "dex": 75, "kind": "regional", "tag": "alolan", "name": "Alolan Graveler" }, { "key": "golem-alola", "dex": 76, "kind": "regional", "tag": "alolan", "name": "Alolan Golem" }, { "key": "ponyta-galar", "dex": 77, "kind": "regional", "tag": "galarian", "name": "Galarian Ponyta" }, { "key": "rapidash-galar", "dex": 78, "kind": "regional", "tag": "galarian", "name": "Galarian Rapidash" }, { "key": "slowpoke-galar", "dex": 79, "kind": "regional", "tag": "galarian", "name": "Galarian Slowpoke" }, { "key": "slowbro-galar", "dex": 80, "kind": "regional", "tag": "galarian", "name": "Galarian Slowbro" }, { "key": "slowbro-mega", "dex": 80, "kind": "mega", "tag": "", "name": "Mega Slowbro" }, { "key": "farfetchd-galar", "dex": 83, "kind": "regional", "tag": "galarian", "name": "Galarian Farfetch\u2019d" }, { "key": "grimer-alola", "dex": 88, "kind": "regional", "tag": "alolan", "name": "Alolan Grimer" }, { "key": "muk-alola", "dex": 89, "kind": "regional", "tag": "alolan", "name": "Alolan Muk" }, { "key": "gengar-mega", "dex": 94, "kind": "mega", "tag": "", "name": "Mega Gengar" }, { "key": "voltorb-hisui", "dex": 100, "kind": "regional", "tag": "hisuian", "name": "Hisuian Voltorb" }, { "key": "electrode-hisui", "dex": 101, "kind": "regional", "tag": "hisuian", "name": "Hisuian Electrode" }, { "key": "exeggutor-alola", "dex": 103, "kind": "regional", "tag": "alolan", "name": "Alolan Exeggutor" }, { "key": "marowak-alola", "dex": 105, "kind": "regional", "tag": "alolan", "name": "Alolan Marowak" }, { "key": "weezing-galar", "dex": 110, "kind": "regional", "tag": "galarian", "name": "Galarian Weezing" }, { "key": "kangaskhan-mega", "dex": 115, "kind": "mega", "tag": "", "name": "Mega Kangaskhan" }, { "key": "starmie-mega", "dex": 121, "kind": "mega", "tag": "", "name": "Mega Starmie" }, { "key": "mr-mime-galar", "dex": 122, "kind": "regional", "tag": "galarian", "name": "Galarian Mr. Mime" }, { "key": "pinsir-mega", "dex": 127, "kind": "mega", "tag": "", "name": "Mega Pinsir" }, { "key": "tauros-paldea", "dex": 128, "kind": "regional", "tag": "paldean", "name": "Paldean Tauros" }, { "key": "gyarados-mega", "dex": 130, "kind": "mega", "tag": "", "name": "Mega Gyarados" }, { "key": "aerodactyl-mega", "dex": 142, "kind": "mega", "tag": "", "name": "Mega Aerodactyl" }, { "key": "articuno-galar", "dex": 144, "kind": "regional", "tag": "galarian", "name": "Galarian Articuno" }, { "key": "zapdos-galar", "dex": 145, "kind": "regional", "tag": "galarian", "name": "Galarian Zapdos" }, { "key": "moltres-galar", "dex": 146, "kind": "regional", "tag": "galarian", "name": "Galarian Moltres" }, { "key": "dragonite-mega", "dex": 149, "kind": "mega", "tag": "", "name": "Mega Dragonite" }, { "key": "mewtwo-mega-x", "dex": 150, "kind": "mega", "tag": "x", "name": "Mega Mewtwo X" }, { "key": "mewtwo-mega-y", "dex": 150, "kind": "mega", "tag": "y", "name": "Mega Mewtwo Y" }, { "key": "meganium-mega", "dex": 154, "kind": "mega", "tag": "", "name": "Mega Meganium" }, { "key": "typhlosion-hisui", "dex": 157, "kind": "regional", "tag": "hisuian", "name": "Hisuian Typhlosion" }, { "key": "feraligatr-mega", "dex": 160, "kind": "mega", "tag": "", "name": "Mega Feraligatr" }, { "key": "ampharos-mega", "dex": 181, "kind": "mega", "tag": "", "name": "Mega Ampharos" }, { "key": "wooper-paldea", "dex": 194, "kind": "regional", "tag": "paldean", "name": "Paldean Wooper" }, { "key": "slowking-galar", "dex": 199, "kind": "regional", "tag": "galarian", "name": "Galarian Slowking" }, { "key": "steelix-mega", "dex": 208, "kind": "mega", "tag": "", "name": "Mega Steelix" }, { "key": "qwilfish-hisui", "dex": 211, "kind": "regional", "tag": "hisuian", "name": "Hisuian Qwilfish" }, { "key": "scizor-mega", "dex": 212, "kind": "mega", "tag": "", "name": "Mega Scizor" }, { "key": "heracross-mega", "dex": 214, "kind": "mega", "tag": "", "name": "Mega Heracross" }, { "key": "sneasel-hisui", "dex": 215, "kind": "regional", "tag": "hisuian", "name": "Hisuian Sneasel" }, { "key": "corsola-galar", "dex": 222, "kind": "regional", "tag": "galarian", "name": "Galarian Corsola" }, { "key": "skarmory-mega", "dex": 227, "kind": "mega", "tag": "", "name": "Mega Skarmory" }, { "key": "houndoom-mega", "dex": 229, "kind": "mega", "tag": "", "name": "Mega Houndoom" }, { "key": "tyranitar-mega", "dex": 248, "kind": "mega", "tag": "", "name": "Mega Tyranitar" }, { "key": "sceptile-mega", "dex": 254, "kind": "mega", "tag": "", "name": "Mega Sceptile" }, { "key": "blaziken-mega", "dex": 257, "kind": "mega", "tag": "", "name": "Mega Blaziken" }, { "key": "swampert-mega", "dex": 260, "kind": "mega", "tag": "", "name": "Mega Swampert" }, { "key": "zigzagoon-galar", "dex": 263, "kind": "regional", "tag": "galarian", "name": "Galarian Zigzagoon" }, { "key": "linoone-galar", "dex": 264, "kind": "regional", "tag": "galarian", "name": "Galarian Linoone" }, { "key": "gardevoir-mega", "dex": 282, "kind": "mega", "tag": "", "name": "Mega Gardevoir" }, { "key": "sableye-mega", "dex": 302, "kind": "mega", "tag": "", "name": "Mega Sableye" }, { "key": "mawile-mega", "dex": 303, "kind": "mega", "tag": "", "name": "Mega Mawile" }, { "key": "aggron-mega", "dex": 306, "kind": "mega", "tag": "", "name": "Mega Aggron" }, { "key": "medicham-mega", "dex": 308, "kind": "mega", "tag": "", "name": "Mega Medicham" }, { "key": "manectric-mega", "dex": 310, "kind": "mega", "tag": "", "name": "Mega Manectric" }, { "key": "sharpedo-mega", "dex": 319, "kind": "mega", "tag": "", "name": "Mega Sharpedo" }, { "key": "camerupt-mega", "dex": 323, "kind": "mega", "tag": "", "name": "Mega Camerupt" }, { "key": "altaria-mega", "dex": 334, "kind": "mega", "tag": "", "name": "Mega Altaria" }, { "key": "banette-mega", "dex": 354, "kind": "mega", "tag": "", "name": "Mega Banette" }, { "key": "chimecho-mega", "dex": 358, "kind": "mega", "tag": "", "name": "Mega Chimecho" }, { "key": "absol-mega", "dex": 359, "kind": "mega", "tag": "", "name": "Mega Absol" }, { "key": "absol-mega-z", "dex": 359, "kind": "mega", "tag": "z", "name": "Mega Absol Z" }, { "key": "glalie-mega", "dex": 362, "kind": "mega", "tag": "", "name": "Mega Glalie" }, { "key": "salamence-mega", "dex": 373, "kind": "mega", "tag": "", "name": "Mega Salamence" }, { "key": "metagross-mega", "dex": 376, "kind": "mega", "tag": "", "name": "Mega Metagross" }, { "key": "latias-mega", "dex": 380, "kind": "mega", "tag": "", "name": "Mega Latias" }, { "key": "latios-mega", "dex": 381, "kind": "mega", "tag": "", "name": "Mega Latios" }, { "key": "kyogre-primal", "dex": 382, "kind": "mega", "tag": "primal", "name": "Primal Kyogre" }, { "key": "groudon-primal", "dex": 383, "kind": "mega", "tag": "primal", "name": "Primal Groudon" }, { "key": "rayquaza-mega", "dex": 384, "kind": "mega", "tag": "", "name": "Mega Rayquaza" }, { "key": "staraptor-mega", "dex": 398, "kind": "mega", "tag": "", "name": "Mega Staraptor" }, { "key": "lopunny-mega", "dex": 428, "kind": "mega", "tag": "", "name": "Mega Lopunny" }, { "key": "garchomp-mega", "dex": 445, "kind": "mega", "tag": "", "name": "Mega Garchomp" }, { "key": "garchomp-mega-z", "dex": 445, "kind": "mega", "tag": "z", "name": "Mega Garchomp Z" }, { "key": "lucario-mega", "dex": 448, "kind": "mega", "tag": "", "name": "Mega Lucario" }, { "key": "lucario-mega-z", "dex": 448, "kind": "mega", "tag": "z", "name": "Mega Lucario Z" }, { "key": "abomasnow-mega", "dex": 460, "kind": "mega", "tag": "", "name": "Mega Abomasnow" }, { "key": "gallade-mega", "dex": 475, "kind": "mega", "tag": "", "name": "Mega Gallade" }, { "key": "froslass-mega", "dex": 478, "kind": "mega", "tag": "", "name": "Mega Froslass" }, { "key": "heatran-mega", "dex": 485, "kind": "mega", "tag": "", "name": "Mega Heatran" }, { "key": "darkrai-mega", "dex": 491, "kind": "mega", "tag": "", "name": "Mega Darkrai" }, { "key": "emboar-mega", "dex": 500, "kind": "mega", "tag": "", "name": "Mega Emboar" }, { "key": "samurott-hisui", "dex": 503, "kind": "regional", "tag": "hisuian", "name": "Hisuian Samurott" }, { "key": "excadrill-mega", "dex": 530, "kind": "mega", "tag": "", "name": "Mega Excadrill" }, { "key": "audino-mega", "dex": 531, "kind": "mega", "tag": "", "name": "Mega Audino" }, { "key": "scolipede-mega", "dex": 545, "kind": "mega", "tag": "", "name": "Mega Scolipede" }, { "key": "lilligant-hisui", "dex": 549, "kind": "regional", "tag": "hisuian", "name": "Hisuian Lilligant" }, { "key": "darumaka-galar", "dex": 554, "kind": "regional", "tag": "galarian", "name": "Galarian Darumaka" }, { "key": "darmanitan-galar-standard", "dex": 555, "kind": "regional", "tag": "galarian", "name": "Galarian Darmanitan" }, { "key": "scrafty-mega", "dex": 560, "kind": "mega", "tag": "", "name": "Mega Scrafty" }, { "key": "yamask-galar", "dex": 562, "kind": "regional", "tag": "galarian", "name": "Galarian Yamask" }, { "key": "zorua-hisui", "dex": 570, "kind": "regional", "tag": "hisuian", "name": "Hisuian Zorua" }, { "key": "zoroark-hisui", "dex": 571, "kind": "regional", "tag": "hisuian", "name": "Hisuian Zoroark" }, { "key": "eelektross-mega", "dex": 604, "kind": "mega", "tag": "", "name": "Mega Eelektross" }, { "key": "chandelure-mega", "dex": 609, "kind": "mega", "tag": "", "name": "Mega Chandelure" }, { "key": "stunfisk-galar", "dex": 618, "kind": "regional", "tag": "galarian", "name": "Galarian Stunfisk" }, { "key": "golurk-mega", "dex": 623, "kind": "mega", "tag": "", "name": "Mega Golurk" }, { "key": "braviary-hisui", "dex": 628, "kind": "regional", "tag": "hisuian", "name": "Hisuian Braviary" }, { "key": "chesnaught-mega", "dex": 652, "kind": "mega", "tag": "", "name": "Mega Chesnaught" }, { "key": "delphox-mega", "dex": 655, "kind": "mega", "tag": "", "name": "Mega Delphox" }, { "key": "greninja-mega", "dex": 658, "kind": "mega", "tag": "", "name": "Mega Greninja" }, { "key": "pyroar-mega", "dex": 668, "kind": "mega", "tag": "", "name": "Mega Pyroar" }, { "key": "floette-mega", "dex": 670, "kind": "mega", "tag": "", "name": "Mega Floette" }, { "key": "meowstic-mega", "dex": 678, "kind": "mega", "tag": "", "name": "Mega Meowstic" }, { "key": "malamar-mega", "dex": 687, "kind": "mega", "tag": "", "name": "Mega Malamar" }, { "key": "barbaracle-mega", "dex": 689, "kind": "mega", "tag": "", "name": "Mega Barbaracle" }, { "key": "dragalge-mega", "dex": 691, "kind": "mega", "tag": "", "name": "Mega Dragalge" }, { "key": "hawlucha-mega", "dex": 701, "kind": "mega", "tag": "", "name": "Mega Hawlucha" }, { "key": "sliggoo-hisui", "dex": 705, "kind": "regional", "tag": "hisuian", "name": "Hisuian Sliggoo" }, { "key": "goodra-hisui", "dex": 706, "kind": "regional", "tag": "hisuian", "name": "Hisuian Goodra" }, { "key": "avalugg-hisui", "dex": 713, "kind": "regional", "tag": "hisuian", "name": "Hisuian Avalugg" }, { "key": "zygarde-mega", "dex": 718, "kind": "mega", "tag": "", "name": "Mega Zygarde" }, { "key": "diancie-mega", "dex": 719, "kind": "mega", "tag": "", "name": "Mega Diancie" }, { "key": "decidueye-hisui", "dex": 724, "kind": "regional", "tag": "hisuian", "name": "Hisuian Decidueye" }, { "key": "crabominable-mega", "dex": 740, "kind": "mega", "tag": "", "name": "Mega Crabominable" }, { "key": "golisopod-mega", "dex": 768, "kind": "mega", "tag": "", "name": "Mega Golisopod" }, { "key": "drampa-mega", "dex": 780, "kind": "mega", "tag": "", "name": "Mega Drampa" }, { "key": "magearna-mega", "dex": 801, "kind": "mega", "tag": "", "name": "Mega Magearna" }, { "key": "zeraora-mega", "dex": 807, "kind": "mega", "tag": "", "name": "Mega Zeraora" }, { "key": "falinks-mega", "dex": 870, "kind": "mega", "tag": "", "name": "Mega Falinks" }, { "key": "scovillain-mega", "dex": 952, "kind": "mega", "tag": "", "name": "Mega Scovillain" }, { "key": "glimmora-mega", "dex": 970, "kind": "mega", "tag": "", "name": "Mega Glimmora" }, { "key": "tatsugiri-mega", "dex": 978, "kind": "mega", "tag": "", "name": "Mega Tatsugiri" }, { "key": "baxcalibur-mega", "dex": 998, "kind": "mega", "tag": "", "name": "Mega Baxcalibur" }];
+  var FORMS = [{ "key": "venusaur-mega", "dex": 3, "kind": "mega", "tag": "", "name": "Mega Venusaur" }, { "key": "charizard-mega-x", "dex": 6, "kind": "mega", "tag": "x", "name": "Mega Charizard X" }, { "key": "charizard-mega-y", "dex": 6, "kind": "mega", "tag": "y", "name": "Mega Charizard Y" }, { "key": "blastoise-mega", "dex": 9, "kind": "mega", "tag": "", "name": "Mega Blastoise" }, { "key": "beedrill-mega", "dex": 15, "kind": "mega", "tag": "", "name": "Mega Beedrill" }, { "key": "pidgeot-mega", "dex": 18, "kind": "mega", "tag": "", "name": "Mega Pidgeot" }, { "key": "rattata-alola", "dex": 19, "kind": "regional", "tag": "alolan", "name": "Alolan Rattata" }, { "key": "raticate-alola", "dex": 20, "kind": "regional", "tag": "alolan", "name": "Alolan Raticate" }, { "key": "raichu-alola", "dex": 26, "kind": "regional", "tag": "alolan", "name": "Alolan Raichu" }, { "key": "raichu-mega-x", "dex": 26, "kind": "mega", "tag": "x", "name": "Mega Raichu X" }, { "key": "raichu-mega-y", "dex": 26, "kind": "mega", "tag": "y", "name": "Mega Raichu Y" }, { "key": "sandshrew-alola", "dex": 27, "kind": "regional", "tag": "alolan", "name": "Alolan Sandshrew" }, { "key": "sandslash-alola", "dex": 28, "kind": "regional", "tag": "alolan", "name": "Alolan Sandslash" }, { "key": "clefable-mega", "dex": 36, "kind": "mega", "tag": "", "name": "Mega Clefable" }, { "key": "vulpix-alola", "dex": 37, "kind": "regional", "tag": "alolan", "name": "Alolan Vulpix" }, { "key": "ninetales-alola", "dex": 38, "kind": "regional", "tag": "alolan", "name": "Alolan Ninetales" }, { "key": "diglett-alola", "dex": 50, "kind": "regional", "tag": "alolan", "name": "Alolan Diglett" }, { "key": "dugtrio-alola", "dex": 51, "kind": "regional", "tag": "alolan", "name": "Alolan Dugtrio" }, { "key": "meowth-alola", "dex": 52, "kind": "regional", "tag": "alolan", "name": "Alolan Meowth" }, { "key": "meowth-galar", "dex": 52, "kind": "regional", "tag": "galarian", "name": "Galarian Meowth" }, { "key": "persian-alola", "dex": 53, "kind": "regional", "tag": "alolan", "name": "Alolan Persian" }, { "key": "growlithe-hisui", "dex": 58, "kind": "regional", "tag": "hisuian", "name": "Hisuian Growlithe" }, { "key": "arcanine-hisui", "dex": 59, "kind": "regional", "tag": "hisuian", "name": "Hisuian Arcanine" }, { "key": "alakazam-mega", "dex": 65, "kind": "mega", "tag": "", "name": "Mega Alakazam" }, { "key": "victreebel-mega", "dex": 71, "kind": "mega", "tag": "", "name": "Mega Victreebel" }, { "key": "geodude-alola", "dex": 74, "kind": "regional", "tag": "alolan", "name": "Alolan Geodude" }, { "key": "graveler-alola", "dex": 75, "kind": "regional", "tag": "alolan", "name": "Alolan Graveler" }, { "key": "golem-alola", "dex": 76, "kind": "regional", "tag": "alolan", "name": "Alolan Golem" }, { "key": "ponyta-galar", "dex": 77, "kind": "regional", "tag": "galarian", "name": "Galarian Ponyta" }, { "key": "rapidash-galar", "dex": 78, "kind": "regional", "tag": "galarian", "name": "Galarian Rapidash" }, { "key": "slowpoke-galar", "dex": 79, "kind": "regional", "tag": "galarian", "name": "Galarian Slowpoke" }, { "key": "slowbro-galar", "dex": 80, "kind": "regional", "tag": "galarian", "name": "Galarian Slowbro" }, { "key": "slowbro-mega", "dex": 80, "kind": "mega", "tag": "", "name": "Mega Slowbro" }, { "key": "farfetchd-galar", "dex": 83, "kind": "regional", "tag": "galarian", "name": "Galarian Farfetch’d" }, { "key": "grimer-alola", "dex": 88, "kind": "regional", "tag": "alolan", "name": "Alolan Grimer" }, { "key": "muk-alola", "dex": 89, "kind": "regional", "tag": "alolan", "name": "Alolan Muk" }, { "key": "gengar-mega", "dex": 94, "kind": "mega", "tag": "", "name": "Mega Gengar" }, { "key": "voltorb-hisui", "dex": 100, "kind": "regional", "tag": "hisuian", "name": "Hisuian Voltorb" }, { "key": "electrode-hisui", "dex": 101, "kind": "regional", "tag": "hisuian", "name": "Hisuian Electrode" }, { "key": "exeggutor-alola", "dex": 103, "kind": "regional", "tag": "alolan", "name": "Alolan Exeggutor" }, { "key": "marowak-alola", "dex": 105, "kind": "regional", "tag": "alolan", "name": "Alolan Marowak" }, { "key": "weezing-galar", "dex": 110, "kind": "regional", "tag": "galarian", "name": "Galarian Weezing" }, { "key": "kangaskhan-mega", "dex": 115, "kind": "mega", "tag": "", "name": "Mega Kangaskhan" }, { "key": "starmie-mega", "dex": 121, "kind": "mega", "tag": "", "name": "Mega Starmie" }, { "key": "mr-mime-galar", "dex": 122, "kind": "regional", "tag": "galarian", "name": "Galarian Mr. Mime" }, { "key": "pinsir-mega", "dex": 127, "kind": "mega", "tag": "", "name": "Mega Pinsir" }, { "key": "tauros-paldea", "dex": 128, "kind": "regional", "tag": "paldean", "name": "Paldean Tauros" }, { "key": "gyarados-mega", "dex": 130, "kind": "mega", "tag": "", "name": "Mega Gyarados" }, { "key": "aerodactyl-mega", "dex": 142, "kind": "mega", "tag": "", "name": "Mega Aerodactyl" }, { "key": "articuno-galar", "dex": 144, "kind": "regional", "tag": "galarian", "name": "Galarian Articuno" }, { "key": "zapdos-galar", "dex": 145, "kind": "regional", "tag": "galarian", "name": "Galarian Zapdos" }, { "key": "moltres-galar", "dex": 146, "kind": "regional", "tag": "galarian", "name": "Galarian Moltres" }, { "key": "dragonite-mega", "dex": 149, "kind": "mega", "tag": "", "name": "Mega Dragonite" }, { "key": "mewtwo-mega-x", "dex": 150, "kind": "mega", "tag": "x", "name": "Mega Mewtwo X" }, { "key": "mewtwo-mega-y", "dex": 150, "kind": "mega", "tag": "y", "name": "Mega Mewtwo Y" }, { "key": "meganium-mega", "dex": 154, "kind": "mega", "tag": "", "name": "Mega Meganium" }, { "key": "typhlosion-hisui", "dex": 157, "kind": "regional", "tag": "hisuian", "name": "Hisuian Typhlosion" }, { "key": "feraligatr-mega", "dex": 160, "kind": "mega", "tag": "", "name": "Mega Feraligatr" }, { "key": "ampharos-mega", "dex": 181, "kind": "mega", "tag": "", "name": "Mega Ampharos" }, { "key": "wooper-paldea", "dex": 194, "kind": "regional", "tag": "paldean", "name": "Paldean Wooper" }, { "key": "slowking-galar", "dex": 199, "kind": "regional", "tag": "galarian", "name": "Galarian Slowking" }, { "key": "steelix-mega", "dex": 208, "kind": "mega", "tag": "", "name": "Mega Steelix" }, { "key": "qwilfish-hisui", "dex": 211, "kind": "regional", "tag": "hisuian", "name": "Hisuian Qwilfish" }, { "key": "scizor-mega", "dex": 212, "kind": "mega", "tag": "", "name": "Mega Scizor" }, { "key": "heracross-mega", "dex": 214, "kind": "mega", "tag": "", "name": "Mega Heracross" }, { "key": "sneasel-hisui", "dex": 215, "kind": "regional", "tag": "hisuian", "name": "Hisuian Sneasel" }, { "key": "corsola-galar", "dex": 222, "kind": "regional", "tag": "galarian", "name": "Galarian Corsola" }, { "key": "skarmory-mega", "dex": 227, "kind": "mega", "tag": "", "name": "Mega Skarmory" }, { "key": "houndoom-mega", "dex": 229, "kind": "mega", "tag": "", "name": "Mega Houndoom" }, { "key": "tyranitar-mega", "dex": 248, "kind": "mega", "tag": "", "name": "Mega Tyranitar" }, { "key": "sceptile-mega", "dex": 254, "kind": "mega", "tag": "", "name": "Mega Sceptile" }, { "key": "blaziken-mega", "dex": 257, "kind": "mega", "tag": "", "name": "Mega Blaziken" }, { "key": "swampert-mega", "dex": 260, "kind": "mega", "tag": "", "name": "Mega Swampert" }, { "key": "zigzagoon-galar", "dex": 263, "kind": "regional", "tag": "galarian", "name": "Galarian Zigzagoon" }, { "key": "linoone-galar", "dex": 264, "kind": "regional", "tag": "galarian", "name": "Galarian Linoone" }, { "key": "gardevoir-mega", "dex": 282, "kind": "mega", "tag": "", "name": "Mega Gardevoir" }, { "key": "sableye-mega", "dex": 302, "kind": "mega", "tag": "", "name": "Mega Sableye" }, { "key": "mawile-mega", "dex": 303, "kind": "mega", "tag": "", "name": "Mega Mawile" }, { "key": "aggron-mega", "dex": 306, "kind": "mega", "tag": "", "name": "Mega Aggron" }, { "key": "medicham-mega", "dex": 308, "kind": "mega", "tag": "", "name": "Mega Medicham" }, { "key": "manectric-mega", "dex": 310, "kind": "mega", "tag": "", "name": "Mega Manectric" }, { "key": "sharpedo-mega", "dex": 319, "kind": "mega", "tag": "", "name": "Mega Sharpedo" }, { "key": "camerupt-mega", "dex": 323, "kind": "mega", "tag": "", "name": "Mega Camerupt" }, { "key": "altaria-mega", "dex": 334, "kind": "mega", "tag": "", "name": "Mega Altaria" }, { "key": "banette-mega", "dex": 354, "kind": "mega", "tag": "", "name": "Mega Banette" }, { "key": "chimecho-mega", "dex": 358, "kind": "mega", "tag": "", "name": "Mega Chimecho" }, { "key": "absol-mega", "dex": 359, "kind": "mega", "tag": "", "name": "Mega Absol" }, { "key": "absol-mega-z", "dex": 359, "kind": "mega", "tag": "z", "name": "Mega Absol Z" }, { "key": "glalie-mega", "dex": 362, "kind": "mega", "tag": "", "name": "Mega Glalie" }, { "key": "salamence-mega", "dex": 373, "kind": "mega", "tag": "", "name": "Mega Salamence" }, { "key": "metagross-mega", "dex": 376, "kind": "mega", "tag": "", "name": "Mega Metagross" }, { "key": "latias-mega", "dex": 380, "kind": "mega", "tag": "", "name": "Mega Latias" }, { "key": "latios-mega", "dex": 381, "kind": "mega", "tag": "", "name": "Mega Latios" }, { "key": "kyogre-primal", "dex": 382, "kind": "mega", "tag": "primal", "name": "Primal Kyogre" }, { "key": "groudon-primal", "dex": 383, "kind": "mega", "tag": "primal", "name": "Primal Groudon" }, { "key": "rayquaza-mega", "dex": 384, "kind": "mega", "tag": "", "name": "Mega Rayquaza" }, { "key": "staraptor-mega", "dex": 398, "kind": "mega", "tag": "", "name": "Mega Staraptor" }, { "key": "lopunny-mega", "dex": 428, "kind": "mega", "tag": "", "name": "Mega Lopunny" }, { "key": "garchomp-mega", "dex": 445, "kind": "mega", "tag": "", "name": "Mega Garchomp" }, { "key": "garchomp-mega-z", "dex": 445, "kind": "mega", "tag": "z", "name": "Mega Garchomp Z" }, { "key": "lucario-mega", "dex": 448, "kind": "mega", "tag": "", "name": "Mega Lucario" }, { "key": "lucario-mega-z", "dex": 448, "kind": "mega", "tag": "z", "name": "Mega Lucario Z" }, { "key": "abomasnow-mega", "dex": 460, "kind": "mega", "tag": "", "name": "Mega Abomasnow" }, { "key": "gallade-mega", "dex": 475, "kind": "mega", "tag": "", "name": "Mega Gallade" }, { "key": "froslass-mega", "dex": 478, "kind": "mega", "tag": "", "name": "Mega Froslass" }, { "key": "heatran-mega", "dex": 485, "kind": "mega", "tag": "", "name": "Mega Heatran" }, { "key": "darkrai-mega", "dex": 491, "kind": "mega", "tag": "", "name": "Mega Darkrai" }, { "key": "emboar-mega", "dex": 500, "kind": "mega", "tag": "", "name": "Mega Emboar" }, { "key": "samurott-hisui", "dex": 503, "kind": "regional", "tag": "hisuian", "name": "Hisuian Samurott" }, { "key": "excadrill-mega", "dex": 530, "kind": "mega", "tag": "", "name": "Mega Excadrill" }, { "key": "audino-mega", "dex": 531, "kind": "mega", "tag": "", "name": "Mega Audino" }, { "key": "scolipede-mega", "dex": 545, "kind": "mega", "tag": "", "name": "Mega Scolipede" }, { "key": "lilligant-hisui", "dex": 549, "kind": "regional", "tag": "hisuian", "name": "Hisuian Lilligant" }, { "key": "darumaka-galar", "dex": 554, "kind": "regional", "tag": "galarian", "name": "Galarian Darumaka" }, { "key": "darmanitan-galar-standard", "dex": 555, "kind": "regional", "tag": "galarian", "name": "Galarian Darmanitan" }, { "key": "scrafty-mega", "dex": 560, "kind": "mega", "tag": "", "name": "Mega Scrafty" }, { "key": "yamask-galar", "dex": 562, "kind": "regional", "tag": "galarian", "name": "Galarian Yamask" }, { "key": "zorua-hisui", "dex": 570, "kind": "regional", "tag": "hisuian", "name": "Hisuian Zorua" }, { "key": "zoroark-hisui", "dex": 571, "kind": "regional", "tag": "hisuian", "name": "Hisuian Zoroark" }, { "key": "eelektross-mega", "dex": 604, "kind": "mega", "tag": "", "name": "Mega Eelektross" }, { "key": "chandelure-mega", "dex": 609, "kind": "mega", "tag": "", "name": "Mega Chandelure" }, { "key": "stunfisk-galar", "dex": 618, "kind": "regional", "tag": "galarian", "name": "Galarian Stunfisk" }, { "key": "golurk-mega", "dex": 623, "kind": "mega", "tag": "", "name": "Mega Golurk" }, { "key": "braviary-hisui", "dex": 628, "kind": "regional", "tag": "hisuian", "name": "Hisuian Braviary" }, { "key": "chesnaught-mega", "dex": 652, "kind": "mega", "tag": "", "name": "Mega Chesnaught" }, { "key": "delphox-mega", "dex": 655, "kind": "mega", "tag": "", "name": "Mega Delphox" }, { "key": "greninja-mega", "dex": 658, "kind": "mega", "tag": "", "name": "Mega Greninja" }, { "key": "pyroar-mega", "dex": 668, "kind": "mega", "tag": "", "name": "Mega Pyroar" }, { "key": "floette-mega", "dex": 670, "kind": "mega", "tag": "", "name": "Mega Floette" }, { "key": "meowstic-mega", "dex": 678, "kind": "mega", "tag": "", "name": "Mega Meowstic" }, { "key": "malamar-mega", "dex": 687, "kind": "mega", "tag": "", "name": "Mega Malamar" }, { "key": "barbaracle-mega", "dex": 689, "kind": "mega", "tag": "", "name": "Mega Barbaracle" }, { "key": "dragalge-mega", "dex": 691, "kind": "mega", "tag": "", "name": "Mega Dragalge" }, { "key": "hawlucha-mega", "dex": 701, "kind": "mega", "tag": "", "name": "Mega Hawlucha" }, { "key": "sliggoo-hisui", "dex": 705, "kind": "regional", "tag": "hisuian", "name": "Hisuian Sliggoo" }, { "key": "goodra-hisui", "dex": 706, "kind": "regional", "tag": "hisuian", "name": "Hisuian Goodra" }, { "key": "avalugg-hisui", "dex": 713, "kind": "regional", "tag": "hisuian", "name": "Hisuian Avalugg" }, { "key": "zygarde-mega", "dex": 718, "kind": "mega", "tag": "", "name": "Mega Zygarde" }, { "key": "diancie-mega", "dex": 719, "kind": "mega", "tag": "", "name": "Mega Diancie" }, { "key": "decidueye-hisui", "dex": 724, "kind": "regional", "tag": "hisuian", "name": "Hisuian Decidueye" }, { "key": "crabominable-mega", "dex": 740, "kind": "mega", "tag": "", "name": "Mega Crabominable" }, { "key": "golisopod-mega", "dex": 768, "kind": "mega", "tag": "", "name": "Mega Golisopod" }, { "key": "drampa-mega", "dex": 780, "kind": "mega", "tag": "", "name": "Mega Drampa" }, { "key": "magearna-mega", "dex": 801, "kind": "mega", "tag": "", "name": "Mega Magearna" }, { "key": "zeraora-mega", "dex": 807, "kind": "mega", "tag": "", "name": "Mega Zeraora" }, { "key": "falinks-mega", "dex": 870, "kind": "mega", "tag": "", "name": "Mega Falinks" }, { "key": "scovillain-mega", "dex": 952, "kind": "mega", "tag": "", "name": "Mega Scovillain" }, { "key": "glimmora-mega", "dex": 970, "kind": "mega", "tag": "", "name": "Mega Glimmora" }, { "key": "tatsugiri-mega", "dex": 978, "kind": "mega", "tag": "", "name": "Mega Tatsugiri" }, { "key": "baxcalibur-mega", "dex": 998, "kind": "mega", "tag": "", "name": "Mega Baxcalibur" }];
+  var NAMES_JA = "フシギダネ|フシギソウ|フシギバナ|ヒトカゲ|リザード|リザードン|ゼニガメ|カメール|カメックス|キャタピー|トランセル|バタフリー|ビードル|コクーン|スピアー|ポッポ|ピジョン|ピジョット|コラッタ|ラッタ|オニスズメ|オニドリル|アーボ|アーボック|ピカチュウ|ライチュウ|サンド|サンドパン|ニドラン♀|ニドリーナ|ニドクイン|ニドラン♂|ニドリーノ|ニドキング|ピッピ|ピクシー|ロコン|キュウコン|プリン|プクリン|ズバット|ゴルバット|ナゾノクサ|クサイハナ|ラフレシア|パラス|パラセクト|コンパン|モルフォン|ディグダ|ダグトリオ|ニャース|ペルシアン|コダック|ゴルダック|マンキー|オコリザル|ガーディ|ウインディ|ニョロモ|ニョロゾ|ニョロボン|ケーシィ|ユンゲラー|フーディン|ワンリキー|ゴーリキー|カイリキー|マダツボミ|ウツドン|ウツボット|メノクラゲ|ドククラゲ|イシツブテ|ゴローン|ゴローニャ|ポニータ|ギャロップ|ヤドン|ヤドラン|コイル|レアコイル|カモネギ|ドードー|ドードリオ|パウワウ|ジュゴン|ベトベター|ベトベトン|シェルダー|パルシェン|ゴース|ゴースト|ゲンガー|イワーク|スリープ|スリーパー|クラブ|キングラー|ビリリダマ|マルマイン|タマタマ|ナッシー|カラカラ|ガラガラ|サワムラー|エビワラー|ベロリンガ|ドガース|マタドガス|サイホーン|サイドン|ラッキー|モンジャラ|ガルーラ|タッツー|シードラ|トサキント|アズマオウ|ヒトデマン|スターミー|バリヤード|ストライク|ルージュラ|エレブー|ブーバー|カイロス|ケンタロス|コイキング|ギャラドス|ラプラス|メタモン|イーブイ|シャワーズ|サンダース|ブースター|ポリゴン|オムナイト|オムスター|カブト|カブトプス|プテラ|カビゴン|フリーザー|サンダー|ファイヤー|ミニリュウ|ハクリュー|カイリュー|ミュウツー|ミュウ|チコリータ|ベイリーフ|メガニウム|ヒノアラシ|マグマラシ|バクフーン|ワニノコ|アリゲイツ|オーダイル|オタチ|オオタチ|ホーホー|ヨルノズク|レディバ|レディアン|イトマル|アリアドス|クロバット|チョンチー|ランターン|ピチュー|ピィ|ププリン|トゲピー|トゲチック|ネイティ|ネイティオ|メリープ|モココ|デンリュウ|キレイハナ|マリル|マリルリ|ウソッキー|ニョロトノ|ハネッコ|ポポッコ|ワタッコ|エイパム|ヒマナッツ|キマワリ|ヤンヤンマ|ウパー|ヌオー|エーフィ|ブラッキー|ヤミカラス|ヤドキング|ムウマ|アンノーン|ソーナンス|キリンリキ|クヌギダマ|フォレトス|ノコッチ|グライガー|ハガネール|ブルー|グランブル|ハリーセン|ハッサム|ツボツボ|ヘラクロス|ニューラ|ヒメグマ|リングマ|マグマッグ|マグカルゴ|ウリムー|イノムー|サニーゴ|テッポウオ|オクタン|デリバード|マンタイン|エアームド|デルビル|ヘルガー|キングドラ|ゴマゾウ|ドンファン|ポリゴン２|オドシシ|ドーブル|バルキー|カポエラー|ムチュール|エレキッド|ブビィ|ミルタンク|ハピナス|ライコウ|エンテイ|スイクン|ヨーギラス|サナギラス|バンギラス|ルギア|ホウオウ|セレビィ|キモリ|ジュプトル|ジュカイン|アチャモ|ワカシャモ|バシャーモ|ミズゴロウ|ヌマクロー|ラグラージ|ポチエナ|グラエナ|ジグザグマ|マッスグマ|ケムッソ|カラサリス|アゲハント|マユルド|ドクケイル|ハスボー|ハスブレロ|ルンパッパ|タネボー|コノハナ|ダーテング|スバメ|オオスバメ|キャモメ|ペリッパー|ラルトス|キルリア|サーナイト|アメタマ|アメモース|キノココ|キノガッサ|ナマケロ|ヤルキモノ|ケッキング|ツチニン|テッカニン|ヌケニン|ゴニョニョ|ドゴーム|バクオング|マクノシタ|ハリテヤマ|ルリリ|ノズパス|エネコ|エネコロロ|ヤミラミ|クチート|ココドラ|コドラ|ボスゴドラ|アサナン|チャーレム|ラクライ|ライボルト|プラスル|マイナン|バルビート|イルミーゼ|ロゼリア|ゴクリン|マルノーム|キバニア|サメハダー|ホエルコ|ホエルオー|ドンメル|バクーダ|コータス|バネブー|ブーピッグ|パッチール|ナックラー|ビブラーバ|フライゴン|サボネア|ノクタス|チルット|チルタリス|ザングース|ハブネーク|ルナトーン|ソルロック|ドジョッチ|ナマズン|ヘイガニ|シザリガー|ヤジロン|ネンドール|リリーラ|ユレイドル|アノプス|アーマルド|ヒンバス|ミロカロス|ポワルン|カクレオン|カゲボウズ|ジュペッタ|ヨマワル|サマヨール|トロピウス|チリーン|アブソル|ソーナノ|ユキワラシ|オニゴーリ|タマザラシ|トドグラー|トドゼルガ|パールル|ハンテール|サクラビス|ジーランス|ラブカス|タツベイ|コモルー|ボーマンダ|ダンバル|メタング|メタグロス|レジロック|レジアイス|レジスチル|ラティアス|ラティオス|カイオーガ|グラードン|レックウザ|ジラーチ|デオキシス|ナエトル|ハヤシガメ|ドダイトス|ヒコザル|モウカザル|ゴウカザル|ポッチャマ|ポッタイシ|エンペルト|ムックル|ムクバード|ムクホーク|ビッパ|ビーダル|コロボーシ|コロトック|コリンク|ルクシオ|レントラー|スボミー|ロズレイド|ズガイドス|ラムパルド|タテトプス|トリデプス|ミノムッチ|ミノマダム|ガーメイル|ミツハニー|ビークイン|パチリス|ブイゼル|フローゼル|チェリンボ|チェリム|カラナクシ|トリトドン|エテボース|フワンテ|フワライド|ミミロル|ミミロップ|ムウマージ|ドンカラス|ニャルマー|ブニャット|リーシャン|スカンプー|スカタンク|ドーミラー|ドータクン|ウソハチ|マネネ|ピンプク|ペラップ|ミカルゲ|フカマル|ガバイト|ガブリアス|ゴンベ|リオル|ルカリオ|ヒポポタス|カバルドン|スコルピ|ドラピオン|グレッグル|ドクロッグ|マスキッパ|ケイコウオ|ネオラント|タマンタ|ユキカブリ|ユキノオー|マニューラ|ジバコイル|ベロベルト|ドサイドン|モジャンボ|エレキブル|ブーバーン|トゲキッス|メガヤンマ|リーフィア|グレイシア|グライオン|マンムー|ポリゴンＺ|エルレイド|ダイノーズ|ヨノワール|ユキメノコ|ロトム|ユクシー|エムリット|アグノム|ディアルガ|パルキア|ヒードラン|レジギガス|ギラティナ|クレセリア|フィオネ|マナフィ|ダークライ|シェイミ|アルセウス|ビクティニ|ツタージャ|ジャノビー|ジャローダ|ポカブ|チャオブー|エンブオー|ミジュマル|フタチマル|ダイケンキ|ミネズミ|ミルホッグ|ヨーテリー|ハーデリア|ムーランド|チョロネコ|レパルダス|ヤナップ|ヤナッキー|バオップ|バオッキー|ヒヤップ|ヒヤッキー|ムンナ|ムシャーナ|マメパト|ハトーボー|ケンホロウ|シママ|ゼブライカ|ダンゴロ|ガントル|ギガイアス|コロモリ|ココロモリ|モグリュー|ドリュウズ|タブンネ|ドッコラー|ドテッコツ|ローブシン|オタマロ|ガマガル|ガマゲロゲ|ナゲキ|ダゲキ|クルミル|クルマユ|ハハコモリ|フシデ|ホイーガ|ペンドラー|モンメン|エルフーン|チュリネ|ドレディア|バスラオ|メグロコ|ワルビル|ワルビアル|ダルマッカ|ヒヒダルマ|マラカッチ|イシズマイ|イワパレス|ズルッグ|ズルズキン|シンボラー|デスマス|デスカーン|プロトーガ|アバゴーラ|アーケン|アーケオス|ヤブクロン|ダストダス|ゾロア|ゾロアーク|チラーミィ|チラチーノ|ゴチム|ゴチミル|ゴチルゼル|ユニラン|ダブラン|ランクルス|コアルヒー|スワンナ|バニプッチ|バニリッチ|バイバニラ|シキジカ|メブキジカ|エモンガ|カブルモ|シュバルゴ|タマゲタケ|モロバレル|プルリル|ブルンゲル|ママンボウ|バチュル|デンチュラ|テッシード|ナットレイ|ギアル|ギギアル|ギギギアル|シビシラス|シビビール|シビルドン|リグレー|オーベム|ヒトモシ|ランプラー|シャンデラ|キバゴ|オノンド|オノノクス|クマシュン|ツンベアー|フリージオ|チョボマキ|アギルダー|マッギョ|コジョフー|コジョンド|クリムガン|ゴビット|ゴルーグ|コマタナ|キリキザン|バッフロン|ワシボン|ウォーグル|バルチャイ|バルジーナ|クイタラン|アイアント|モノズ|ジヘッド|サザンドラ|メラルバ|ウルガモス|コバルオン|テラキオン|ビリジオン|トルネロス|ボルトロス|レシラム|ゼクロム|ランドロス|キュレム|ケルディオ|メロエッタ|ゲノセクト|ハリマロン|ハリボーグ|ブリガロン|フォッコ|テールナー|マフォクシー|ケロマツ|ゲコガシラ|ゲッコウガ|ホルビー|ホルード|ヤヤコマ|ヒノヤコマ|ファイアロー|コフキムシ|コフーライ|ビビヨン|シシコ|カエンジシ|フラベベ|フラエッテ|フラージェス|メェークル|ゴーゴート|ヤンチャム|ゴロンダ|トリミアン|ニャスパー|ニャオニクス|ヒトツキ|ニダンギル|ギルガルド|シュシュプ|フレフワン|ペロッパフ|ペロリーム|マーイーカ|カラマネロ|カメテテ|ガメノデス|クズモー|ドラミドロ|ウデッポウ|ブロスター|エリキテル|エレザード|チゴラス|ガチゴラス|アマルス|アマルルガ|ニンフィア|ルチャブル|デデンネ|メレシー|ヌメラ|ヌメイル|ヌメルゴン|クレッフィ|ボクレー|オーロット|バケッチャ|パンプジン|カチコール|クレベース|オンバット|オンバーン|ゼルネアス|イベルタル|ジガルデ|ディアンシー|フーパ|ボルケニオン|モクロー|フクスロー|ジュナイパー|ニャビー|ニャヒート|ガオガエン|アシマリ|オシャマリ|アシレーヌ|ツツケラ|ケララッパ|ドデカバシ|ヤングース|デカグース|アゴジムシ|デンヂムシ|クワガノン|マケンカニ|ケケンカニ|オドリドリ|アブリー|アブリボン|イワンコ|ルガルガン|ヨワシ|ヒドイデ|ドヒドイデ|ドロバンコ|バンバドロ|シズクモ|オニシズクモ|カリキリ|ラランテス|ネマシュ|マシェード|ヤトウモリ|エンニュート|ヌイコグマ|キテルグマ|アマカジ|アママイコ|アマージョ|キュワワー|ヤレユータン|ナゲツケサル|コソクムシ|グソクムシャ|スナバァ|シロデスナ|ナマコブシ|タイプ：ヌル|シルヴァディ|メテノ|ネッコアラ|バクガメス|トゲデマル|ミミッキュ|ハギギシリ|ジジーロン|ダダリン|ジャラコ|ジャランゴ|ジャラランガ|カプ・コケコ|カプ・テテフ|カプ・ブルル|カプ・レヒレ|コスモッグ|コスモウム|ソルガレオ|ルナアーラ|ウツロイド|マッシブーン|フェローチェ|デンジュモク|テッカグヤ|カミツルギ|アクジキング|ネクロズマ|マギアナ|マーシャドー|ベベノム|アーゴヨン|ツンデツンデ|ズガドーン|ゼラオラ|メルタン|メルメタル|サルノリ|バチンキー|ゴリランダー|ヒバニー|ラビフット|エースバーン|メッソン|ジメレオン|インテレオン|ホシガリス|ヨクバリス|ココガラ|アオガラス|アーマーガア|サッチムシ|レドームシ|イオルブ|クスネ|フォクスライ|ヒメンカ|ワタシラガ|ウールー|バイウールー|カムカメ|カジリガメ|ワンパチ|パルスワン|タンドン|トロッゴン|セキタンザン|カジッチュ|アップリュー|タルップル|スナヘビ|サダイジャ|ウッウ|サシカマス|カマスジョー|エレズン|ストリンダー|ヤクデ|マルヤクデ|タタッコ|オトスパス|ヤバチャ|ポットデス|ミブリム|テブリム|ブリムオン|ベロバー|ギモー|オーロンゲ|タチフサグマ|ニャイキング|サニゴーン|ネギガナイト|バリコオル|デスバーン|マホミル|マホイップ|タイレーツ|バチンウニ|ユキハミ|モスノウ|イシヘンジン|コオリッポ|イエッサン|モルペコ|ゾウドウ|ダイオウドウ|パッチラゴン|パッチルドン|ウオノラゴン|ウオチルドン|ジュラルドン|ドラメシヤ|ドロンチ|ドラパルト|ザシアン|ザマゼンタ|ムゲンダイナ|ダクマ|ウーラオス|ザルード|レジエレキ|レジドラゴ|ブリザポス|レイスポス|バドレックス|アヤシシ|バサギリ|ガチグマ|イダイトウ|オオニューラ|ハリーマン|ラブトロス|ニャオハ|ニャローテ|マスカーニャ|ホゲータ|アチゲータ|ラウドボーン|クワッス|ウェルカモ|ウェーニバル|グルトン|パフュートン|タマンチュラ|ワナイダー|マメバッタ|エクスレッグ|パモ|パモット|パーモット|ワッカネズミ|イッカネズミ|パピモッチ|バウッツェル|ミニーブ|オリーニョ|オリーヴァ|イキリンコ|コジオ|ジオヅム|キョジオーン|カルボウ|グレンアルマ|ソウブレイズ|ズピカ|ハラバリー|カイデン|タイカイデン|オラチフ|マフィティフ|シルシュルー|タギングル|アノクサ|アノホラグサ|ノノクラゲ|リククラゲ|ガケガニ|カプサイジ|スコヴィラン|シガロコ|ベラカス|ヒラヒナ|クエスパトラ|カヌチャン|ナカヌチャン|デカヌチャン|ウミディグダ|ウミトリオ|オトシドリ|ナミイルカ|イルカマン|ブロロン|ブロロローム|モトトカゲ|ミミズズ|キラーメ|キラフロル|ボチ|ハカドッグ|カラミンゴ|アルクジラ|ハルクジラ|ミガルーサ|ヘイラッシャ|シャリタツ|コノヨザル|ドオー|リキキリン|ノココッチ|ドドゲザン|イダイナキバ|サケブシッポ|アラブルタケ|ハバタクカミ|チヲハウハネ|スナノケガワ|テツノワダチ|テツノツツミ|テツノカイナ|テツノコウベ|テツノドクガ|テツノイバラ|セビエ|セゴール|セグレイブ|コレクレー|サーフゴー|チオンジェン|パオジアン|ディンルー|イーユイ|トドロクツキ|テツノブジン|コライドン|ミライドン|ウネルミナモ|テツノイサハ|カミッチュ|チャデス|ヤバソチャ|イイネイヌ|マシマシラ|キチキギス|オーガポン|ブリジュラス|カミツオロチ|ウガツホムラ|タケルライコ|テツノイワオ|テツノカシラ|テラパゴス|モモワロウ".split("|");
+  var NAMES_KO = "이상해씨|이상해풀|이상해꽃|파이리|리자드|리자몽|꼬부기|어니부기|거북왕|캐터피|단데기|버터플|뿔충이|딱충이|독침붕|구구|피죤|피죤투|꼬렛|레트라|깨비참|깨비드릴조|아보|아보크|피카츄|라이츄|모래두지|고지|니드런♀|니드리나|니드퀸|니드런♂|니드리노|니드킹|삐삐|픽시|식스테일|나인테일|푸린|푸크린|주뱃|골뱃|뚜벅쵸|냄새꼬|라플레시아|파라스|파라섹트|콘팡|도나리|디그다|닥트리오|나옹|페르시온|고라파덕|골덕|망키|성원숭|가디|윈디|발챙이|슈륙챙이|강챙이|캐이시|윤겔라|후딘|알통몬|근육몬|괴력몬|모다피|우츠동|우츠보트|왕눈해|독파리|꼬마돌|데구리|딱구리|포니타|날쌩마|야돈|야도란|코일|레어코일|파오리|두두|두트리오|쥬쥬|쥬레곤|질퍽이|질뻐기|셀러|파르셀|고오스|고우스트|팬텀|롱스톤|슬리프|슬리퍼|크랩|킹크랩|찌리리공|붐볼|아라리|나시|탕구리|텅구리|시라소몬|홍수몬|내루미|또가스|또도가스|뿔카노|코뿌리|럭키|덩쿠리|캥카|쏘드라|시드라|콘치|왕콘치|별가사리|아쿠스타|마임맨|스라크|루주라|에레브|마그마|쁘사이저|켄타로스|잉어킹|갸라도스|라프라스|메타몽|이브이|샤미드|쥬피썬더|부스터|폴리곤|암나이트|암스타|투구|투구푸스|프테라|잠만보|프리져|썬더|파이어|미뇽|신뇽|망나뇽|뮤츠|뮤|치코리타|베이리프|메가니움|브케인|마그케인|블레이범|리아코|엘리게이|장크로다일|꼬리선|다꼬리|부우부|야부엉|레디바|레디안|페이검|아리아도스|크로뱃|초라기|랜턴|피츄|삐|푸푸린|토게피|토게틱|네이티|네이티오|메리프|보송송|전룡|아르코|마릴|마릴리|꼬지모|왕구리|통통코|두코|솜솜코|에이팜|해너츠|해루미|왕자리|우파|누오|에브이|블래키|니로우|야도킹|무우마|안농|마자용|키링키|피콘|쏘콘|노고치|글라이거|강철톤|블루|그랑블루|침바루|핫삼|단단지|헤라크로스|포푸니|깜지곰|링곰|마그마그|마그카르고|꾸꾸리|메꾸리|코산호|총어|대포무노|딜리버드|만타인|무장조|델빌|헬가|킹드라|코코리|코리갑|폴리곤2|노라키|루브도|배루키|카포에라|뽀뽀라|에레키드|마그비|밀탱크|해피너스|라이코|앤테이|스이쿤|애버라스|데기라스|마기라스|루기아|칠색조|세레비|나무지기|나무돌이|나무킹|아차모|영치코|번치코|물짱이|늪짱이|대짱이|포챠나|그라에나|지그제구리|직구리|개무소|실쿤|뷰티플라이|카스쿤|독케일|연꽃몬|로토스|로파파|도토링|잎새코|다탱구|테일로|스왈로|갈모매|패리퍼|랄토스|킬리아|가디안|비구술|비나방|버섯꼬|버섯모|게을로|발바로|게을킹|토중몬|아이스크|껍질몬|소곤룡|노공룡|폭음룡|마크탕|하리뭉|루리리|코코파스|에나비|델케티|깜까미|입치트|가보리|갱도라|보스로라|요가랑|요가램|썬더라이|썬더볼트|플러시|마이농|볼비트|네오비트|로젤리아|꼴깍몬|꿀꺽몬|샤프니아|샤크니아|고래왕자|고래왕|둔타|폭타|코터스|피그점프|피그킹|얼루기|톱치|비브라바|플라이곤|선인왕|밤선인|파비코|파비코리|쟝고|세비퍼|루나톤|솔록|미꾸리|메깅|가재군|가재장군|오뚝군|점토도리|릴링|릴리요|아노딥스|아말도|빈티나|밀로틱|캐스퐁|켈리몬|어둠대신|다크펫|해골몽|미라몽|트로피우스|치렁|앱솔|마자|눈꼬마|얼음귀신|대굴레오|씨레오|씨카이저|진주몽|헌테일|분홍장이|시라칸|사랑동이|아공이|쉘곤|보만다|메탕|메탕구|메타그로스|레지락|레지아이스|레지스틸|라티아스|라티오스|가이오가|그란돈|레쿠쟈|지라치|테오키스|모부기|수풀부기|토대부기|불꽃숭이|파이숭이|초염몽|팽도리|팽태자|엠페르트|찌르꼬|찌르버드|찌르호크|비버니|비버통|귀뚤뚜기|귀뚤톡크|꼬링크|럭시오|렌트라|꼬몽울|로즈레이드|두개도스|램펄드|방패톱스|바리톱스|도롱충이|도롱마담|나메일|세꿀버리|비퀸|파치리스|브이젤|플로젤|체리버|체리꼬|깝질무|트리토돈|겟핸보숭|흔들풍손|둥실라이드|이어롤|이어롭|무우마직|돈크로우|나옹마|몬냥이|랑딸랑|스컹뿡|스컹탱크|동미러|동탁군|꼬지지|흉내내|핑복|페라페|화강돌|딥상어동|한바이트|한카리아스|먹고자|리오르|루카리오|히포포타스|하마돈|스콜피|드래피온|삐딱구리|독개굴|무스틈니|형광어|네오라이트|타만타|눈쓰개|눈설왕|포푸니라|자포코일|내룸벨트|거대코뿌리|덩쿠림보|에레키블|마그마번|토게키스|메가자리|리피아|글레이시아|글라이온|맘모꾸리|폴리곤Z|엘레이드|대코파스|야느와르몽|눈여아|로토무|유크시|엠라이트|아그놈|디아루가|펄기아|히드런|레지기가스|기라티나|크레세리아|피오네|마나피|다크라이|쉐이미|아르세우스|비크티니|주리비얀|샤비|샤로다|뚜꾸리|차오꿀|염무왕|수댕이|쌍검자비|대검귀|보르쥐|보르그|요테리|하데리어|바랜드|쌔비냥|레파르다스|야나프|야나키|바오프|바오키|앗차프|앗차키|몽나|몽얌나|콩둘기|유토브|켄호로우|줄뮤마|제브라이카|단굴|암트르|기가이어스|또르박쥐|맘박쥐|두더류|몰드류|다부니|으랏차|토쇠골|노보청|동챙이|두까비|두빅굴|던지미|타격귀|두르보|두르쿤|모아머|마디네|휠구|펜드라|소미안|엘풍|치릴리|드레디어|배쓰나이|깜눈크|악비르|악비아르|달막화|불비달마|마라카치|돌살이|암팰리스|곤율랭|곤율거니|심보러|데스마스|데스니칸|프로토가|늑골라|아켄|아케오스|깨봉이|더스트나|조로아|조로아크|치라미|치라치노|고디탱|고디보미|고디모아젤|유니란|듀란|란쿨루스|꼬지보리|스완나|바닐프티|바닐리치|배바닐라|사철록|바라철록|에몽가|딱정곤|슈바르고|깜놀버슬|뽀록나|탱그릴|탱탱겔|맘복치|파쪼옥|전툴라|철시드|너트령|기어르|기기어르|기기기어르|저리어|저리릴|저리더프|리그레|벰크|불켜미|램프라|샹델라|터검니|액슨도|액스라이즈|코고미|툰베어|프리지오|쪼마리|어지리더|메더|비조푸|비조도|크리만|골비람|골루그|자망칼|절각참|버프론|수리둥보|워글|벌차이|버랜지나|앤티골|아이앤트|모노두|디헤드|삼삼드래|활화르바|불카모스|코바르온|테라키온|비리디온|토네로스|볼트로스|레시라무|제크로무|랜드로스|큐레무|케르디오|메로엣타|게노세크트|도치마론|도치보구|브리가론|푸호꼬|테르나|마폭시|개구마르|개굴반장|개굴닌자|파르빗|파르토|화살꼬빈|불화살빈|파이어로|분이벌레|분떠도리|비비용|레오꼬|화염레오|플라베베|플라엣테|플라제스|메이클|고고트|판짱|부란다|트리미앙|냐스퍼|냐오닉스|단칼빙|쌍검킬|킬가르도|슈쁘|프레프티르|나룸퍼프|나루림|오케이징|칼라마네로|거북손손|거북손데스|수레기|드래캄|완철포|블로스터|목도리키텔|일레도리자드|티고라스|견고라스|아마루스|아마루르가|님피아|루차불|데덴네|멜리시|미끄메라|미끄네일|미끄래곤|클레피|나목령|대로트|호바귀|펌킨인|꽁어름|크레베이스|음뱃|음번|제르네아스|이벨타르|지가르데|디안시|후파|볼케니온|나몰빼미|빼미스로우|모크나이퍼|냐오불|냐오히트|어흥염|누리공|키요공|누리레느|콕코구리|크라파|왕큰부리|영구스|형사구스|턱지충이|전지충이|투구뿌논|오기지게|모단단게|춤추새|에블리|에리본|암멍이|루가루암|약어리|시마사리|더시마사리|머드나기|만마드|물거미|깨비물거미|짜랑랑|라란티스|자마슈|마셰이드|야도뇽|염뉴트|포곰곰|이븐곰|달콤아|달무리나|달코퀸|큐아링|하랑우탄|내던숭이|꼬시레|갑주무사|모래꿍|모래성이당|해무기|타입:널|실버디|메테노|자말라|폭거북스|토게데마루|따라큐|치갈기|할비롱|타타륜|짜랑꼬|짜랑고우|짜랑고우거|카푸꼬꼬꼭|카푸나비나|카푸브루루|카푸느지느|코스모그|코스모움|솔가레오|루나아라|텅비드|매시붕|페로코체|전수목|철화구야|종이신도|악식킹|네크로즈마|마기아나|마샤도|베베놈|아고용|차곡차곡|두파팡|제라오라|멜탄|멜메탈|흥나숭|채키몽|고릴타|염버니|래비풋|에이스번|울머기|누겔레온|인텔리레온|탐리스|요씽리스|파라꼬|파크로우|아머까오|두루지벌레|레돔벌레|이올브|훔처우|폭슬라이|꼬모카|백솜모카|우르|배우르|깨물부기|갈가부기|멍파치|펄스멍|탄동|탄차곤|석탄산|과사삭벌레|애프룡|단지래플|모래뱀|사다이사|윽우지|찌로꼬치|꼬치조|일레즌|스트린더|태우지네|다태우지네|때때무노|케오퍼스|데인차|포트데스|몸지브림|손지브림|브리무음|메롱꿍|쏘겨모|오롱털|가로막구리|나이킹|산호르곤|창파나이트|마임꽁꽁|데스판|마빌크|마휘핑|대여르|찌르성게|누니머기|모스노우|돌헨진|빙큐보|에써르|모르페코|끼리동|대왕끼리동|파치래곤|파치르돈|어래곤|어치르돈|두랄루돈|드라꼰|드래런치|드래펄트|자시안|자마젠타|무한다이노|치고마|우라오스|자루도|레지에레키|레지드래고|블리자포스|레이스포스|버드렉스|신비록|사마자르|다투곰|대쓰여너|포푸니크|장침바루|러브로스|나오하|나로테|마스카나|뜨아거|악뜨거|라우드본|꾸왁스|아꾸왁|웨이니발|맛보돈|퍼퓨돈|타랜툴라|트래피더|콩알뚜기|엑스레그|빠모|빠모트|빠르모트|두리쥐|파밀리쥐|쫀도기|바우첼|미니브|올리뇨|올리르바|시비꼬|베베솔트|스태솔트|콜로솔트|카르본|카디나르마|파라블레이즈|빈나두|찌리배리|찌리비|찌리비크|오라티프|마피티프|땃쭈르|태깅구르|그푸리|공푸리|들눈해|육파리|절벼게|캡싸이|스코빌런|구르데|베라카스|하느라기|클레스퍼트라|어리짱|벼리짱|두드리짱|바다그다|바닥트리오|떨구새|맨돌핀|돌핀맨|부르롱|부르르룸|모토마|꿈트렁|초롱순|킬라플로르|망망이|묘두기|꼬이밍고|터벅고래|우락고래|가비루사|어써러셔|싸리용|저승갓숭|토오|키키링|노고고치|대도각참|위대한엄니|우렁찬꼬리|사나운버섯|날개치는머리|땅을기는날개|모래털가죽|무쇠바퀴|무쇠보따리|무쇠손|무쇠머리|무쇠독나방|무쇠가시|드니차|드니꽁|드닐레이브|모으령|타부자고|총지엔|파오젠|딩루|위유이|고동치는달|무쇠무인|코라이돈|미라이돈|굽이치는물결|무쇠잎새|과미르|차데스|그우린차|조타구|이야후|기로치|오거폰|브리두라스|과미드라|꿰뚫는화염|날뛰는우레|무쇠암석|무쇠감투|테라파고스|복숭악동".split("|");
+  var NAMES_ZH_HANT = "妙蛙種子|妙蛙草|妙蛙花|小火龍|火恐龍|噴火龍|傑尼龜|卡咪龜|水箭龜|綠毛蟲|鐵甲蛹|巴大蝶|獨角蟲|鐵殼蛹|大針蜂|波波|比比鳥|大比鳥|小拉達|拉達|烈雀|大嘴雀|阿柏蛇|阿柏怪|皮卡丘|雷丘|穿山鼠|穿山王|尼多蘭|尼多娜|尼多后|尼多朗|尼多力諾|尼多王|皮皮|皮可西|六尾|九尾|胖丁|胖可丁|超音蝠|大嘴蝠|走路草|臭臭花|霸王花|派拉斯|派拉斯特|毛球|摩魯蛾|地鼠|三地鼠|喵喵|貓老大|可達鴨|哥達鴨|猴怪|火爆猴|卡蒂狗|風速狗|蚊香蝌蚪|蚊香君|蚊香泳士|凱西|勇基拉|胡地|腕力|豪力|怪力|喇叭芽|口呆花|大食花|瑪瑙水母|毒刺水母|小拳石|隆隆石|隆隆岩|小火馬|烈焰馬|呆呆獸|呆殼獸|小磁怪|三合一磁怪|大蔥鴨|嘟嘟|嘟嘟利|小海獅|白海獅|臭泥|臭臭泥|大舌貝|刺甲貝|鬼斯|鬼斯通|耿鬼|大岩蛇|催眠貘|引夢貘人|大鉗蟹|巨鉗蟹|霹靂電球|頑皮雷彈|蛋蛋|椰蛋樹|卡拉卡拉|嘎啦嘎啦|飛腿郎|快拳郎|大舌頭|瓦斯彈|雙彈瓦斯|獨角犀牛|鑽角犀獸|吉利蛋|蔓藤怪|袋獸|墨海馬|海刺龍|角金魚|金魚王|海星星|寶石海星|魔牆人偶|飛天螳螂|迷唇姐|電擊獸|鴨嘴火獸|凱羅斯|肯泰羅|鯉魚王|暴鯉龍|拉普拉斯|百變怪|伊布|水伊布|雷伊布|火伊布|多邊獸|菊石獸|多刺菊石獸|化石盔|鐮刀盔|化石翼龍|卡比獸|急凍鳥|閃電鳥|火焰鳥|迷你龍|哈克龍|快龍|超夢|夢幻|菊草葉|月桂葉|大竺葵|火球鼠|火岩鼠|火爆獸|小鋸鱷|藍鱷|大力鱷|尾立|大尾立|咕咕|貓頭夜鷹|芭瓢蟲|安瓢蟲|圓絲蛛|阿利多斯|叉字蝠|燈籠魚|電燈怪|皮丘|皮寶寶|寶寶丁|波克比|波克基古|天然雀|天然鳥|咩利羊|茸茸羊|電龍|美麗花|瑪力露|瑪力露麗|樹才怪|蚊香蛙皇|毽子草|毽子花|毽子棉|長尾怪手|向日種子|向日花怪|蜻蜻蜓|烏波|沼王|太陽伊布|月亮伊布|黑暗鴉|呆呆王|夢妖|未知圖騰|果然翁|麒麟奇|榛果球|佛烈托斯|土龍弟弟|天蠍|大鋼蛇|布魯|布魯皇|千針魚|巨鉗螳螂|壺壺|赫拉克羅斯|狃拉|熊寶寶|圈圈熊|熔岩蟲|熔岩蝸牛|小山豬|長毛豬|太陽珊瑚|鐵炮魚|章魚桶|信使鳥|巨翅飛魚|盔甲鳥|戴魯比|黑魯加|刺龍王|小小象|頓甲|多邊獸Ⅱ|驚角鹿|圖圖犬|無畏小子|戰舞郎|迷唇娃|電擊怪|鴨嘴寶寶|大奶罐|幸福蛋|雷公|炎帝|水君|幼基拉斯|沙基拉斯|班基拉斯|洛奇亞|鳳王|時拉比|木守宮|森林蜥蜴|蜥蜴王|火稚雞|力壯雞|火焰雞|水躍魚|沼躍魚|巨沼怪|土狼犬|大狼犬|蛇紋熊|直衝熊|刺尾蟲|甲殼繭|狩獵鳳蝶|盾甲繭|毒粉蛾|蓮葉童子|蓮帽小童|樂天河童|橡實果|長鼻葉|狡猾天狗|傲骨燕|大王燕|長翅鷗|大嘴鷗|拉魯拉絲|奇魯莉安|沙奈朵|溜溜糖球|雨翅蛾|蘑蘑菇|斗笠菇|懶人獺|過動猿|請假王|土居忍士|鐵面忍者|脫殼忍者|咕妞妞|吼爆彈|爆音怪|幕下力士|鐵掌力士|露力麗|朝北鼻|向尾喵|優雅貓|勾魂眼|大嘴娃|可可多拉|可多拉|波士可多拉|瑪沙那|恰雷姆|落雷獸|雷電獸|正電拍拍|負電拍拍|電螢蟲|甜甜螢|毒薔薇|溶食獸|吞食獸|利牙魚|巨牙鯊|吼吼鯨|吼鯨王|呆火駝|噴火駝|煤炭龜|跳跳豬|噗噗豬|晃晃斑|大顎蟻|超音波幼蟲|沙漠蜻蜓|刺球仙人掌|夢歌仙人掌|青綿鳥|七夕青鳥|貓鼬斬|飯匙蛇|月石|太陽岩|泥泥鰍|鯰魚王|龍蝦小兵|鐵螯龍蝦|天秤偶|念力土偶|觸手百合|搖籃百合|太古羽蟲|太古盔甲|醜醜魚|美納斯|飄浮泡泡|變隱龍|怨影娃娃|詛咒娃娃|夜巡靈|彷徨夜靈|熱帶龍|風鈴鈴|阿勃梭魯|小果然|雪童子|冰鬼護|海豹球|海魔獅|帝牙海獅|珍珠貝|獵斑魚|櫻花魚|古空棘魚|愛心魚|寶貝龍|甲殼龍|暴飛龍|鐵啞鈴|金屬怪|巨金怪|雷吉洛克|雷吉艾斯|雷吉斯奇魯|拉帝亞斯|拉帝歐斯|蓋歐卡|固拉多|烈空坐|基拉祈|代歐奇希斯|草苗龜|樹林龜|土台龜|小火焰猴|猛火猴|烈焰猴|波加曼|波皇子|帝王拿波|姆克兒|姆克鳥|姆克鷹|大牙狸|大尾狸|圓法師|音箱蟀|小貓怪|勒克貓|倫琴貓|含羞苞|羅絲雷朵|頭蓋龍|戰槌龍|盾甲龍|護城龍|結草兒|結草貴婦|紳士蛾|三蜜蜂|蜂女王|帕奇利茲|泳圈鼬|浮潛鼬|櫻花寶|櫻花兒|無殼海兔|海兔獸|雙尾怪手|飄飄球|隨風球|捲捲耳|長耳兔|夢妖魔|烏鴉頭頭|魅力喵|東施喵|鈴鐺響|臭鼬噗|坦克臭鼬|銅鏡怪|青銅鐘|盆才怪|魔尼尼|小福蛋|聒噪鳥|花岩怪|圓陸鯊|尖牙陸鯊|烈咬陸鯊|小卡比獸|利歐路|路卡利歐|沙河馬|河馬獸|鉗尾蠍|龍王蠍|不良蛙|毒骷蛙|尖牙籠|螢光魚|霓虹魚|小球飛魚|雪笠怪|暴雪王|瑪狃拉|自爆磁怪|大舌舔|超甲狂犀|巨蔓藤|電擊魔獸|鴨嘴炎獸|波克基斯|遠古巨蜓|葉伊布|冰伊布|天蠍王|象牙豬|多邊獸Ｚ|艾路雷朵|大朝北鼻|黑夜魔靈|雪妖女|洛托姆|由克希|艾姆利多|亞克諾姆|帝牙盧卡|帕路奇亞|席多藍恩|雷吉奇卡斯|騎拉帝納|克雷色利亞|霏歐納|瑪納霏|達克萊伊|謝米|阿爾宙斯|比克提尼|藤藤蛇|青藤蛇|君主蛇|暖暖豬|炒炒豬|炎武王|水水獺|雙刃丸|大劍鬼|探探鼠|步哨鼠|小約克|哈約克|長毛狗|扒手貓|酷豹|花椰猴|花椰猿|爆香猴|爆香猿|冷水猴|冷水猿|食夢夢|夢夢蝕|豆豆鴿|咕咕鴿|高傲雉雞|斑斑馬|雷電斑馬|石丸子|地幔岩|龐岩怪|滾滾蝙蝠|心蝙蝠|螺釘地鼠|龍頭地鼠|差不多娃娃|搬運小匠|鐵骨土人|修建老匠|圓蝌蚪|藍蟾蜍|蟾蜍王|投摔鬼|打擊鬼|蟲寶包|寶包繭|保母蟲|百足蜈蚣|車輪毬|蜈蚣王|木棉球|風妖精|百合根娃娃|裙兒小姐|野蠻鱸魚|黑眼鱷|混混鱷|流氓鱷|火紅不倒翁|達摩狒狒|沙鈴仙人掌|石居蟹|岩殿居蟹|滑滑小子|頭巾混混|象徵鳥|哭哭面具|死神棺|原蓋海龜|肋骨海龜|始祖小鳥|始祖大鳥|破破袋|灰塵山|索羅亞|索羅亞克|泡沫栗鼠|奇諾栗鼠|哥德寶寶|哥德小童|哥德小姐|單卵細胞球|雙卵細胞球|人造細胞卵|鴨寶寶|舞天鵝|迷你冰|多多冰|雙倍多多冰|四季鹿|萌芽鹿|電飛鼠|蓋蓋蟲|騎士蝸牛|哎呀球菇|敗露球菇|輕飄飄|胖嘟嘟|保母曼波|電電蟲|電蜘蛛|種子鐵球|堅果啞鈴|齒輪兒|齒輪組|齒輪怪|麻麻小魚|麻麻鰻|麻麻鰻魚王|小灰怪|大宇怪|燭光靈|燈火幽靈|水晶燈火靈|牙牙|斧牙龍|雙斧戰龍|噴嚏熊|凍原熊|幾何雪花|小嘴蝸|敏捷蟲|泥巴魚|功夫鼬|師父鼬|赤面龍|泥偶小人|泥偶巨人|駒刀小兵|劈斬司令|爆炸頭水牛|毛頭小鷹|勇士雄鷹|禿鷹丫頭|禿鷹娜|熔蟻獸|鐵蟻|單首龍|雙首暴龍|三首惡龍|燃燒蟲|火神蛾|勾帕路翁|代拉基翁|畢力吉翁|龍捲雲|雷電雲|萊希拉姆|捷克羅姆|土地雲|酋雷姆|凱路迪歐|美洛耶塔|蓋諾賽克特|哈力栗|胖胖哈力|布里卡隆|火狐狸|長尾火狐|妖火紅狐|呱呱泡蛙|呱頭蛙|甲賀忍蛙|掘掘兔|掘地兔|小箭雀|火箭雀|烈箭鷹|粉蝶蟲|粉蝶蛹|彩粉蝶|小獅獅|火炎獅|花蓓蓓|花葉蒂|花潔夫人|坐騎小羊|坐騎山羊|頑皮熊貓|流氓熊貓|多麗米亞|妙喵|超能妙喵|獨劍鞘|雙劍鞘|堅盾劍怪|粉香香|芳香精|綿綿泡芙|胖甜妮|好啦魷|烏賊王|龜腳腳|龜足巨鎧|垃垃藻|毒藻龍|鐵臂槍蝦|鋼炮臂蝦|傘電蜥|光電傘蜥|寶寶暴龍|怪顎龍|冰雪龍|冰雪巨龍|仙子伊布|摔角鷹人|咚咚鼠|小碎鑽|黏黏寶|黏美兒|黏美龍|鑰圈兒|小木靈|朽木妖|南瓜精|南瓜怪人|冰寶|冰岩怪|嗡蝠|音波龍|哲爾尼亞斯|伊裴爾塔爾|基格爾德|蒂安希|胡帕|波爾凱尼恩|木木梟|投羽梟|狙射樹梟|火斑喵|炎熱喵|熾焰咆哮虎|球球海獅|花漾海獅|西獅海壬|小篤兒|喇叭啄鳥|銃嘴大鳥|貓鼬少|貓鼬探長|強顎雞母蟲|蟲電寶|鍬農炮蟲|好勝蟹|好勝毛蟹|花舞鳥|萌虻|蝶結萌虻|岩狗狗|鬃岩狼人|弱丁魚|好壞星|超壞星|泥驢仔|重泥挽馬|滴蛛|滴蛛霸|偽螳草|蘭螳花|睡睡菇|燈罩夜菇|夜盜火蜥|焰后蜥|童偶熊|穿著熊|甜竹竹|甜舞妮|甜冷美后|花療環環|智揮猩|投擲猴|膽小蟲|具甲武者|沙丘娃|噬沙堡爺|拳海參|屬性：空|銀伴戰獸|小隕星|樹枕尾熊|爆焰龜獸|托戈德瑪爾|謎擬Ｑ|磨牙彩皮魚|老翁龍|破破舵輪|心鱗寶|鱗甲龍|杖尾鱗甲龍|卡璞・鳴鳴|卡璞・蝶蝶|卡璞・哞哞|卡璞・鰭鰭|科斯莫古|科斯莫姆|索爾迦雷歐|露奈雅拉|虛吾伊德|爆肌蚊|費洛美螂|電束木|鐵火輝夜|紙御劍|惡食大王|奈克洛茲瑪|瑪機雅娜|瑪夏多|毒貝比|四顎針龍|壘磊石|砰頭小丑|捷拉奧拉|美錄坦|美錄梅塔|敲音猴|啪咚猴|轟擂金剛猩|炎兔兒|騰蹴小將|閃焰王牌|淚眼蜥|變澀蜥|千面避役|貪心栗鼠|藏飽栗鼠|稚山雀|藍鴉|鋼鎧鴉|索偵蟲|天罩蟲|以歐路普|偷兒狐|狐大盜|幼棉棉|白蓬蓬|毛辮羊|毛毛角羊|咬咬龜|暴噬龜|來電汪|逐電犬|小炭仔|大炭車|巨炭山|啃果蟲|蘋裹龍|豐蜜龍|沙包蛇|沙螺蟒|古月鳥|刺梭魚|戽斗尖梭|毒電嬰|顫弦蠑螈|燒火蚣|焚焰蚣|拳拳蛸|八爪武師|來悲茶|怖思壺|迷布莉姆|提布莉姆|布莉姆溫|搗蛋小妖|詐唬魔|長毛巨魔|堵攔熊|喵頭目|魔靈珊瑚|蔥遊兵|踏冰人偶|死神板|小仙奶|霜奶仙|列陣兵|啪嚓海膽|雪吞蟲|雪絨蛾|巨石丁|冰砌鵝|愛管侍|莫魯貝可|銅象|大王銅象|雷鳥龍|雷鳥海獸|鰓魚龍|鰓魚海獸|鋁鋼龍|多龍梅西亞|多龍奇|多龍巴魯托|蒼響|藏瑪然特|無極汰那|熊徒弟|武道熊師|薩戮德|雷吉艾勒奇|雷吉鐸拉戈|雪暴馬|靈幽馬|蕾冠王|詭角鹿|劈斧螳螂|月月熊|幽尾玄魚|大狃拉|萬針魚|眷戀雲|新葉喵|蒂蕾喵|魔幻假面喵|呆火鱷|炙燙鱷|骨紋巨聲鱷|潤水鴨|湧躍鴨|狂歡浪舞鴨|愛吃豚|飄香豚|團珠蛛|操陷蛛|豆蟋蟀|烈腿蝗|布撥|布土撥|巴布土撥|一對鼠|一家鼠|狗仔包|麻花犬|迷你芙|奧利紐|奧利瓦|怒鸚哥|鹽石寶|鹽石壘|鹽石巨靈|炭小侍|紅蓮鎧騎|蒼炎刃鬼|光蚪仔|電肚蛙|電海燕|大電海燕|偶叫獒|獒教父|滋汁鼴|塗標客|納噬草|怖納噬草|原野水母|陸地水母|毛崖蟹|熱辣娃|狠辣椒|蟲滾泥|蟲甲聖|飄飄雛|超能艷鴕|小鍛匠|巧鍛匠|巨鍛匠|海地鼠|三海地鼠|下石鳥|波普海豚|海豚俠|噗隆隆|普隆隆姆|摩托蜥|拖拖蚓|晶光芽|晶光花|墓仔狗|墓揚犬|纏紅鶴|走鯨|浩大鯨|輕身鱈|吃吼霸|米立龍|棄世猴|土王|奇麒麟|土龍節節|仆刀將軍|雄偉牙|吼叫尾|猛惡菇|振翼髮|爬地翅|沙鐵皮|鐵轍跡|鐵包袱|鐵臂膀|鐵脖頸|鐵毒蛾|鐵荊棘|涼脊龍|凍脊龍|戟脊龍|索財靈|賽富豪|古簡蝸|古劍豹|古鼎鹿|古玉魚|轟鳴月|鐵武者|故勒頓|密勒頓|波盪水|鐵斑葉|裹蜜蟲|斯魔茶|來悲粗茶|夠讚狗|願增猿|吉雉雞|厄鬼椪|鋁鋼橋龍|蜜集大蛇|破空焰|猛雷鼓|鐵磐岩|鐵頭殼|太樂巴戈斯|桃歹郎".split("|");
+  var NAMES_ZH_HANS = "妙蛙种子|妙蛙草|妙蛙花|小火龙|火恐龙|喷火龙|杰尼龟|卡咪龟|水箭龟|绿毛虫|铁甲蛹|巴大蝶|独角虫|铁壳蛹|大针蜂|波波|比比鸟|大比鸟|小拉达|拉达|烈雀|大嘴雀|阿柏蛇|阿柏怪|皮卡丘|雷丘|穿山鼠|穿山王|尼多兰|尼多娜|尼多后|尼多朗|尼多力诺|尼多王|皮皮|皮可西|六尾|九尾|胖丁|胖可丁|超音蝠|大嘴蝠|走路草|臭臭花|霸王花|派拉斯|派拉斯特|毛球|摩鲁蛾|地鼠|三地鼠|喵喵|猫老大|可达鸭|哥达鸭|猴怪|火暴猴|卡蒂狗|风速狗|蚊香蝌蚪|蚊香君|蚊香泳士|凯西|勇基拉|胡地|腕力|豪力|怪力|喇叭芽|口呆花|大食花|玛瑙水母|毒刺水母|小拳石|隆隆石|隆隆岩|小火马|烈焰马|呆呆兽|呆壳兽|小磁怪|三合一磁怪|大葱鸭|嘟嘟|嘟嘟利|小海狮|白海狮|臭泥|臭臭泥|大舌贝|刺甲贝|鬼斯|鬼斯通|耿鬼|大岩蛇|催眠貘|引梦貘人|大钳蟹|巨钳蟹|霹雳电球|顽皮雷弹|蛋蛋|椰蛋树|卡拉卡拉|嘎啦嘎啦|飞腿郎|快拳郎|大舌头|瓦斯弹|双弹瓦斯|独角犀牛|钻角犀兽|吉利蛋|蔓藤怪|袋兽|墨海马|海刺龙|角金鱼|金鱼王|海星星|宝石海星|魔墙人偶|飞天螳螂|迷唇姐|电击兽|鸭嘴火兽|凯罗斯|肯泰罗|鲤鱼王|暴鲤龙|拉普拉斯|百变怪|伊布|水伊布|雷伊布|火伊布|多边兽|菊石兽|多刺菊石兽|化石盔|镰刀盔|化石翼龙|卡比兽|急冻鸟|闪电鸟|火焰鸟|迷你龙|哈克龙|快龙|超梦|梦幻|菊草叶|月桂叶|大竺葵|火球鼠|火岩鼠|火暴兽|小锯鳄|蓝鳄|大力鳄|尾立|大尾立|咕咕|猫头夜鹰|芭瓢虫|安瓢虫|圆丝蛛|阿利多斯|叉字蝠|灯笼鱼|电灯怪|皮丘|皮宝宝|宝宝丁|波克比|波克基古|天然雀|天然鸟|咩利羊|茸茸羊|电龙|美丽花|玛力露|玛力露丽|树才怪|蚊香蛙皇|毽子草|毽子花|毽子棉|长尾怪手|向日种子|向日花怪|蜻蜻蜓|乌波|沼王|太阳伊布|月亮伊布|黑暗鸦|呆呆王|梦妖|未知图腾|果然翁|麒麟奇|榛果球|佛烈托斯|土龙弟弟|天蝎|大钢蛇|布鲁|布鲁皇|千针鱼|巨钳螳螂|壶壶|赫拉克罗斯|狃拉|熊宝宝|圈圈熊|熔岩虫|熔岩蜗牛|小山猪|长毛猪|太阳珊瑚|铁炮鱼|章鱼桶|信使鸟|巨翅飞鱼|盔甲鸟|戴鲁比|黑鲁加|刺龙王|小小象|顿甲|多边兽２型|惊角鹿|图图犬|无畏小子|战舞郎|迷唇娃|电击怪|鸭嘴宝宝|大奶罐|幸福蛋|雷公|炎帝|水君|幼基拉斯|沙基拉斯|班基拉斯|洛奇亚|凤王|时拉比|木守宫|森林蜥蜴|蜥蜴王|火稚鸡|力壮鸡|火焰鸡|水跃鱼|沼跃鱼|巨沼怪|土狼犬|大狼犬|蛇纹熊|直冲熊|刺尾虫|甲壳茧|狩猎凤蝶|盾甲茧|毒粉蛾|莲叶童子|莲帽小童|乐天河童|橡实果|长鼻叶|狡猾天狗|傲骨燕|大王燕|长翅鸥|大嘴鸥|拉鲁拉丝|奇鲁莉安|沙奈朵|溜溜糖球|雨翅蛾|蘑蘑菇|斗笠菇|懒人獭|过动猿|请假王|土居忍士|铁面忍者|脱壳忍者|咕妞妞|吼爆弹|爆音怪|幕下力士|铁掌力士|露力丽|朝北鼻|向尾喵|优雅猫|勾魂眼|大嘴娃|可可多拉|可多拉|波士可多拉|玛沙那|恰雷姆|落雷兽|雷电兽|正电拍拍|負电拍拍|电萤虫|甜甜萤|毒蔷薇|溶食兽|吞食兽|利牙鱼|巨牙鲨|吼吼鲸|吼鲸王|呆火驼|喷火驼|煤炭龟|跳跳猪|噗噗猪|晃晃斑|大颚蚁|超音波幼虫|沙漠蜻蜓|刺球仙人掌|梦歌仙人掌|青绵鸟|七夕青鸟|猫鼬斩|饭匙蛇|月石|太阳岩|泥泥鳅|鲶鱼王|龙虾小兵|铁螯龙虾|天秤偶|念力土偶|触手百合|摇篮百合|太古羽虫|太古盔甲|丑丑鱼|美纳斯|飘浮泡泡|变隐龙|怨影娃娃|诅咒娃娃|夜巡灵|彷徨夜灵|热带龙|风铃铃|阿勃梭鲁|小果然|雪童子|冰鬼护|海豹球|海魔狮|帝牙海狮|珍珠贝|猎斑鱼|樱花鱼|古空棘鱼|爱心鱼|宝贝龙|甲壳龙|暴飞龙|铁哑铃|金属怪|巨金怪|雷吉洛克|雷吉艾斯|雷吉斯奇鲁|拉帝亚斯|拉帝欧斯|盖欧卡|固拉多|烈空坐|基拉祈|代欧奇希斯|草苗龟|树林龟|土台龟|小火焰猴|猛火猴|烈焰猴|波加曼|波皇子|帝王拿波|姆克儿|姆克鸟|姆克鹰|大牙狸|大尾狸|圆法师|音箱蟀|小猫怪|勒克猫|伦琴猫|含羞苞|罗丝雷朵|头盖龙|战槌龙|盾甲龙|护城龙|结草儿|结草贵妇|绅士蛾|三蜜蜂|蜂女王|帕奇利兹|泳圈鼬|浮潜鼬|樱花宝|樱花儿|无壳海兔|海兔兽|双尾怪手|飘飘球|随风球|卷卷耳|长耳兔|梦妖魔|乌鸦头头|魅力喵|东施喵|铃铛响|臭鼬噗|坦克臭鼬|铜镜怪|青铜钟|盆才怪|魔尼尼|小福蛋|聒噪鸟|花岩怪|圆陆鲨|尖牙陆鲨|烈咬陆鲨|小卡比兽|利欧路|路卡利欧|沙河马|河马兽|钳尾蝎|龙王蝎|不良蛙|毒骷蛙|尖牙笼|荧光鱼|霓虹鱼|小球飞鱼|雪笠怪|暴雪王|玛狃拉|自爆磁怪|大舌舔|超甲狂犀|巨蔓藤|电击魔兽|鸭嘴炎兽|波克基斯|远古巨蜓|叶伊布|冰伊布|天蝎王|象牙猪|多边兽乙型|艾路雷朵|大朝北鼻|黑夜魔灵|雪妖女|洛托姆|由克希|艾姆利多|亚克诺姆|帝牙卢卡|帕路奇亚|席多蓝恩|雷吉奇卡斯|骑拉帝纳|克雷色利亚|霏欧纳|玛纳霏|达克莱伊|谢米|阿尔宙斯|比克提尼|藤藤蛇|青藤蛇|君主蛇|暖暖猪|炒炒猪|炎武王|水水獭|双刃丸|大剑鬼|探探鼠|步哨鼠|小约克|哈约克|长毛狗|扒手猫|酷豹|花椰猴|花椰猿|爆香猴|爆香猿|冷水猴|冷水猿|食梦梦|梦梦蚀|豆豆鸽|咕咕鸽|高傲雉鸡|斑斑马|雷电斑马|石丸子|地幔岩|庞岩怪|滚滚蝙蝠|心蝙蝠|螺钉地鼠|龙头地鼠|差不多娃娃|搬运小匠|铁骨土人|修建老匠|圆蝌蚪|蓝蟾蜍|蟾蜍王|投摔鬼|打击鬼|虫宝包|宝包茧|保姆虫|百足蜈蚣|车轮球|蜈蚣王|木棉球|风妖精|百合根娃娃|裙儿小姐|野蛮鲈鱼|黑眼鳄|混混鳄|流氓鳄|火红不倒翁|达摩狒狒|沙铃仙人掌|石居蟹|岩殿居蟹|滑滑小子|头巾混混|象征鸟|哭哭面具|迭失棺|原盖海龟|肋骨海龟|始祖小鸟|始祖大鸟|破破袋|灰尘山|索罗亚|索罗亚克|泡沫栗鼠|奇诺栗鼠|哥德宝宝|哥德小童|哥德小姐|单卵细胞球|双卵细胞球|人造细胞卵|鸭宝宝|舞天鹅|迷你冰|多多冰|双倍多多冰|四季鹿|萌芽鹿|电飞鼠|盖盖虫|骑士蜗牛|哎呀球菇|败露球菇|轻飘飘|胖嘟嘟|保姆曼波|电电虫|电蜘蛛|种子铁球|坚果哑铃|齿轮儿|齿轮组|齿轮怪|麻麻小鱼|麻麻鳗|麻麻鳗鱼王|小灰怪|大宇怪|烛光灵|灯火幽灵|水晶灯火灵|牙牙|斧牙龙|双斧战龙|喷嚏熊|冻原熊|几何雪花|小嘴蜗|敏捷虫|泥巴鱼|功夫鼬|师父鼬|赤面龙|泥偶小人|泥偶巨人|驹刀小兵|劈斩司令|爆炸头水牛|毛头小鹰|勇士雄鹰|秃鹰丫头|秃鹰娜|熔蚁兽|铁蚁|单首龙|双首暴龙|三首恶龙|燃烧虫|火神蛾|勾帕路翁|代拉基翁|毕力吉翁|龙卷云|雷电云|莱希拉姆|捷克罗姆|土地云|酋雷姆|凯路迪欧|美洛耶塔|盖诺赛克特|哈力栗|胖胖哈力|布里卡隆|火狐狸|长尾火狐|妖火红狐|呱呱泡蛙|呱头蛙|甲贺忍蛙|掘掘兔|掘地兔|小箭雀|火箭雀|烈箭鹰|粉蝶虫|粉蝶蛹|彩粉蝶|小狮狮|火炎狮|花蓓蓓|花叶蒂|花洁夫人|坐骑小羊|坐骑山羊|顽皮熊猫|霸道熊猫|多丽米亚|妙喵|超能妙喵|独剑鞘|双剑鞘|坚盾剑怪|粉香香|芳香精|绵绵泡芙|胖甜妮|好啦鱿|乌贼王|龟脚脚|龟足巨铠|垃垃藻|毒藻龙|铁臂枪虾|钢炮臂虾|伞电蜥|光电伞蜥|宝宝暴龙|怪颚龙|冰雪龙|冰雪巨龙|仙子伊布|摔角鹰人|咚咚鼠|小碎钻|黏黏宝|黏美儿|黏美龙|钥圈儿|小木灵|朽木妖|南瓜精|南瓜怪人|冰宝|冰岩怪|嗡蝠|音波龙|哲尔尼亚斯|伊裴尔塔尔|基格尔德|蒂安希|胡帕|波尔凯尼恩|木木枭|投羽枭|狙射树枭|火斑喵|炎热喵|炽焰咆哮虎|球球海狮|花漾海狮|西狮海壬|小笃儿|喇叭啄鸟|铳嘴大鸟|猫鼬少|猫鼬探长|强颚鸡母虫|虫电宝|锹农炮虫|好胜蟹|好胜毛蟹|花舞鸟|萌虻|蝶结萌虻|岩狗狗|鬃岩狼人|弱丁鱼|好坏星|超坏星|泥驴仔|重泥挽马|滴蛛|滴蛛霸|伪螳草|兰螳花|睡睡菇|灯罩夜菇|夜盗火蜥|焰后蜥|童偶熊|穿着熊|甜竹竹|甜舞妮|甜冷美后|花疗环环|智挥猩|投掷猴|胆小虫|具甲武者|沙丘娃|噬沙堡爷|拳海参|属性：空|银伴战兽|小陨星|树枕尾熊|爆焰龟兽|托戈德玛尔|谜拟丘|磨牙彩皮鱼|老翁龙|破破舵轮|心鳞宝|鳞甲龙|杖尾鳞甲龙|卡璞・鸣鸣|卡璞・蝶蝶|卡璞・哞哞|卡璞・鳍鳍|科斯莫古|科斯莫姆|索尔迦雷欧|露奈雅拉|虚吾伊德|爆肌蚊|费洛美螂|电束木|铁火辉夜|纸御剑|恶食大王|奈克洛兹玛|玛机雅娜|玛夏多|毒贝比|四颚针龙|垒磊石|砰头小丑|捷拉奥拉|美录坦|美录梅塔|敲音猴|啪咚猴|轰擂金刚猩|炎兔儿|腾蹴小将|闪焰王牌|泪眼蜥|变涩蜥|千面避役|贪心栗鼠|藏饱栗鼠|稚山雀|蓝鸦|钢铠鸦|索侦虫|天罩虫|以欧路普|狡小狐|猾大狐|幼棉棉|白蓬蓬|毛辫羊|毛毛角羊|咬咬龟|暴噬龟|来电汪|逐电犬|小炭仔|大炭车|巨炭山|啃果虫|苹裹龙|丰蜜龙|沙包蛇|沙螺蟒|古月鸟|刺梭鱼|戽斗尖梭|电音婴|颤弦蝾螈|烧火蚣|焚焰蚣|拳拳蛸|八爪武师|来悲茶|怖思壶|迷布莉姆|提布莉姆|布莉姆温|捣蛋小妖|诈唬魔|长毛巨魔|堵拦熊|喵头目|魔灵珊瑚|葱游兵|踏冰人偶|迭失板|小仙奶|霜奶仙|列阵兵|啪嚓海胆|雪吞虫|雪绒蛾|巨石丁|冰砌鹅|爱管侍|莫鲁贝可|铜象|大王铜象|雷鸟龙|雷鸟海兽|鳃鱼龙|鳃鱼海兽|铝钢龙|多龙梅西亚|多龙奇|多龙巴鲁托|苍响|藏玛然特|无极汰那|熊徒弟|武道熊师|萨戮德|雷吉艾勒奇|雷吉铎拉戈|雪暴马|灵幽马|蕾冠王|诡角鹿|劈斧螳螂|月月熊|幽尾玄鱼|大狃拉|万针鱼|眷恋云|新叶喵|蒂蕾喵|魔幻假面喵|呆火鳄|炙烫鳄|骨纹巨声鳄|润水鸭|涌跃鸭|狂欢浪舞鸭|爱吃豚|飘香豚|团珠蛛|操陷蛛|豆蟋蟀|烈腿蝗|布拨|布土拨|巴布土拨|一对鼠|一家鼠|狗仔包|麻花犬|迷你芙|奥利纽|奥利瓦|怒鹦哥|盐石宝|盐石垒|盐石巨灵|炭小侍|红莲铠骑|苍炎刃鬼|光蚪仔|电肚蛙|电海燕|大电海燕|偶叫獒|獒教父|滋汁鼹|涂标客|纳噬草|怖纳噬草|原野水母|陆地水母|毛崖蟹|热辣娃|狠辣椒|虫滚泥|虫甲圣|飘飘雏|超能艳鸵|小锻匠|巧锻匠|巨锻匠|海地鼠|三海地鼠|下石鸟|波普海豚|海豚侠|噗隆隆|普隆隆姆|摩托蜥|拖拖蚓|晶光芽|晶光花|墓仔狗|墓扬犬|纏红鹤|走鲸|浩大鲸|轻身鳕|吃吼霸|米立龙|弃世猴|土王|奇麒麟|土龙节节|仆刀将军|雄伟牙|吼叫尾|猛恶菇|振翼发|爬地翅|沙铁皮|铁轍迹|铁包袱|铁臂膀|铁脖颈|铁毒蛾|铁荆棘|凉脊龙|冻脊龙|戟脊龙|索财灵|赛富豪|古简蜗|古剑豹|古鼎鹿|古玉鱼|轰鸣月|铁武者|故勒顿|密勒顿|波荡水|铁斑叶|裹蜜虫|斯魔茶|来悲粗茶|够赞狗|愿增猿|吉雉鸡|厄诡椪|铝钢桥龙|蜜集大蛇|破空焰|猛雷鼓|铁磐岩|铁头壳|太乐巴戈斯|桃歹郎".split("|");
 
   // js/store.js
-  var DB_NAME = "living-dex";
   var DB_VERSION = 2;
   var TABLES = ["entries", "wish", "photos", "meta", "extras"];
-  var dbPromise = null;
-  function openDb() {
-    if (!dbPromise) {
-      dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
+  var COLLECTION_IDS = ["en", "ja", "ko", "zh"];
+  var dbName = (lang) => lang === "en" ? "living-dex" : `living-dex-${lang}`;
+  var opened = /* @__PURE__ */ new Map();
+  function openDb(name) {
+    if (!opened.has(name)) {
+      opened.set(name, new Promise((resolve, reject) => {
+        const req = indexedDB.open(name, DB_VERSION);
         req.onupgradeneeded = () => {
           const db = req.result;
           for (const t of TABLES) if (!db.objectStoreNames.contains(t)) db.createObjectStore(t);
         };
         req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+        req.onerror = () => {
+          opened.delete(name);
+          reject(req.error);
+        };
+      }));
+    }
+    return opened.get(name);
+  }
+  function storeFor(lang) {
+    const name = dbName(lang);
+    async function run(table, mode, work) {
+      const db = await openDb(name);
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(table, mode);
+        const req = work(tx.objectStore(table));
+        tx.oncomplete = () => resolve(req ? req.result : void 0);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
       });
     }
-    return dbPromise;
+    return {
+      /** Every record in a table, as a Map of key -> value. */
+      async all(table) {
+        const db = await openDb(name);
+        return new Promise((resolve, reject) => {
+          const out = /* @__PURE__ */ new Map();
+          const cursor = db.transaction(table).objectStore(table).openCursor();
+          cursor.onsuccess = () => {
+            const c = cursor.result;
+            if (c) {
+              out.set(c.key, c.value);
+              c.continue();
+            } else resolve(out);
+          };
+          cursor.onerror = () => reject(cursor.error);
+        });
+      },
+      get: (table, key) => run(table, "readonly", (s) => s.get(key)),
+      put: (table, key, value) => run(table, "readwrite", (s) => s.put(value, key)),
+      remove: (table, key) => run(table, "readwrite", (s) => s.delete(key)),
+      clear: (table) => run(table, "readwrite", (s) => s.clear())
+    };
   }
-  async function run(table, mode, work) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(table, mode);
-      const req = work(tx.objectStore(table));
-      tx.oncomplete = () => resolve(req ? req.result : void 0);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  }
+  var current = storeFor("en");
   var store = {
-    /** Every record in a table, as a Map of key -> value. */
-    async all(table) {
-      const db = await openDb();
-      return new Promise((resolve, reject) => {
-        const out = /* @__PURE__ */ new Map();
-        const cursor = db.transaction(table).objectStore(table).openCursor();
-        cursor.onsuccess = () => {
-          const c = cursor.result;
-          if (c) {
-            out.set(c.key, c.value);
-            c.continue();
-          } else resolve(out);
-        };
-        cursor.onerror = () => reject(cursor.error);
-      });
-    },
-    get: (table, key) => run(table, "readonly", (s) => s.get(key)),
-    put: (table, key, value) => run(table, "readwrite", (s) => s.put(value, key)),
-    remove: (table, key) => run(table, "readwrite", (s) => s.delete(key)),
-    clear: (table) => run(table, "readwrite", (s) => s.clear())
+    all: (t) => current.all(t),
+    get: (t, k) => current.get(t, k),
+    put: (t, k, v) => current.put(t, k, v),
+    remove: (t, k) => current.remove(t, k),
+    clear: (t) => current.clear(t)
   };
+  function useCollection(lang) {
+    current = storeFor(COLLECTION_IDS.includes(lang) ? lang : "en");
+  }
   async function askToKeepData() {
     try {
       if (navigator.storage?.persisted && await navigator.storage.persisted()) return true;
@@ -436,7 +476,9 @@ label textarea { resize: vertical; min-height: 54px; }
   }
 
   // js/cards-api.js
-  var TCGDEX = "https://api.tcgdex.net/v2/en";
+  var TCGDEX_BASE = "https://api.tcgdex.net/v2/";
+  var TCGDEX = TCGDEX_BASE + "en";
+  var tcgdexUrl = (lang = "en") => TCGDEX_BASE + lang;
   var PTCG = "https://api.pokemontcg.io/v2";
   var num = (v) => typeof v === "number" && isFinite(v) && v > 0 ? v : null;
   async function getJSON(url, { signal, timeout = 15e3 } = {}) {
@@ -463,19 +505,25 @@ label textarea { resize: vertical; min-height: 54px; }
   function words(s) {
     return " " + String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/♀/g, " f ").replace(/♂/g, " m ").replace(/[^a-z0-9]+/g, " ").trim() + " ";
   }
-  var isCardOf = (cardName, species) => words(cardName).includes(words(species));
+  var hasLatin = (s) => /[a-z]/i.test(s);
+  function isCardOf(cardName, species, longer = []) {
+    if (hasLatin(species)) return words(cardName).includes(words(species));
+    const name = String(cardName || "").replace(/\s+/g, "");
+    return name.includes(species) && !longer.some((l) => name.includes(l));
+  }
   var sameNumber = (a, b) => {
     const x = String(a ?? "").trim().toUpperCase(), y = String(b ?? "").trim().toUpperCase();
     if (!x || !y) return false;
     if (/^\d+$/.test(x) && /^\d+$/.test(y)) return parseInt(x, 10) === parseInt(y, 10);
     return x.replace(/^0+/, "") === y.replace(/^0+/, "");
   };
-  function fromTcgdex(c) {
+  function fromTcgdex(c, lang = "en") {
     const cm = c.pricing?.cardmarket, tp = c.pricing?.tcgplayer;
     const usd = tp && (tp.normal?.marketPrice ?? tp.holofoil?.marketPrice ?? tp.holo?.marketPrice ?? tp["reverse-holofoil"]?.marketPrice ?? tp.reverse?.marketPrice);
     return {
       id: c.id,
       source: "tcgdex",
+      lang,
       name: c.name,
       number: String(c.localId ?? ""),
       illustrator: c.illustrator ?? null,
@@ -490,16 +538,22 @@ label textarea { resize: vertical; min-height: 54px; }
       eur: cm ? {
         trend: num(cm.trend) ?? num(cm.avg),
         trendHolo: num(cm["trend-holo"]) ?? num(cm["avg-holo"]),
+        avg1: num(cm.avg1),
+        avg7: num(cm.avg7),
         avg30: num(cm.avg30),
+        avg1Holo: num(cm["avg1-holo"]),
+        avg7Holo: num(cm["avg7-holo"]),
+        avg30Holo: num(cm["avg30-holo"]),
         low: num(cm.low),
         updated: cm.updated ?? null
       } : null,
       usd: num(usd)
     };
   }
-  var briefFromTcgdex = (b) => ({
+  var briefFromTcgdex = (b, lang = "en") => ({
     id: b.id,
     source: "tcgdex",
+    lang,
     name: b.name,
     number: String(b.localId ?? ""),
     brief: true,
@@ -509,16 +563,17 @@ label textarea { resize: vertical; min-height: 54px; }
     image: b.image ? b.image + "/low.webp" : null,
     imageLarge: b.image ? b.image + "/high.webp" : null
   });
-  async function tcgdexSearch({ species, number, total }, signal) {
-    const list = await getJSON(`${TCGDEX}/cards?name=${encodeURIComponent(species)}`, { signal });
+  async function tcgdexSearch({ species, number, total, lang = "en", longer = [] }, signal) {
+    const base = tcgdexUrl(lang);
+    const list = await getJSON(`${base}/cards?name=${encodeURIComponent(species)}`, { signal });
     if (!Array.isArray(list)) throw new Error("Unexpected reply");
-    const all = list.filter((b) => b && b.id && isCardOf(b.name, species)).reverse();
+    const all = list.filter((b) => b && b.id && isCardOf(b.name, species, longer)).reverse();
     return narrow(all, {
       number,
       total,
       numberOf: (b) => b.localId,
-      details: (briefs) => inBatches(briefs, 6, (b) => getJSON(`${TCGDEX}/cards/${encodeURIComponent(b.id)}`, { signal }).then(fromTcgdex).catch(() => briefFromTcgdex(b))),
-      brief: briefFromTcgdex
+      details: (briefs) => inBatches(briefs, 6, (b) => getJSON(`${base}/cards/${encodeURIComponent(b.id)}`, { signal }).then((c) => fromTcgdex(c, lang)).catch(() => briefFromTcgdex(b, lang))),
+      brief: (b) => briefFromTcgdex(b, lang)
     });
   }
   async function narrow(all, { number, total, numberOf, details, brief }) {
@@ -541,6 +596,7 @@ label textarea { resize: vertical; min-height: 54px; }
     return {
       id: c.id,
       source: "ptcg",
+      lang: "en",
       name: c.name,
       number: String(c.number ?? ""),
       illustrator: c.artist ?? null,
@@ -555,7 +611,12 @@ label textarea { resize: vertical; min-height: 54px; }
       eur: p ? {
         trend: num(p.trendPrice) ?? num(p.averageSellPrice),
         trendHolo: num(p.reverseHoloTrend) ?? num(p.reverseHoloSell),
+        avg1: num(p.avg1),
+        avg7: num(p.avg7),
         avg30: num(p.avg30),
+        avg1Holo: num(p.reverseHoloAvg1),
+        avg7Holo: num(p.reverseHoloAvg7),
+        avg30Holo: num(p.reverseHoloAvg30),
         low: num(p.lowPrice),
         updated: c.cardmarket?.updatedAt ?? null
       } : null,
@@ -593,15 +654,33 @@ label textarea { resize: vertical; min-height: 54px; }
     if (firstError) throw firstError;
     return { cards: [], exactNumber: false, source: "tcgdex" };
   }
-  async function getCard(id, source, signal) {
+  async function findLocalCards({ searches, number, total }, signal) {
+    number = number ? String(number).trim().replace(/\s+/g, "") : "";
+    const results = [];
+    let firstError;
+    for (const s of searches) {
+      try {
+        results.push(await tcgdexSearch({ ...s, number, total }, signal));
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        firstError = firstError || e;
+      }
+    }
+    if (!results.length) throw firstError || new Error("No database answered");
+    const exact = results.filter((r) => r.exactNumber && r.cards.length);
+    const use = exact.length ? exact : results;
+    return { cards: use.flatMap((r) => r.cards), exactNumber: exact.length > 0, source: "tcgdex" };
+  }
+  async function getCard(id, source, signal, lang = "en") {
     if (source === "ptcg") {
       const res = await getJSON(`${PTCG}/cards/${encodeURIComponent(id)}?select=${FIELDS}`, { signal });
       return fromPtcg(res.data);
     }
-    return fromTcgdex(await getJSON(`${TCGDEX}/cards/${encodeURIComponent(id)}`, { signal }));
+    return fromTcgdex(await getJSON(`${tcgdexUrl(lang || "en")}/cards/${encodeURIComponent(id)}`, { signal }), lang || "en");
   }
   async function withPrice(card, { species, dex }, signal) {
     if (!card || eurPrice(card, "standard") != null || !card.number) return card;
+    if (card.lang && card.lang !== "en") return card;
     try {
       const other = card.source === "ptcg" ? await tcgdexSearch({ species, number: card.number }, signal) : await ptcgSearch({ species, number: card.number, dex }, signal);
       if (!other.exactNumber) return card;
@@ -629,6 +708,17 @@ label textarea { resize: vertical; min-height: 54px; }
     const briefs = (Array.isArray(list) ? list : []).filter((b) => b && b.id && isCardOf(b.name, species)).reverse().slice(0, 24);
     const cards = await inBatches(briefs, 6, (b) => getJSON(`${TCGDEX}/cards/${encodeURIComponent(b.id)}`, { signal }).then(fromTcgdex).catch(() => null));
     return pick(cards.filter(Boolean));
+  }
+  function recentAverages(card, finish) {
+    const e = card?.eur;
+    if (!e) return [];
+    const h = finish === "reverse" && (e.trendHolo ?? e.avg30Holo ?? e.avg7Holo ?? e.avg1Holo) != null;
+    return [
+      { days: 30, label: "30-day average", eur: h ? e.avg30Holo : e.avg30 },
+      { days: 7, label: "7-day average", eur: h ? e.avg7Holo : e.avg7 },
+      { days: 1, label: "Yesterday's average", eur: h ? e.avg1Holo : e.avg1 },
+      { days: 0, label: "Trend price now", eur: h ? e.trendHolo : e.trend ?? e.avg30 }
+    ].filter((p) => p.eur != null);
   }
   function eurPrice(card, finish) {
     const e = card?.eur;
@@ -695,17 +785,17 @@ label textarea { resize: vertical; min-height: 54px; }
   var DEFAULT_GRADING_COST = 45;
 
   // js/ocr.js
-  var workerPromise = null;
-  function getWorker(onStatus) {
+  var workers = /* @__PURE__ */ new Map();
+  function getWorker(lang, onStatus) {
     if (!window.Tesseract) return Promise.reject(new Error("The text reader didn't load. Check your connection."));
-    if (!workerPromise) {
-      onStatus?.("Getting the text reader ready (first scan only)");
-      workerPromise = window.Tesseract.createWorker("eng").catch((e) => {
-        workerPromise = null;
+    if (!workers.has(lang)) {
+      onStatus?.(lang === "eng" ? "Getting the text reader ready (first scan only)" : "Getting the reader for this language ready (first scan only)");
+      workers.set(lang, window.Tesseract.createWorker(lang).catch((e) => {
+        workers.delete(lang);
         throw e;
-      });
+      }));
     }
-    return workerPromise;
+    return workers.get(lang);
   }
   function strip(bmp, x, y, w, h, scale = 3) {
     const sx = Math.round(bmp.width * x), sy = Math.round(bmp.height * y);
@@ -786,16 +876,44 @@ label textarea { resize: vertical; min-height: 54px; }
     });
     return best;
   }
-  async function readCard(blob, names, onStatus) {
-    const worker = await getWorker(onStatus);
+  function matchSpeciesCJK(text, lists) {
+    const t = String(text || "").replace(/[\s|_.,'"・·]+/g, "");
+    if (!t) return 0;
+    let exact = 0, exactLen = 0;
+    for (const names of lists) names.forEach((name, i) => {
+      if (name.length > exactLen && t.includes(name)) {
+        exact = i + 1;
+        exactLen = name.length;
+      }
+    });
+    let fuzzy = 0, fuzzyLen = 0;
+    for (const names of lists) names.forEach((name, i) => {
+      if (name.length < 3 || name.length <= fuzzyLen) return;
+      for (let k = 0; k + name.length <= t.length; k++) {
+        const w = t.slice(k, k + name.length);
+        if (/[A-Za-z0-9]/.test(w) || w === name) continue;
+        if (lev(w, name) <= 1) {
+          fuzzy = i + 1;
+          fuzzyLen = name.length;
+          break;
+        }
+      }
+    });
+    if (fuzzy && fuzzyLen >= 4 && fuzzyLen > exactLen) return fuzzy;
+    return exact || fuzzy;
+  }
+  async function readCard(blob, names, onStatus, local = null) {
+    const worker = await getWorker("eng", onStatus);
+    const nameWorker = local ? await getWorker(local.tess, onStatus) : worker;
     const bmp = await createImageBitmap(blob);
     onStatus?.("Reading the card");
-    await worker.setParameters({ tessedit_pageseg_mode: "6", tessedit_char_whitelist: "" });
-    const nameText = (await worker.recognize(strip(bmp, 0.04, 0.02, 0.74, 0.11))).data.text;
+    await nameWorker.setParameters({ tessedit_pageseg_mode: local ? "7" : "6", tessedit_char_whitelist: "" });
+    const nameText = (await nameWorker.recognize(strip(bmp, 0.04, 0.02, 0.74, 0.11))).data.text;
     await worker.setParameters({ tessedit_pageseg_mode: "6", tessedit_char_whitelist: "0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ " });
     const numberText = (await worker.recognize(strip(bmp, 0, 0.885, 1, 0.105))).data.text;
     const { number, total } = parseNumber(numberText);
-    return { dex: matchSpecies(nameText, names), nameText, number, total, numberText };
+    const dex = local ? matchSpeciesCJK(nameText, local.lists) || matchSpecies(nameText, names) : matchSpecies(nameText, names);
+    return { dex, nameText, number, total, numberText };
   }
 
   // js/detect.js
@@ -1097,7 +1215,7 @@ label textarea { resize: vertical; min-height: 54px; }
         return;
       }
       root.innerHTML = `<div class="cropper" role="dialog" aria-modal="true" aria-labelledby="cropT">
-      <div class="crop-top"><span id="cropT">Line up the card</span><button type="button" class="x" id="cX" aria-label="Cancel scan">\xD7</button></div>
+      <div class="crop-top"><span id="cropT">Line up the card</span><button type="button" class="x" id="cX" aria-label="Cancel scan">×</button></div>
       <p class="crop-hint" id="cHint"></p>
       <canvas id="cropCv" aria-label="Card photo"></canvas>
       <div class="crop-bar"><button type="button" class="btn" id="cRot">Rotate</button><button type="button" class="btn" id="cAuto">Auto</button><button type="button" class="btn" id="cSkip">Whole photo</button><button type="button" class="btn primary" id="cOk">Use this crop</button></div>
@@ -1244,9 +1362,35 @@ label textarea { resize: vertical; min-height: 54px; }
   var esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   var pad = (n) => String(n).padStart(3, "0");
   var nameOf = (n) => NAMES[n - 1];
-  var money = (v) => "\xA3" + (+v || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  var euro = (v) => "\u20AC" + (+v || 0).toFixed(2);
+  var money = (v) => "£" + (+v || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var euro = (v) => "€" + (+v || 0).toFixed(2);
   var shortDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  var dayKey = (d = /* @__PURE__ */ new Date()) => d.toLocaleDateString("en-CA");
+  var COLLECTIONS = {
+    en: { label: "English", short: "EN" },
+    ja: { label: "Japanese", short: "JP", tess: "jpn", lists: [NAMES_JA], apis: [{ lang: "ja", names: NAMES_JA }] },
+    ko: { label: "Korean", short: "KR", tess: "kor", lists: [NAMES_KO], apis: [{ lang: "ko", names: NAMES_KO }] },
+    zh: {
+      label: "Chinese",
+      short: "CN",
+      tess: "chi_tra+chi_sim",
+      lists: [NAMES_ZH_HANT, NAMES_ZH_HANS],
+      apis: [{ lang: "zh-tw", names: NAMES_ZH_HANT }, { lang: "zh-cn", names: NAMES_ZH_HANS }]
+    }
+  };
+  var coll = "en";
+  var isEnglish = () => coll === "en";
+  var cfg = () => COLLECTIONS[coll];
+  var localName = (n) => isEnglish() ? "" : [...new Set(cfg().lists.map((l) => l[n - 1]))].join(" / ");
+  var lsKey = (k) => isEnglish() ? k : `${k}:${coll}`;
+  function lookupCards(n, { number, total } = {}, signal) {
+    if (isEnglish()) return findCards({ species: nameOf(n), dex: n, number, total }, signal);
+    const searches = cfg().apis.map((a) => {
+      const species = a.names[n - 1];
+      return { lang: a.lang, species, longer: a.names.filter((x) => x !== species && x.includes(species)) };
+    });
+    return findLocalCards({ searches, number, total }, signal);
+  }
   var ageDays = (d) => d ? (Date.now() - Date.parse(d)) / DAY : Infinity;
   var FORM_BY_KEY = new Map(FORMS.map((f) => [f.key, f]));
   var FORMS_BY_DEX = /* @__PURE__ */ new Map();
@@ -1278,11 +1422,21 @@ label textarea { resize: vertical; min-height: 54px; }
     const i = SLOT_INDEX.get(k) ?? slotDex(k) - 1;
     return `page ${Math.floor(i / 9) + 1}, slot ${i % 9 + 1}`;
   };
+  var LOCAL_FORM_WORDS = {
+    alolan: ["アローラ", "알로라", "阿羅拉", "阿罗拉"],
+    galarian: ["ガラル", "가라르", "伽勒爾", "伽勒尔"],
+    hisuian: ["ヒスイ", "히스이", "洗翠"],
+    paldean: ["パルデア", "팔데아", "帕底亞", "帕底亚"],
+    mega: ["メガ", "메가", "超級", "超级"],
+    primal: ["ゲンシ", "원시", "原始"]
+  };
   function cardForm(dex, cardName) {
-    const w = words(cardName);
+    const w = words(cardName), raw = String(cardName || "").replace(/\s+/g, "");
+    const has = (list2) => list2.some((x) => raw.includes(x));
+    const letter = raw.replace(/VMAX|VSTAR|GX|EX|ex/g, "");
     const list = [...FORMS_BY_DEX.get(dex) || []].sort((a, b) => b.tag.length - a.tag.length);
     for (const f of list) {
-      if (f.kind === "regional" ? w.includes(" " + f.tag + " ") : f.tag === "primal" ? w.includes(" primal ") : (w.includes(" mega ") || w.startsWith(" m ")) && (!f.tag || w.includes(" " + f.tag + " "))) return f;
+      if (f.kind === "regional" ? w.includes(" " + f.tag + " ") || has(LOCAL_FORM_WORDS[f.tag] || []) : f.tag === "primal" ? w.includes(" primal ") || has(LOCAL_FORM_WORDS.primal) : (w.includes(" mega ") || w.startsWith(" m ")) && (!f.tag || w.includes(" " + f.tag + " ")) || (has(LOCAL_FORM_WORDS.mega) || /^M[^A-Za-z]/.test(raw)) && (!f.tag || letter.includes(f.tag.toUpperCase()))) return f;
     }
     return null;
   }
@@ -1327,6 +1481,17 @@ label textarea { resize: vertical; min-height: 54px; }
     if (m) {
       const n = +m[1];
       if (n >= 1 && n <= TOTAL) return n;
+    }
+    if (!isEnglish()) {
+      const raw = String(text).replace(/\s+/g, "");
+      let best2 = 0, len2 = 0;
+      for (const l of cfg().lists) l.forEach((nm, i) => {
+        if (nm.length > len2 && raw.includes(nm)) {
+          best2 = i + 1;
+          len2 = nm.length;
+        }
+      });
+      if (best2) return best2;
     }
     let t = String(text).replace(/^#?\d+\s*/, "");
     t = t.replace(/\b(mega|alolan|galarian|hisuian|paldean|dark|radiant|shining)\b/gi, " ").replace(/\b(ex|gx|v|vmax|vstar|break|lv\.?\s*x|prime|star)\b/gi, " ");
@@ -1391,8 +1556,28 @@ label textarea { resize: vertical; min-height: 54px; }
     }
   }
   var gbp = (eur) => eur == null ? null : Math.round(eur * fx.rate * 100) / 100;
+  function priceHistory(e) {
+    if (Array.isArray(e.hist)) return e.hist;
+    const h = [];
+    if (e.prevValue != null && e.prevAt) h.push({ d: dayKey(new Date(e.prevAt)), v: e.prevValue });
+    if (e.value != null && e.checkedAt) {
+      const d = dayKey(new Date(e.checkedAt));
+      if (h.length && h[h.length - 1].d === d) h[h.length - 1].v = e.value;
+      else h.push({ d, v: e.value });
+    }
+    return h;
+  }
+  function addToHistory(e, value) {
+    const h = priceHistory(e).slice();
+    if (value == null) return h;
+    const d = dayKey();
+    if (h.length && h[h.length - 1].d === d) h[h.length - 1] = { d, v: value };
+    else h.push({ d, v: value });
+    return h.slice(-180);
+  }
   function applyCard(entry, card) {
-    const value = gbp(eurPrice(card, entry.finish));
+    const market = gbp(eurPrice(card, entry.finish));
+    const value = market ?? (entry.manualValue != null ? entry.manualValue : null);
     const sameCard = entry.cardId === card.id;
     const moved = sameCard && entry.value != null && value != null && value !== entry.value;
     return {
@@ -1414,9 +1599,11 @@ label textarea { resize: vertical; min-height: 54px; }
       cardmarketUrl: card.cardmarketUrl || null,
       eur: card.eur || null,
       usd: card.usd ?? null,
+      cardLang: card.lang || "en",
       value,
       checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      rate: fx.rate
+      rate: fx.rate,
+      hist: addToHistory(sameCard ? entry : {}, value)
     };
   }
   var entryAsCard = (e) => ({
@@ -1433,9 +1620,10 @@ label textarea { resize: vertical; min-height: 54px; }
     eur: e.eur,
     usd: e.usd,
     illustrator: e.illustrator,
-    setId: setIdOf(e)
+    setId: setIdOf(e),
+    lang: e.cardLang || "en"
   });
-  var cardmarketLink = (card, species) => card?.cardmarketUrl || "https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=" + encodeURIComponent([card?.name || species, card?.number ? String(card.number).replace(/^0+(?=\d)/, "") : ""].filter(Boolean).join(" "));
+  var cardmarketLink = (card, species) => card?.cardmarketUrl || "https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=" + encodeURIComponent([card?.lang && card.lang !== "en" ? species : card?.name || species, card?.number ? String(card.number).replace(/^0+(?=\d)/, "") : ""].filter(Boolean).join(" "));
   async function linkEntry(e, signal) {
     let number = String(e.number || "").trim(), total = e.setTotal || null, setText = e.set || "";
     const m = (number + " " + setText).match(/(\d{1,3})\s*\/\s*(\d{2,3})/);
@@ -1445,7 +1633,7 @@ label textarea { resize: vertical; min-height: 54px; }
       setText = setText.replace(m[0], "").trim();
     }
     if (!number) return null;
-    const res = await findCards({ species: nameOf(e.dex), dex: e.dex, number, total }, signal);
+    const res = await lookupCards(e.dex, { number, total }, signal);
     if (!res.exactNumber || !res.cards.length) return null;
     let options = res.cards;
     if (e.slot) {
@@ -1458,7 +1646,7 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     if (options.length !== 1) return null;
     let card = options[0];
-    if (card.brief) card = await getCard(card.id, card.source, signal);
+    if (card.brief) card = await getCard(card.id, card.source, signal, card.lang);
     return withPrice(card, { species: nameOf(e.dex), dex: e.dex }, signal);
   }
   async function updateAllPrices() {
@@ -1472,21 +1660,21 @@ label textarea { resize: vertical; min-height: 54px; }
     updating = { ctl, done: 0, failed: 0, linked: 0, unmatched: 0, total: jobs.length };
     render();
     fx = await eurToGbp();
-    const current = (j) => j.kind === "binder" ? owned.get(j.key) : extras.get(j.id);
+    const current2 = (j) => j.kind === "binder" ? owned.get(j.key) : extras.get(j.id);
     const save = (j, e) => j.kind === "binder" ? saveEntry(e) : saveExtra(e);
     for (let i = 0; i < jobs.length && !ctl.signal.aborted; i += 4) {
       await Promise.all(jobs.slice(i, i + 4).map(async (j) => {
         try {
-          const cur = current(j);
+          const cur = current2(j);
           if (!cur) return;
           if (cur.cardId) {
-            const card = await withPrice(await getCard(cur.cardId, cur.source, ctl.signal), { species: nameOf(cur.dex), dex: cur.dex }, ctl.signal);
-            const now = current(j);
+            const card = await withPrice(await getCard(cur.cardId, cur.source, ctl.signal, cur.cardLang), { species: nameOf(cur.dex), dex: cur.dex }, ctl.signal);
+            const now = current2(j);
             if (now && now.cardId === cur.cardId) await save(j, applyCard(now, card));
           } else {
             const card = await linkEntry(cur, ctl.signal);
             if (card) {
-              await save(j, applyCard(current(j) || cur, card));
+              await save(j, applyCard(current2(j) || cur, card));
               updating.linked++;
             } else updating.unmatched++;
           }
@@ -1501,7 +1689,7 @@ label textarea { resize: vertical; min-height: 54px; }
     const { done, failed, linked, unmatched } = updating;
     updating = null;
     try {
-      localStorage.setItem("lastPriceRun", (/* @__PURE__ */ new Date()).toISOString());
+      localStorage.setItem(lsKey("lastPriceRun"), (/* @__PURE__ */ new Date()).toISOString());
     } catch {
     }
     render();
@@ -1515,6 +1703,7 @@ label textarea { resize: vertical; min-height: 54px; }
     if (failed) parts.push(`${failed} couldn't be reached`);
     toast(parts.join(". ") + ".");
   }
+  var needsPrice = (e) => !e.cardId || e.eur && ageDays(e.checkedAt) > STALE_DAYS || e.value == null && (e.cardLang || "en") === "en";
   function stats() {
     const slotsTotal = SLOTS.length;
     const got = SLOTS.reduce((t, sl) => t + (owned.has(sl.key) ? 1 : 0), 0), pct = got / slotsTotal * 100;
@@ -1528,7 +1717,7 @@ label textarea { resize: vertical; min-height: 54px; }
       spent += +e.paid || 0;
       value += +e.value || 0;
       if (e.value != null) priced++;
-      if (!e.cardId || e.value == null || ageDays(e.checkedAt) > STALE_DAYS) stale++;
+      if (needsPrice(e)) stale++;
     }
     for (const n of LEGEND) if (owned.has(n)) leg++;
     $("#sSpent").textContent = money(spent);
@@ -1565,7 +1754,7 @@ label textarea { resize: vertical; min-height: 54px; }
     const note = $("#notice");
     if (stale && !updating && view !== "prices") {
       note.hidden = false;
-      note.innerHTML = `<span>${stale} card${stale > 1 ? "s need" : " needs"} a price, or one over a week old.</span><button type="button" class="btn small" id="noticeUpdate">Update prices</button>`;
+      note.innerHTML = `<span>${stale} card${stale > 1 ? "s need" : " needs"} a price or a newer one.</span><button type="button" class="btn small" id="noticeUpdate">Update prices</button>`;
       $("#noticeUpdate").onclick = updateAllPrices;
     } else note.hidden = true;
   }
@@ -1579,11 +1768,11 @@ label textarea { resize: vertical; min-height: 54px; }
     const more = prefs.cardsView ? extrasIn(k).length : 0;
     if (more) badges += `<span class="badge spare">${(e ? 1 : 0) + more} cards</span>`;
     else if (e && e.spares) badges += `<span class="badge spare">+${e.spares}</span>`;
-    if (view === "prices" && e) badges += `<span class="badge val">${e.value != null ? money(e.value) : "\xA3 \u2013"}</span>`;
-    else if (w && w.target != null) badges += `<span class="badge val">\u2264${money(w.target)}</span>`;
+    if (view === "prices" && e) badges += `<span class="badge val">${e.value != null ? money(e.value) : "£ –"}</span>`;
+    else if (w && w.target != null) badges += `<span class="badge val">≤${money(w.target)}</span>`;
     const label = `${slotLabel(k)}${e ? ", collected" : w ? ", on wishlist" : ", missing"}`;
     const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove('hasimg')">` : "";
-    return `<button type="button" class="${cls}" data-key="${esc(k)}" aria-label="${esc(label)}">${img}<span class="sn">#${pad(n)}${w ? " \u2605" : ""}</span><span class="nm">${esc(sl.name)}</span>${badges}</button>`;
+    return `<button type="button" class="${cls}" data-key="${esc(k)}" aria-label="${esc(label)}">${img}<span class="sn">#${pad(n)}${w ? " ★" : ""}</span><span class="nm">${esc(sl.name)}</span>${badges}</button>`;
   }
   function matches(sl) {
     const k = sl.key, n = sl.dex;
@@ -1597,7 +1786,7 @@ label textarea { resize: vertical; min-height: 54px; }
       const q = query.trim().toLowerCase();
       if (/^\d+$/.test(q)) return String(n).startsWith(String(+q)) || pad(n).startsWith(q);
       const e = owned.get(k);
-      return sl.name.toLowerCase().includes(q) || (e?.illustrator || "").toLowerCase().includes(q) || extrasIn(k).some((x) => (x.illustrator || "").toLowerCase().includes(q));
+      return sl.name.toLowerCase().includes(q) || !isEnglish() && localName(n).includes(query.trim()) || (e?.illustrator || "").toLowerCase().includes(q) || extrasIn(k).some((x) => (x.illustrator || "").toLowerCase().includes(q));
     }
     return true;
   }
@@ -1607,21 +1796,23 @@ label textarea { resize: vertical; min-height: 54px; }
       bar.hidden = false;
       let last = null;
       try {
-        last = localStorage.getItem("lastDealCheck");
+        last = localStorage.getItem(lsKey("lastDealCheck"));
       } catch {
       }
       if (dealCheck) {
-        bar.innerHTML = `<span class="hint">Checking prices\u2026 ${dealCheck.done}/${dealCheck.total}</span><span class="spacer"></span><button type="button" class="btn small" id="stopDeals">Stop</button>
+        bar.innerHTML = `<span class="hint">Checking prices… ${dealCheck.done}/${dealCheck.total}</span><span class="spacer"></span><button type="button" class="btn small" id="stopDeals">Stop</button>
         <div class="progress"><i style="width:${dealCheck.done / dealCheck.total * 100}%"></i></div>`;
         $("#stopDeals").onclick = () => dealCheck?.ctl.abort();
+      } else if (!isEnglish()) {
+        bar.innerHTML = `<span class="hint">Tap a missing slot in the binder to add it to your ${cfg().label} wishlist. Price checks only work for English cards.</span>`;
       } else {
-        bar.innerHTML = `<span class="hint">The cheapest card for each Pok\xE9mon on your wishlist${last ? `, checked ${shortDate(last)}` : ""}. Tap a missing slot in the binder to add more.</span>
+        bar.innerHTML = `<span class="hint">The cheapest card for each Pokémon on your wishlist${last ? `, checked ${shortDate(last)}` : ""}. Tap a missing slot in the binder to add more.</span>
         <span class="spacer"></span><button type="button" class="btn small primary" id="dealBtn">Check prices</button>`;
         $("#dealBtn").onclick = checkDeals;
       }
     } else if (view === "grading") {
       bar.hidden = false;
-      bar.innerHTML = `<label class="costrow" for="gCost">Grading cost per card, with postage \xA3<input id="gCost" type="number" inputmode="decimal" min="0" step="1" value="${prefs.gradingCost}"></label>`;
+      bar.innerHTML = `<label class="costrow" for="gCost">Grading cost per card, with postage £<input id="gCost" type="number" inputmode="decimal" min="0" step="1" value="${prefs.gradingCost}"></label>`;
       $("#gCost").addEventListener("change", (ev) => {
         prefs.gradingCost = Math.max(0, +ev.target.value || 0);
         savePrefs();
@@ -1630,20 +1821,20 @@ label textarea { resize: vertical; min-height: 54px; }
     } else if (view === "top") {
       bar.hidden = false;
       const d = top.data;
-      bar.innerHTML = `<p class="hint">${d ? `The ${d.cards.length} most valuable Pok\xE9mon cards by Cardmarket trend price${d.method === "full" ? `, out of ${(+d.scanned || 0).toLocaleString("en-GB")} priced cards` : ""}. Updated ${shortDate(d.updated)}.` : "The most valuable Pok\xE9mon cards of all, by Cardmarket trend price."}</p>`;
+      bar.innerHTML = `<p class="hint">${d ? `The ${d.cards.length} most valuable Pokémon cards by Cardmarket trend price${d.method === "full" ? `, out of ${(+d.scanned || 0).toLocaleString("en-GB")} priced cards` : ""}. Updated ${shortDate(d.updated)}.` : "The most valuable Pokémon cards of all, by Cardmarket trend price."}</p>`;
     } else if (view === "prices") {
       bar.hidden = false;
       let last = null;
       try {
-        last = localStorage.getItem("lastPriceRun");
+        last = localStorage.getItem(lsKey("lastPriceRun"));
       } catch {
       }
       if (updating) {
-        bar.innerHTML = `<span class="hint">Updating prices\u2026 ${updating.done}/${updating.total}</span><span class="spacer"></span><button type="button" class="btn small" id="stopUpd">Stop</button>
+        bar.innerHTML = `<span class="hint">Updating prices… ${updating.done}/${updating.total}</span><span class="spacer"></span><button type="button" class="btn small" id="stopUpd">Stop</button>
         <div class="progress"><i style="width:${updating.done / updating.total * 100}%"></i></div>`;
         $("#stopUpd").onclick = () => updating?.ctl.abort();
       } else {
-        bar.innerHTML = `<span class="hint">Most valuable first. Cardmarket trend prices in pounds at \u20AC1 = \xA3${fx.rate.toFixed(3)}${last ? `. Last full update ${shortDate(last)}` : ""}.</span>
+        bar.innerHTML = `<span class="hint">Most valuable first. ${isEnglish() ? "Cardmarket trend prices" : `Cardmarket trend prices where there are any (most ${cfg().label} cards have none, so set your own value on those)`} in pounds at €1 = £${fx.rate.toFixed(3)}${last ? `. Last full update ${shortDate(last)}` : ""}.</span>
         <span class="spacer"></span><button type="button" class="btn small primary" id="updAll">Update all prices</button>`;
         $("#updAll").onclick = updateAllPrices;
       }
@@ -1684,10 +1875,10 @@ label textarea { resize: vertical; min-height: 54px; }
     if (byValue) shown.sort((a, b) => val(b) - val(a) || SLOT_INDEX.get(a.key) - SLOT_INDEX.get(b.key));
     if (!shown.length) {
       const msg = {
-        have: owned.size ? "No collected Pok\xE9mon match that." : "Nothing collected yet. Tap <b>Scan a card</b> to add your first one.",
+        have: owned.size ? "No collected Pokémon match that." : "Nothing collected yet. Tap <b>Scan a card</b> to add your first one.",
         wish: "Your wishlist is empty. Tap any missing slot in the binder to add it.",
         prices: "Once you've collected some cards, they show here with their prices."
-      }[view] || "No Pok\xE9mon match that.";
+      }[view] || "No Pokémon match that.";
       list.innerHTML = `<p class="empty">${msg}</p>`;
       return;
     }
@@ -1697,12 +1888,11 @@ label textarea { resize: vertical; min-height: 54px; }
       for (const p of pages) {
         const page = SLOTS.slice(p * 9, p * 9 + 9);
         const have = page.filter((sl) => owned.has(sl.key)).length;
-        html += `<section class="page"><h2><span>Page ${p + 1}</span><span class="num">#${pad(page[0].dex)}\u2013${pad(page[page.length - 1].dex)} \xB7 ${have}/${page.length}</span></h2><div class="grid9">${page.map(slotHTML).join("")}</div></section>`;
+        html += `<section class="page"><h2><span>Page ${p + 1}</span><span class="num">#${pad(page[0].dex)}–${pad(page[page.length - 1].dex)} · ${have}/${page.length}</span></h2><div class="grid9">${page.map(slotHTML).join("")}</div></section>`;
       }
       list.innerHTML = html + "</div>";
     } else list.innerHTML = `<div class="flat">${shown.map(slotHTML).join("")}</div>`;
   }
-  var dayKey = (d = /* @__PURE__ */ new Date()) => d.toLocaleDateString("en-CA");
   function saveSnapshot(value, count, spent) {
     const d = dayKey(), v = Math.round(value * 100) / 100, s = Math.round(spent * 100) / 100;
     const last = history[history.length - 1];
@@ -1714,22 +1904,22 @@ label textarea { resize: vertical; min-height: 54px; }
     });
   }
   var MILESTONES = [
-    { id: "n1", title: "First card", desc: "Add your first Pok\xE9mon", prog: (s) => [s.got, 1] },
-    ...[10, 50, 100, 250, 500, 750].map((k) => ({ id: "n" + k, title: `${k} Pok\xE9mon`, desc: `Collect ${k} different Pok\xE9mon`, prog: (s) => [s.got, k] })),
+    { id: "n1", title: "First card", desc: "Add your first Pokémon", prog: (s) => [s.got, 1] },
+    ...[10, 50, 100, 250, 500, 750].map((k) => ({ id: "n" + k, title: `${k} Pokémon`, desc: `Collect ${k} different Pokémon`, prog: (s) => [s.got, k] })),
     ...REGIONS.map((r, i) => {
       const size = GEN_END[i] - (i ? GEN_END[i - 1] : 0);
-      return { id: "r" + (i + 1), title: `${r} complete`, desc: `All ${size} Pok\xE9mon first found in ${r}`, prog: (s) => [s.counts[i + 1], size] };
+      return { id: "r" + (i + 1), title: `${r} complete`, desc: `All ${size} Pokémon first found in ${r}`, prog: (s) => [s.counts[i + 1], size] };
     }),
-    { id: "leg", title: "Legend hunter", desc: `All ${LEGEND.size} legendary and mythical Pok\xE9mon`, prog: (s) => [s.leg, LEGEND.size] },
-    { id: "v50", title: "\xA350 binder", desc: "Collection raw value reaches \xA350", prog: (s) => [Math.floor(s.value), 50] },
-    { id: "v250", title: "\xA3250 binder", desc: "Collection raw value reaches \xA3250", prog: (s) => [Math.floor(s.value), 250] },
-    { id: "n1025", title: "Living Dex complete", desc: "All 1,025 Pok\xE9mon. You did it!", prog: (s) => [s.got, TOTAL] }
+    { id: "leg", title: "Legend hunter", desc: `All ${LEGEND.size} legendary and mythical Pokémon`, prog: (s) => [s.leg, LEGEND.size] },
+    { id: "v50", title: "£50 binder", desc: "Collection raw value reaches £50", prog: (s) => [Math.floor(s.value), 50] },
+    { id: "v250", title: "£250 binder", desc: "Collection raw value reaches £250", prog: (s) => [Math.floor(s.value), 250] },
+    { id: "n1025", title: "Living Dex complete", desc: "All 1,025 Pokémon. You did it!", prog: (s) => [s.got, TOTAL] }
   ];
   var lastMilestoneState = null;
   function checkMilestones(s) {
     let saved = null;
     try {
-      saved = JSON.parse(localStorage.getItem("milestones") || "null");
+      saved = JSON.parse(localStorage.getItem(lsKey("milestones")) || "null");
     } catch {
     }
     const first = saved === null;
@@ -1745,7 +1935,7 @@ label textarea { resize: vertical; min-height: 54px; }
     lastMilestoneState = { s, saved };
     if (!fresh.length) return;
     try {
-      localStorage.setItem("milestones", JSON.stringify(saved));
+      localStorage.setItem(lsKey("milestones"), JSON.stringify(saved));
     } catch {
     }
     if (!first) setTimeout(() => toast(`Milestone reached: ${fresh[fresh.length - 1].title}`), 400);
@@ -1776,7 +1966,7 @@ label textarea { resize: vertical; min-height: 54px; }
     return `<div class="chart" id="valChart" data-w="${W}">
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Collection raw value over time, from ${money(pts[0].v)} on ${fmtD(t0)} to ${money(last.v)} on ${fmtD(t1)}">
       <g class="grid">${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`).join("")}</g>
-      <g class="axis">${ticks.map((v) => `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">\xA3${v}</text>`).join("")}
+      <g class="axis">${ticks.map((v) => `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">£${v}</text>`).join("")}
         <text x="${x(t0)}" y="${H - 6}" text-anchor="start">${fmtD(t0)}</text><text x="${x(t1)}" y="${H - 6}" text-anchor="end">${fmtD(t1)}</text></g>
       <path class="area" d="${area}"/><path class="series" d="${line}"/>
       <line class="cross" id="vcCross" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/>
@@ -1804,7 +1994,7 @@ label textarea { resize: vertical; min-height: 54px; }
       dot.setAttribute("cx", px);
       dot.setAttribute("cy", y(best.v));
       tip.hidden = false;
-      tip.innerHTML = `<b>${money(best.v)}</b>${shortDate(best.d)} \xB7 ${best.n} Pok\xE9mon`;
+      tip.innerHTML = `<b>${money(best.v)}</b>${shortDate(best.d)} · ${best.n} Pokémon`;
       tip.style.left = Math.min(82, Math.max(18, px / W * 100)) + "%";
     };
     const hide = () => {
@@ -1824,8 +2014,8 @@ label textarea { resize: vertical; min-height: 54px; }
     if (!moved.length) return `<p class="lede">Once you've updated prices a second time, the cards whose prices changed most show here.</p>`;
     const row = ({ e, d, pct }) => `<button type="button" class="mover" data-open="${esc(keyOf(e))}">
       ${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy">` : `<span class="noimg"></span>`}
-      <span style="min-width:0"><span class="mn">${esc(slotLabel(keyOf(e)))}</span><br><span class="ms">${money(e.prevValue)} \u2192 ${money(e.value)}${e.set ? " \xB7 " + esc(e.set) : ""}</span></span>
-      <span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "\u2212"}${money(Math.abs(d))}<small>${pct != null ? (d > 0 ? "+" : "\u2212") + Math.abs(pct).toFixed(0) + "%" : ""}</small></span></button>`;
+      <span style="min-width:0"><span class="mn">${esc(slotLabel(keyOf(e)))}</span><br><span class="ms">${money(e.prevValue)} → ${money(e.value)}${e.set ? " · " + esc(e.set) : ""}</span></span>
+      <span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${money(Math.abs(d))}<small>${pct != null ? (d > 0 ? "+" : "−") + Math.abs(pct).toFixed(0) + "%" : ""}</small></span></button>`;
     const up = moved.filter((m) => m.d > 0).sort((a, b) => b.d - a.d).slice(0, 5);
     const down = moved.filter((m) => m.d < 0).sort((a, b) => a.d - b.d).slice(0, 5);
     return `<div class="movers">
@@ -1855,7 +2045,7 @@ label textarea { resize: vertical; min-height: 54px; }
       worth += m.worth;
     }
     const diff = worth - spent;
-    return `<p class="lede">Spent ${money(spent)} in total, and those cards are worth ${money(worth)} now (${diff >= 0 ? "+" : "\u2212"}${money(Math.abs(diff))}).</p>
+    return `<p class="lede">Spent ${money(spent)} in total, and those cards are worth ${money(worth)} now (${diff >= 0 ? "+" : "−"}${money(Math.abs(diff))}).</p>
     <div class="key"><span><i style="background:var(--muted)"></i>Spent</span><span><i style="background:var(--got)"></i>Worth now</span></div>
     <div class="months">${keys.map((k) => {
       const m = months.get(k);
@@ -1876,7 +2066,7 @@ label textarea { resize: vertical; min-height: 54px; }
     const earned = rows.filter((r) => r.got);
     const next = rows.filter((r) => !r.got).sort((a, b) => b.frac - a.frac);
     const shown = showAllMilestones ? [...earned, ...next] : [...earned, ...next.slice(0, 3)];
-    const card = ({ m, have, need, got }) => `<div class="badge-card ${got ? "earned" : ""}"><b>${got ? "\u2605 " : ""}${esc(m.title)}</b><small>${esc(m.desc)}</small>
+    const card = ({ m, have, need, got }) => `<div class="badge-card ${got ? "earned" : ""}"><b>${got ? "★ " : ""}${esc(m.title)}</b><small>${esc(m.desc)}</small>
       ${got ? `<small>Earned ${shortDate(st.saved[m.id])}</small>` : `<small>${Math.min(have, need).toLocaleString("en-GB")} of ${need.toLocaleString("en-GB")}</small><div class="prog"><i style="width:${Math.min(100, have / need * 100)}%"></i></div>`}</div>`;
     return `<p class="lede">${earned.length} of ${MILESTONES.length} earned${showAllMilestones ? "" : ". Up next:"}</p><div class="badges">${shown.map(card).join("")}</div>
     ${next.length > 3 ? `<button type="button" class="textbtn" id="msToggle">${showAllMilestones ? "Show fewer" : `Show all ${MILESTONES.length}`}</button>` : ""}`;
@@ -1906,13 +2096,13 @@ label textarea { resize: vertical; min-height: 54px; }
     const worn = rows.length - usable.length;
     const row = ({ e, a }) => `<button type="button" class="row-item" data-open="${esc(keyOf(e))}">${thumb(e.image || photoUrls.get(keyOf(e)))}
     <span style="min-width:0"><span class="rt">${esc(slotLabel(keyOf(e)))}${a.assumed ? `<span class="chip warn">condition not set</span>` : ""}</span>
-      <span class="rs">${esc([e.set, e.condition || "assumed Near Mint", a.vintage ? "vintage" : ""].filter(Boolean).join(" \xB7 "))}<br>
-      Raw ${money(e.value)} \xB7 PSA 8 ~${money(a.est.p8)} \xB7 9 ~${money(a.est.p9)} \xB7 10 ~${money(a.est.p10)}</span></span>
-    <span class="rv ${a.gain > 0 ? "up" : "down"}">${a.gain >= 0 ? "+" : "\u2212"}${money(Math.abs(a.gain))}<small>likely gain</small></span></button>`;
+      <span class="rs">${esc([e.set, e.condition || "assumed Near Mint", a.vintage ? "vintage" : ""].filter(Boolean).join(" · "))}<br>
+      Raw ${money(e.value)} · PSA 8 ~${money(a.est.p8)} · 9 ~${money(a.est.p9)} · 10 ~${money(a.est.p10)}</span></span>
+    <span class="rv ${a.gain > 0 ? "up" : "down"}">${a.gain >= 0 ? "+" : "−"}${money(Math.abs(a.gain))}<small>likely gain</small></span></button>`;
     return `<div class="stats-view">
     <section class="panel"><h2>Worth grading</h2>
       <p class="lede">Ranked by likely gain after the ${money(cost)} grading cost, using the condition you recorded. Graded values are rough guides worked out from typical PSA premiums, not real sales, so check recent sold slabs before sending anything.</p>
-      ${worth.length ? `<div class="rows">${worth.map(row).join("")}</div>` : `<p class="lede"><b>None of your cards are likely to make money from grading at ${money(cost)} a card.</b> Grading usually pays on cards worth \xA320 or more raw, in Mint condition, or vintage cards.</p>`}
+      ${worth.length ? `<div class="rows">${worth.map(row).join("")}</div>` : `<p class="lede"><b>None of your cards are likely to make money from grading at ${money(cost)} a card.</b> Grading usually pays on cards worth £20 or more raw, in Mint condition, or vintage cards.</p>`}
     </section>
     ${close.length ? `<section class="panel"><h2>Closest to worth it</h2><div class="rows">${close.map(row).join("")}</div></section>` : ""}
     ${worn ? `<p class="hint">${worn} card${worn > 1 ? "s are" : " is"} marked Light Played or worse, so ${worn > 1 ? "they're" : "it's"} left out: worn cards rarely grade high enough to pay.</p>` : ""}
@@ -1920,7 +2110,7 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   function wishHTML() {
     const items = [...wish.values()].filter((w) => !owned.has(w.dex) && matches(slotOf(w.dex))).sort((a, b) => a.dex - b.dex);
-    if (!items.length) return `<p class="empty">${wish.size ? "No wishlist Pok\xE9mon match that." : "Your wishlist is empty. Tap any missing slot in the binder to add it."}</p>`;
+    if (!items.length) return `<p class="empty">${wish.size ? "No wishlist Pokémon match that." : "Your wishlist is empty. Tap any missing slot in the binder to add it."}</p>`;
     let dealsFound = 0;
     const rows = items.map((w) => {
       const d = deals.get(w.dex), c = d?.card;
@@ -1931,18 +2121,18 @@ label textarea { resize: vertical; min-height: 54px; }
       ${thumb(c?.image)}
       <button type="button" data-open="${w.dex}" style="all:unset;cursor:pointer;min-width:0">
         <span class="rt">#${pad(w.dex)} ${esc(nameOf(w.dex))}${isDeal ? `<span class="chip deal">Deal</span>` : ""}</span>
-        <span class="rs">${c ? `Cheapest: ${esc([c.setName, c.number ? "#" + c.number : ""].filter(Boolean).join(" "))}` : d ? "No priced cards found" : "Not checked yet"}${w.target != null ? ` \xB7 your max ${money(w.target)}` : ""}<br>
-        ${c ? `<a class="pricelink" href="${esc(cardmarketLink(c, nameOf(w.dex)))}" target="_blank" rel="noopener">View on Cardmarket \u2197</a>` : ""}</span>
+        <span class="rs">${c ? `Cheapest: ${esc([c.setName, c.number ? "#" + c.number : ""].filter(Boolean).join(" "))}` : d ? "No priced cards found" : "Not checked yet"}${w.target != null ? ` · your max ${money(w.target)}` : ""}<br>
+        ${c ? `<a class="pricelink" href="${esc(cardmarketLink(c, nameOf(w.dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>` : ""}</span>
       </button>
-      <span class="rv ${isDeal ? "up" : ""}">${price != null ? money(price) : "\u2013"}<small>${price != null ? "cheapest" : ""}</small></span></div>`;
+      <span class="rv ${isDeal ? "up" : ""}">${price != null ? money(price) : "–"}<small>${price != null ? "cheapest" : ""}</small></span></div>`;
     }).join("");
-    return `<section class="panel">${dealsFound ? `<p class="lede"><b>${dealsFound} wishlist Pok\xE9mon ${dealsFound > 1 ? "are" : "is"} available at or under your price.</b></p>` : ""}<div class="rows">${rows}</div></section>`;
+    return `<section class="panel">${dealsFound ? `<p class="lede"><b>${dealsFound} wishlist Pokémon ${dealsFound > 1 ? "are" : "is"} available at or under your price.</b></p>` : ""}<div class="rows">${rows}</div></section>`;
   }
   async function checkDeals() {
-    if (dealCheck) return;
+    if (dealCheck || !isEnglish()) return;
     const items = [...wish.values()].filter((w) => !owned.has(w.dex));
     if (!items.length) {
-      toast("Add some missing Pok\xE9mon to your wishlist first.");
+      toast("Add some missing Pokémon to your wishlist first.");
       return;
     }
     const ctl = new AbortController();
@@ -1967,7 +2157,7 @@ label textarea { resize: vertical; min-height: 54px; }
     store.put("meta", "deals", Object.fromEntries(deals)).catch(() => {
     });
     try {
-      localStorage.setItem("lastDealCheck", (/* @__PURE__ */ new Date()).toISOString());
+      localStorage.setItem(lsKey("lastDealCheck"), (/* @__PURE__ */ new Date()).toISOString());
     } catch {
     }
     render();
@@ -1976,7 +2166,7 @@ label textarea { resize: vertical; min-height: 54px; }
       const p = c ? gbp(eurPrice(c, "standard")) : null;
       return p != null && w.target != null && p <= w.target;
     }).length;
-    toast(ctl.signal.aborted ? "Stopped" : under ? `${under} wishlist Pok\xE9mon ${under > 1 ? "are" : "is"} at or under your price` : failed ? `Checked. ${failed} couldn't be reached.` : "Prices checked. No deals under your price yet.");
+    toast(ctl.signal.aborted ? "Stopped" : under ? `${under} wishlist Pokémon ${under > 1 ? "are" : "is"} at or under your price` : failed ? `Checked. ${failed} couldn't be reached.` : "Prices checked. No deals under your price yet.");
   }
   async function loadTop() {
     top.status = "loading";
@@ -1999,6 +2189,7 @@ label textarea { resize: vertical; min-height: 54px; }
     if (view === "top") render();
   }
   function ownership(c) {
+    if (!isEnglish()) return null;
     for (const x of extras.values()) {
       if ((c.dex || []).includes(x.dex) && sameNumber(x.number, c.number) && (x.setTotal && c.total && x.setTotal === c.total || x.set && c.set && words(x.set) === words(c.set))) return "own";
     }
@@ -2020,13 +2211,99 @@ label textarea { resize: vertical; min-height: 54px; }
       const own = ownership(c);
       return `<div class="row-item" style="grid-template-columns:22px 44px 1fr auto"><span class="rank">${i + 1}</span>${thumb(c.image)}
       <span style="min-width:0"><span class="rt">${esc(c.name)}${own === "own" ? `<span class="chip own">You own this</span>` : own === "have" ? `<span class="chip have">In your Dex</span>` : ""}</span>
-      <span class="rs">${esc([c.set, c.number ? c.total ? `${c.number}/${c.total}` : "#" + c.number : "", c.rarity].filter(Boolean).join(" \xB7 "))}<br>
-      ${c.url ? `<a class="pricelink" href="${esc(c.url)}" target="_blank" rel="noopener">View on Cardmarket \u2197</a>` : ""}</span></span>
+      <span class="rs">${esc([c.set, c.number ? c.total ? `${c.number}/${c.total}` : "#" + c.number : "", c.rarity].filter(Boolean).join(" · "))}<br>
+      ${c.url ? `<a class="pricelink" href="${esc(c.url)}" target="_blank" rel="noopener">View on Cardmarket ↗</a>` : ""}</span></span>
       <span class="rv">${money(gbp(c.eur))}<small>${euro(c.eur)}</small></span></div>`;
     }).join("");
     return `<section class="panel">${cards.length ? `<div class="rows">${rows}</div>` : `<p class="lede">No cards match that search.</p>`}
     ${cards.length > top.limit ? `<button type="button" class="textbtn" id="topMore">Show more</button>` : ""}</section>`;
   }
+  var charts = /* @__PURE__ */ new Map();
+  function lineChartHTML(id, pts, W, ariaLabel) {
+    const H = 150, L = 44, R = 10, T = 12, B = 22;
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+    const max = Math.max(...pts.map((p) => p.v), 0.01);
+    const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1e3, 2e3, 5e3].find((s) => max / s <= 4) || Math.ceil(max / 4);
+    const top2 = Math.ceil(max / step - 1e-9) * step;
+    const x = (t) => L + (t1 === t0 ? (W - L - R) / 2 : (t - t0) / (t1 - t0) * (W - L - R));
+    const y = (v) => T + (1 - v / top2) * (H - T - B);
+    const ticks = [];
+    for (let v = 0; v <= top2 + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100);
+    const fmtTick = (v) => "£" + (step < 1 ? v.toFixed(2) : v);
+    const fmtD = (t) => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+    const last = pts[pts.length - 1];
+    charts.set(id, { pts, W, x, y });
+    return `<div class="chart" id="${id}">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ariaLabel)}">
+      <g class="grid">${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`).join("")}</g>
+      <g class="axis">${ticks.map((v) => `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmtTick(v)}</text>`).join("")}
+        <text x="${x(t0)}" y="${H - 5}" text-anchor="start">${fmtD(t0)}</text><text x="${x(t1)}" y="${H - 5}" text-anchor="end">${t1 === t0 ? "" : fmtD(t1)}</text></g>
+      <path class="series" d="${line}"/>
+      ${pts.length <= 40 ? pts.map((p) => `<circle class="pt" cx="${x(p.t)}" cy="${y(p.v)}" r="3"/>`).join("") : ""}
+      <line class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/>
+      <circle class="endpoint" cx="${x(last.t)}" cy="${y(last.v)}" r="5"/>
+      <rect class="hit" x="${L}" y="0" width="${W - L - R}" height="${H}" fill="transparent"/>
+    </svg>
+    <div class="tip" hidden></div>
+  </div>`;
+  }
+  function bindLineChart(id, root = document) {
+    const box = root.querySelector("#" + id), c = charts.get(id);
+    if (!box || !c) return;
+    const svg = box.querySelector("svg"), tip = box.querySelector(".tip"), cross = box.querySelector(".cross"), dot = box.querySelector(".endpoint");
+    const last = c.pts[c.pts.length - 1];
+    const show = (ev) => {
+      const r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) / r.width * c.W;
+      let best = c.pts[0];
+      for (const p of c.pts) if (Math.abs(c.x(p.t) - vx) < Math.abs(c.x(best.t) - vx)) best = p;
+      const px = c.x(best.t);
+      cross.setAttribute("x1", px);
+      cross.setAttribute("x2", px);
+      cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", px);
+      dot.setAttribute("cy", c.y(best.v));
+      tip.hidden = false;
+      tip.innerHTML = `<b>${money(best.v)}</b>${esc(best.label)}`;
+      tip.style.left = Math.min(80, Math.max(20, px / c.W * 100)) + "%";
+    };
+    const hide = () => {
+      cross.setAttribute("visibility", "hidden");
+      tip.hidden = true;
+      dot.setAttribute("cx", c.x(last.t));
+      dot.setAttribute("cy", c.y(last.v));
+    };
+    const hit = box.querySelector(".hit");
+    hit.addEventListener("pointermove", show);
+    hit.addEventListener("pointerdown", show);
+    hit.addEventListener("pointerleave", hide);
+  }
+  var chartSeq = 0;
+  function cardChartHTML(entry, card, finish, width) {
+    const W = Math.round(Math.max(260, Math.min(560, width || 320)));
+    const id = "pc" + ++chartSeq;
+    const hist = entry ? priceHistory(entry) : [];
+    let pts = null, title = "", note = "";
+    if (hist.length >= 2) {
+      pts = hist.map((h) => ({ t: Date.parse(h.d + "T12:00:00"), v: h.v, label: shortDate(h.d + "T12:00:00") }));
+      const first = pts[0], last = pts[pts.length - 1], diff = last.v - first.v;
+      title = "Price history";
+      note = `${money(last.v)} now, ${diff >= 0 ? "up" : "down"} ${money(Math.abs(diff))}${first.v ? ` (${diff >= 0 ? "+" : "−"}${Math.abs(diff / first.v * 100).toFixed(0)}%)` : ""} since ${shortDate(first.t)}. A point is added each day the price is updated.`;
+    } else {
+      const avg = recentAverages(card, finish).map((a) => ({ t: Date.now() - a.days * DAY, v: gbp(a.eur), label: a.label }));
+      if (avg.length >= 2) {
+        pts = avg;
+        title = "Recent price";
+        note = `Cardmarket's 30-day, 7-day and yesterday's averages, then today's trend.${entry ? " Your own price history builds up as you update prices." : ""}`;
+      } else if (hist.length === 1) {
+        return `<div class="pchart"><h4>Price history</h4><p class="hint">One saved price so far: ${money(hist[0].v)} on ${shortDate(hist[0].d + "T12:00:00")}. Each day the price is updated adds a point.</p></div>`;
+      } else {
+        return `<div class="pchart"><h4>Price history</h4><p class="hint">No price history for this card yet.${!isEnglish() || card?.lang && card.lang !== "en" ? " Most non-English cards have no market price, so set your own value and the chart builds up as you change it." : ""}</p></div>`;
+      }
+    }
+    return `<div class="pchart"><h4>${title}</h4>${lineChartHTML(id, pts, W, `${title} for ${card?.name || "this card"}: ${pts.map((p) => `${p.label} ${money(p.v)}`).join(", ")}`)}<p class="hint">${note}</p></div>`;
+  }
+  var bindCardCharts = (root) => root.querySelectorAll(".pchart .chart").forEach((el) => bindLineChart(el.id, root));
   var sheetCtl = null;
   function closeSheet() {
     $("#sheetRoot").innerHTML = "";
@@ -2044,7 +2321,7 @@ label textarea { resize: vertical; min-height: 54px; }
     sheetCtl?.abort();
     sheetCtl = new AbortController();
     $("#sheetRoot").innerHTML = `<div class="backdrop" id="bd"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT">
-    <div class="sheet-top"><h3 id="shT">${esc(title)}</h3><button type="button" class="x" id="shX" aria-label="Close">\xD7</button></div>${body}</div></div>`;
+    <div class="sheet-top"><h3 id="shT">${esc(title)}</h3><button type="button" class="x" id="shX" aria-label="Close">×</button></div>${body}</div></div>`;
     $("#shX").onclick = closeSheet;
     $("#bd").addEventListener("click", (ev) => {
       if (ev.target.id === "bd") closeSheet();
@@ -2060,14 +2337,14 @@ label textarea { resize: vertical; min-height: 54px; }
     const showWish = mode === "add" && dex && !isFormKey(slotKey) && !owned.has(dex);
     const w = wish.get(dex);
     const photoUrl = photo ? URL.createObjectURL(photo) : existing && photoUrls.get(slotKey) || null;
-    const title = mode === "scan" ? "New card" : slotKey ? slotLabel(slotKey) : "Add a card";
+    const title = mode === "scan" ? "New card" : slotKey ? slotLabel(slotKey) + (localName(dex) ? ` · ${localName(dex)}` : "") : "Add a card";
     const signal = sheetShell(title, `
     ${photoUrl ? `<div class="photo"><img src="${esc(photoUrl)}" alt="Your card photo"><p class="status" id="status" aria-live="polite"></p></div>` : `<p class="status" id="status" aria-live="polite" hidden></p>`}
-    ${showWish ? `<div class="wishrow"><button type="button" class="wishbtn" id="wishBtn" aria-pressed="${!!w}">${w ? "\u2605 On wishlist" : "\u2606 Add to wishlist"}</button>
-      <label>Most I'd pay \xA3<input id="wTarget" type="number" inputmode="decimal" step="0.01" min="0" placeholder="1.00" value="${w?.target ?? ""}"></label></div>` : ""}
+    ${showWish ? `<div class="wishrow"><button type="button" class="wishbtn" id="wishBtn" aria-pressed="${!!w}">${w ? "★ On wishlist" : "☆ Add to wishlist"}</button>
+      <label>Most I'd pay £<input id="wTarget" type="number" inputmode="decimal" step="0.01" min="0" placeholder="1.00" value="${w?.target ?? ""}"></label></div>` : ""}
     <div class="card-find">
       <div class="searchrow">
-        <label>Pok\xE9mon<input id="fPoke" list="dexList" placeholder="Name or Dex number" autocomplete="off" value="${dex ? "#" + pad(dex) + " " + esc(nameOf(dex)) : ""}"></label>
+        <label>Pokémon<input id="fPoke" list="dexList" placeholder="Name or Dex number" autocomplete="off" value="${dex ? "#" + pad(dex) + " " + esc(nameOf(dex)) : ""}"></label>
         <label>Card no.<input id="fNum" placeholder="e.g. 025" autocomplete="off" value="${esc(d.number || "")}"></label>
         <button type="button" class="btn" id="findBtn">Find</button>
       </div>
@@ -2075,9 +2352,10 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div id="results"></div>
     <form id="cardForm" autocomplete="off">
-      <label>Paid (\xA3)<input id="fPaid" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.15" value="${d.paid ?? ""}"></label>
+      <label>Paid (£)<input id="fPaid" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.15" value="${d.paid ?? ""}"></label>
       <label>Condition<select id="fCond"><option value="">Not set</option>${CONDITIONS.map((c) => `<option${d.condition === c ? " selected" : ""}>${c}</option>`).join("")}</select></label>
       <label>Spares<input id="fSpares" type="number" inputmode="numeric" min="0" step="1" value="${d.spares ?? 0}"></label>
+      <label id="manualRow" hidden>Your value (£)<input id="fManual" type="number" inputmode="decimal" step="0.01" min="0" placeholder="no market price" value="${d.manualValue ?? ""}"></label>
       <label class="full">Notes<textarea id="fNotes" placeholder="Variant, where you got it">${esc(d.notes || "")}</textarea></label>
     </form>
     <div id="dupeBox"></div>
@@ -2107,51 +2385,58 @@ label textarea { resize: vertical; min-height: 54px; }
         return;
       }
       if (!n) {
-        line.textContent = "No matching Pok\xE9mon. Try the name or Dex number.";
+        line.textContent = "No matching Pokémon. Try the name or Dex number.";
         return;
       }
       const k = targetKey(n);
-      line.innerHTML = `Goes in <b>${esc(slotLabel(k))}</b> \xB7 ${pagePos(k)}${owned.has(k) && k !== (existing && keyOf(existing)) ? " \xB7 <b>already collected</b>" : ""}`;
+      line.innerHTML = `Goes in <b>${esc(slotLabel(k))}</b>${localName(n) ? ` (${esc(localName(n))})` : ""} · ${isEnglish() ? "" : cfg().label + " binder "}${pagePos(k)}${owned.has(k) && k !== (existing && keyOf(existing)) ? " · <b>already collected</b>" : ""}`;
     };
+    const syncManual = () => {
+      $("#manualRow").hidden = isEnglish() && !(sel && eurPrice(sel, finish) == null);
+    };
+    syncManual();
     $("#fPoke").addEventListener("input", updateMatch);
     updateMatch();
     function renderChosen() {
+      syncManual();
       if (!sel) {
         results.innerHTML = "";
         $("#plainBtn").hidden = mode === "edit" && !existing?.cardId;
         return;
       }
       const eur = eurPrice(sel, finish), p = gbp(eur);
-      const updated = sel.eur?.updated ? ` \xB7 ${shortDate(sel.eur.updated)}` : "";
-      const meta = [sel.setName, sel.number ? sel.setTotal ? `${sel.number}/${sel.setTotal}` : `#${sel.number}` : "", sel.rarity, sel.illustrator ? `Illus. ${sel.illustrator}` : ""].filter(Boolean).join(" \xB7 ");
+      const updated = sel.eur?.updated ? ` · ${shortDate(sel.eur.updated)}` : "";
+      const meta = [sel.setName, sel.number ? sel.setTotal ? `${sel.number}/${sel.setTotal}` : `#${sel.number}` : "", sel.rarity, sel.illustrator ? `Illus. ${sel.illustrator}` : ""].filter(Boolean).join(" · ");
       results.innerHTML = `<div class="chosen">
       ${sel.imageLarge || sel.image ? `<img src="${esc(sel.imageLarge || sel.image)}" alt="${esc(sel.name)}">` : "<div></div>"}
       <div>
         <div class="cn">${esc(sel.name)}</div>
         <div class="meta">${esc(meta || "Set unknown")}</div>
-        <div class="price">${p != null ? money(p) : "No price yet"}<small>${eur != null ? `Cardmarket trend ${euro(eur)}${updated}` : "Cardmarket has no sales data for this one"}</small></div>
+        <div class="price">${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `Cardmarket trend ${euro(eur)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
         <div class="finish" role="group" aria-label="Finish">
           <button type="button" data-f="standard" aria-pressed="${finish === "standard"}">Standard</button>
           <button type="button" data-f="reverse" aria-pressed="${finish === "reverse"}">Reverse holo</button>
         </div>
         ${(() => {
         const g = gradedEstimates(p, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
-        return g ? `<p class="graded">If graded (rough guide): PSA 8 <b>~${money(g.p8)}</b> \xB7 PSA 9 <b>~${money(g.p9)}</b> \xB7 PSA 10 <b>~${money(g.p10)}</b></p>` : "";
+        return g ? `<p class="graded">If graded (rough guide): PSA 8 <b>~${money(g.p8)}</b> · PSA 9 <b>~${money(g.p9)}</b> · PSA 10 <b>~${money(g.p10)}</b></p>` : "";
       })()}
-        <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on Cardmarket \u2197</a>
-        ${mode === "edit" && sel.id ? ` \xB7 <button type="button" class="textbtn" id="refreshBtn" style="padding:0">Refresh price</button>` : ""}</p>
+        <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>
+        ${mode === "edit" && sel.id ? ` · <button type="button" class="textbtn" id="refreshBtn" style="padding:0">Refresh price</button>` : ""}</p>
       </div></div>
+      ${cardChartHTML(existing && sel.id === existing.cardId ? existing : null, sel, finish, results.clientWidth)}
       ${cards.length > 1 ? `<button type="button" class="textbtn" id="showAll">Not this one? Show all ${cards.length} matches</button>` : ""}`;
+      bindCardCharts(results);
       results.querySelectorAll(".finish button").forEach((b) => b.onclick = () => {
         finish = b.dataset.f;
         renderChosen();
       });
       $("#showAll", results)?.addEventListener("click", () => renderPicker());
       $("#refreshBtn", results)?.addEventListener("click", async () => {
-        $("#refreshBtn").textContent = "Refreshing\u2026";
+        $("#refreshBtn").textContent = "Refreshing…";
         try {
           fx = await eurToGbp();
-          sel = await withPrice(await getCard(sel.id, sel.source, signal), { species: nameOf(dex), dex }, signal);
+          sel = await withPrice(await getCard(sel.id, sel.source, signal, sel.lang), { species: nameOf(dex), dex }, signal);
           selFresh = true;
           renderChosen();
           toast("Price refreshed");
@@ -2173,7 +2458,7 @@ label textarea { resize: vertical; min-height: 54px; }
     async function choose(card) {
       results.innerHTML = `<p class="status dots">Getting the price</p>`;
       try {
-        if (card.brief) card = await getCard(card.id, card.source, signal);
+        if (card.brief) card = await getCard(card.id, card.source, signal, card.lang);
         card = await withPrice(card, { species: nameOf(dex), dex }, signal);
       } catch {
         if (signal.aborted) return;
@@ -2189,7 +2474,7 @@ label textarea { resize: vertical; min-height: 54px; }
     async function search(auto = false) {
       const n = resolveDex($("#fPoke").value);
       if (!n) {
-        $("#matchLine").textContent = "Type the Pok\xE9mon's name or Dex number first.";
+        $("#matchLine").textContent = "Type the Pokémon's name or Dex number first.";
         $("#fPoke").focus();
         return false;
       }
@@ -2197,9 +2482,9 @@ label textarea { resize: vertical; min-height: 54px; }
       const number = $("#fNum").value.trim();
       const total = number && number === ocrNumber ? ocrTotal : null;
       let exactNumber = true;
-      results.innerHTML = `<p class="status dots">Looking up ${esc(nameOf(n))} cards</p>`;
+      results.innerHTML = `<p class="status dots">Looking up ${isEnglish() ? "" : cfg().label + " "}${esc(nameOf(n))} cards</p>`;
       try {
-        const [res, rate] = await Promise.all([findCards({ species: nameOf(n), dex: n, number, total }, signal), eurToGbp()]);
+        const [res, rate] = await Promise.all([lookupCards(n, { number, total }, signal), eurToGbp()]);
         fx = rate;
         cards = res.cards;
         exactNumber = res.exactNumber !== false;
@@ -2215,7 +2500,7 @@ label textarea { resize: vertical; min-height: 54px; }
       if (signal.aborted) return false;
       if (!cards.length) {
         sel = null;
-        results.innerHTML = `<p class="status warn">Couldn't find any ${esc(nameOf(n))} cards in the card databases. Check the Pok\xE9mon is right, or save without card details.</p>`;
+        results.innerHTML = `<p class="status warn">Couldn't find any ${isEnglish() ? "" : cfg().label + " "}${esc(nameOf(n))} cards in the card ${isEnglish() ? "databases" : "database"}. ${isEnglish() ? "Check the Pokémon is right, or save without card details." : `The ${cfg().label} card database is less complete than the English one, so you can save it without card details and set your own value.`}</p>`;
         return false;
       }
       pickerNote = !exactNumber ? `No ${nameOf(n)} card numbered ${number} found, so here are all ${cards.length}${cards.length >= 250 ? "+" : ""}. Tap yours, or fix the number and tap Find.` : "";
@@ -2240,7 +2525,7 @@ label textarea { resize: vertical; min-height: 54px; }
       btn.onclick = async () => {
         const on = btn.getAttribute("aria-pressed") !== "true";
         btn.setAttribute("aria-pressed", String(on));
-        btn.textContent = on ? "\u2605 On wishlist" : "\u2606 Add to wishlist";
+        btn.textContent = on ? "★ On wishlist" : "☆ Add to wishlist";
         await saveWish(dex, on ? { dex, target: cur(), addedAt: (/* @__PURE__ */ new Date()).toISOString() } : null);
         render();
         toast(on ? `#${pad(dex)} added to wishlist` : "Removed from wishlist");
@@ -2249,7 +2534,7 @@ label textarea { resize: vertical; min-height: 54px; }
         if (btn.getAttribute("aria-pressed") !== "true") {
           if (tgt.value === "") return;
           btn.setAttribute("aria-pressed", "true");
-          btn.textContent = "\u2605 On wishlist";
+          btn.textContent = "★ On wishlist";
         }
         await saveWish(dex, { dex, target: cur(), addedAt: wish.get(dex)?.addedAt || (/* @__PURE__ */ new Date()).toISOString() });
         render();
@@ -2265,7 +2550,9 @@ label textarea { resize: vertical; min-height: 54px; }
         toast(`Removed ${slotLabel(keyOf(existing))}`);
       };
     });
+    const readManual = () => $("#manualRow").hidden || $("#fManual").value === "" ? null : Math.max(0, Math.round(+$("#fManual").value * 100) / 100);
     const readForm = () => ({
+      manualValue: readManual(),
       paid: $("#fPaid").value === "" ? null : Math.max(0, +$("#fPaid").value),
       condition: $("#fCond").value || null,
       spares: Math.max(0, parseInt($("#fSpares").value || "0", 10) || 0),
@@ -2274,7 +2561,7 @@ label textarea { resize: vertical; min-height: 54px; }
     async function commit({ withCard, force = false }) {
       const n = resolveDex($("#fPoke").value);
       if (!n) {
-        $("#matchLine").textContent = "Pick a Pok\xE9mon first: type its name or Dex number.";
+        $("#matchLine").textContent = "Pick a Pokémon first: type its name or Dex number.";
         $("#fPoke").focus();
         return;
       }
@@ -2319,7 +2606,8 @@ label textarea { resize: vertical; min-height: 54px; }
       if (prev && force) entry.spares = Math.max(entry.spares, prev.spares || 0);
       if (withCard && sameSlot && !selFresh && sel.id === existing.cardId) {
         const eur = eurPrice(sel, finish);
-        entry.value = eur != null ? Math.round(eur * (existing.rate || fx.rate) * 100) / 100 : existing.value ?? null;
+        entry.value = eur != null ? Math.round(eur * (existing.rate || fx.rate) * 100) / 100 : entry.manualValue ?? null;
+        if (entry.value !== existing.value) entry.hist = addToHistory(existing, entry.value);
       } else if (withCard) entry = applyCard(entry, sel);
       else {
         Object.assign(entry, {
@@ -2328,13 +2616,14 @@ label textarea { resize: vertical; min-height: 54px; }
           cardName: null,
           eur: null,
           usd: null,
-          value: null,
+          value: entry.manualValue,
           checkedAt: null,
           image: null,
           imageLarge: null,
           cardmarketUrl: null,
           number: $("#fNum").value.trim() || entry.number || "",
-          set: entry.set || ""
+          set: entry.set || "",
+          hist: addToHistory(sameSlot ? existing : {}, entry.manualValue)
         });
       }
       $("#saveBtn").disabled = true;
@@ -2357,7 +2646,7 @@ label textarea { resize: vertical; min-height: 54px; }
       render();
       if (prefs.rapid && mode === "scan") return showAdded({ n: k, prev, spare, photoUrl });
       closeSheet();
-      toast(mode === "edit" ? "Saved" : spare ? `Spare ${slotLabel(k)} counted` : `${slotLabel(k)} added \xB7 ${pagePos(k)}`);
+      toast(mode === "edit" ? "Saved" : spare ? `Spare ${slotLabel(k)} counted` : `${slotLabel(k)} added · ${pagePos(k)}`);
     }
     $("#saveBtn").onclick = () => commit({ withCard: !!sel });
     $("#plainBtn").onclick = () => commit({ withCard: false });
@@ -2366,7 +2655,7 @@ label textarea { resize: vertical; min-height: 54px; }
       $("#saveBtn").disabled = true;
       setStatus("Reading the card", "dots");
       try {
-        const r = await readCard(photo, NAMES, (msg) => setStatus(msg, "dots"));
+        const r = await readCard(photo, NAMES, (msg) => setStatus(msg, "dots"), isEnglish() ? null : { tess: cfg().tess, lists: cfg().lists });
         if (signal.aborted) return;
         ocrNumber = r.number;
         ocrTotal = r.total;
@@ -2377,12 +2666,12 @@ label textarea { resize: vertical; min-height: 54px; }
         }
         if (r.number) $("#fNum").value = r.number;
         if (!r.dex) {
-          setStatus(r.number ? `Read the number (${r.number}) but not the name. Type the Pok\xE9mon and tap Find.` : "Couldn't read the card. Type the Pok\xE9mon and tap Find.", "warn");
+          setStatus(r.number ? `Read the number (${r.number}) but not the name. Type the Pokémon and tap Find.` : "Couldn't read the card. Type the Pokémon and tap Find.", "warn");
           $("#saveBtn").disabled = false;
           $("#fPoke").focus();
           return;
         }
-        setStatus(`Read: ${nameOf(r.dex)}${r.number ? ` \xB7 ${r.number}${r.total ? "/" + r.total : ""}` : ""}`, "ok");
+        setStatus(`Read: ${nameOf(r.dex)}${r.number ? ` · ${r.number}${r.total ? "/" + r.total : ""}` : ""}`, "ok");
         const unique = await search(true);
         $("#saveBtn").disabled = false;
         if (signal.aborted) return;
@@ -2397,7 +2686,7 @@ label textarea { resize: vertical; min-height: 54px; }
       } catch (e) {
         if (signal.aborted) return;
         $("#saveBtn").disabled = false;
-        setStatus(e && e.message && /reader/i.test(e.message) ? e.message + " Type the Pok\xE9mon below." : "Couldn't read the card. Type the Pok\xE9mon and tap Find.", "warn");
+        setStatus(e && e.message && /reader/i.test(e.message) ? e.message + " Type the Pokémon below." : "Couldn't read the card. Type the Pokémon and tap Find.", "warn");
       }
     })();
     else if (mode === "add" && dex) search(false);
@@ -2409,7 +2698,7 @@ label textarea { resize: vertical; min-height: 54px; }
     sheetShell(spare ? "Spare counted" : "Added", `
     <div class="added">${img ? `<img src="${esc(img)}" alt="">` : ""}<div>
       <b>${esc(slotLabel(n))}</b>
-      <span class="hint">${spare ? `You now have ${e?.spares || 1} spare${(e?.spares || 1) > 1 ? "s" : ""} of this one.` : `${e?.value != null ? money(e.value) + " \xB7 " : ""}Goes in ${pagePos(n)}.`}</span>
+      <span class="hint">${spare ? `You now have ${e?.spares || 1} spare${(e?.spares || 1) > 1 ? "s" : ""} of this one.` : `${e?.value != null ? money(e.value) + " · " : ""}Goes in ${pagePos(n)}.`}</span>
     </div></div>
     <div class="actions">
       <button type="button" class="btn" id="undoBtn">Undo</button>
@@ -2434,11 +2723,12 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   async function openAllCards(k) {
     const sl = slotOf(k), n = sl.dex;
-    const signal = sheetShell(`${slotLabel(k)}: all cards`, `<p class="hint" id="acSummary"><span class="dots">Loading every ${esc(sl.name)} card</span></p>
+    const which = isEnglish() ? "" : cfg().label + " ";
+    const signal = sheetShell(`${slotLabel(k)}${localName(n) ? ` · ${localName(n)}` : ""}: all ${which}cards`, `<p class="hint" id="acSummary"><span class="dots">Loading every ${which}${esc(sl.name)} card</span></p>
     <div id="acChosen"></div><div id="acGrid" class="picker"></div>`);
     let cards = [];
     try {
-      const [res, rate] = await Promise.all([findCards({ species: nameOf(n), dex: n }, signal), eurToGbp()]);
+      const [res, rate] = await Promise.all([lookupCards(n, {}, signal), eurToGbp()]);
       fx = rate;
       cards = res.cards;
     } catch {
@@ -2464,13 +2754,13 @@ label textarea { resize: vertical; min-height: 54px; }
       const own = mine();
       const outside = [...own.values()].filter((o) => !o.e.cardId || !cards.some((c) => c.id === o.e.cardId)).map((o) => ({ ...entryAsCard(o.e), id: o.e.cardId || o.e.id, _own: o }));
       shown = [...outside, ...cards];
-      $("#acSummary").innerHTML = `You own <b>${own.size}</b> of ${shown.length}${cards.length >= 250 ? "+" : ""} ${esc(sl.name)} cards. Tap one to add it to your collection or make it your binder card.`;
+      $("#acSummary").innerHTML = shown.length ? `You own <b>${own.size}</b> of ${shown.length}${cards.length >= 250 ? "+" : ""} ${which}${esc(sl.name)} cards. Tap one to see its price history, add it to your collection or make it your binder card.` : `No ${which}${esc(sl.name)} cards found.${isEnglish() ? "" : ` The ${cfg().label} card database is less complete than the English one.`}`;
       $("#acGrid").innerHTML = shown.map((c, i) => {
         const o = c._own || own.get(c.id);
         return `<button type="button" class="pick ${o ? "mine" : ""} ${o?.kind === "binder" ? "binder" : ""}" data-i="${i}">
         ${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : `<span class="noimg" style="aspect-ratio:63/88;border-radius:5px;background:var(--line)"></span>`}
         <b>${esc(c.number ? "#" + c.number : c.name)}</b><span>${esc(c.setName || c.setId || "")}</span>
-        ${o ? `<span class="tag">${o.kind === "binder" ? "\u2605 Binder" : "Owned"}</span>` : c.eur ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`;
+        ${o ? `<span class="tag">${o.kind === "binder" ? "★ Binder" : "Owned"}</span>` : c.eur ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`;
       }).join("");
       $("#acGrid").querySelectorAll(".pick").forEach((b) => b.onclick = () => showCard(shown[+b.dataset.i]));
     }
@@ -2480,7 +2770,7 @@ label textarea { resize: vertical; min-height: 54px; }
       box.scrollIntoView({ block: "nearest", behavior: "smooth" });
       let card = c;
       try {
-        if (card.brief) card = await getCard(card.id, card.source, signal);
+        if (card.brief) card = await getCard(card.id, card.source, signal, card.lang);
         if (!c._own) card = await withPrice(card, { species: nameOf(n), dex: n }, signal);
       } catch {
         if (signal.aborted) return;
@@ -2489,7 +2779,7 @@ label textarea { resize: vertical; min-height: 54px; }
       }
       const o = c._own || mine().get(card.id);
       const p = o ? o.e.value : gbp(eurPrice(card, "standard"));
-      const meta = [card.setName, card.number ? card.setTotal ? `${card.number}/${card.setTotal}` : `#${card.number}` : "", card.rarity].filter(Boolean).join(" \xB7 ");
+      const meta = [card.setName, card.number ? card.setTotal ? `${card.number}/${card.setTotal}` : `#${card.number}` : "", card.rarity].filter(Boolean).join(" · ");
       box.innerHTML = `<div class="chosen">${card.imageLarge || card.image ? `<img src="${esc(card.imageLarge || card.image)}" alt="${esc(card.name)}">` : "<div></div>"}
       <div><div class="cn">${esc(card.name)}</div><div class="meta">${esc(meta || "Set unknown")}</div>
         <div class="price">${p != null ? money(p) : "No price yet"}<small>${o ? o.kind === "binder" ? "Your binder card" : "In your collection" : "Cardmarket trend"}</small></div>
@@ -2497,14 +2787,16 @@ label textarea { resize: vertical; min-height: 54px; }
           ${!o ? `<button type="button" class="btn primary small" id="acAdd">${binder() ? "Add to my collection" : "Add to my binder"}</button>` : ""}
           ${o?.kind === "extra" ? `<button type="button" class="btn primary small" id="acMake">Make this my binder card</button><button type="button" class="btn small danger" id="acRm">Remove</button>` : ""}
           ${o?.kind === "binder" ? `<button type="button" class="btn small" id="acEdit">Edit details</button>` : ""}
-        </div></div></div>`;
+        </div></div></div>
+      ${cardChartHTML(o ? o.e : null, card, o?.e.finish || "standard", box.clientWidth)}`;
+      bindCardCharts(box);
       const slotField = isFormKey(k) ? k : void 0;
       $("#acAdd")?.addEventListener("click", async () => {
         const base = { dex: n, slot: slotField, name: nameOf(n), finish: "standard", spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() };
         if (!binder()) {
           await saveEntry(applyCard(base, card));
           if (!isFormKey(k) && wish.has(n)) await saveWish(n, null);
-          toast(`Added to your binder \xB7 ${pagePos(k)}`);
+          toast(`Added to your binder · ${pagePos(k)}`);
         } else {
           const x = applyCard({ ...base, id: newId() }, card);
           if (!slotField) delete x.slot;
@@ -2570,7 +2862,7 @@ label textarea { resize: vertical; min-height: 54px; }
       if (!e || !e.spares) continue;
       total += e.spares;
       const card = [e.set, e.number ? e.setTotal ? `${e.number}/${e.setTotal}` : e.number : ""].filter(Boolean).join(" ");
-      lines.push(`${slotLabel(sl.key)}${card ? " \u2013 " + card : ""}${e.condition ? ` (${COND_SHORT[e.condition]})` : ""} \xD7${e.spares}`);
+      lines.push(`${slotLabel(sl.key)}${card ? " – " + card : ""}${e.condition ? ` (${COND_SHORT[e.condition]})` : ""} ×${e.spares}`);
     }
     if (!total) {
       sheetShell("Spares list", `<p class="hint">No spares yet. When you scan a card you already have, choose <b>Count as a spare</b> (Rapid scan does this by itself) and it shows up here.</p>
@@ -2578,9 +2870,9 @@ label textarea { resize: vertical; min-height: 54px; }
       $("#okBtn").onclick = closeSheet;
       return;
     }
-    const text = `Pok\xE9mon cards for trade (${total}):
+    const text = `Pokémon cards for trade (${total}):
 ` + lines.join("\n");
-    sheetShell(`Spares list \xB7 ${total}`, `<p class="hint">Copy this into a trade group or post.</p>
+    sheetShell(`Spares list · ${total}`, `<p class="hint">Copy this into a trade group or post.</p>
     <textarea class="sparelist" id="spareTxt" readonly aria-label="Spares list">${esc(text)}</textarea>
     <div class="actions"><button type="button" class="btn" id="closeBtn">Close</button><button type="button" class="btn primary" id="copyBtn">Copy list</button></div>`);
     $("#closeBtn").onclick = closeSheet;
@@ -2607,7 +2899,7 @@ label textarea { resize: vertical; min-height: 54px; }
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
   function exportCSV() {
-    const rows = [["Dex #", "Pok\xE9mon", "Slot", "Gen", "Region", "Types", "Got it?", "In binder", "Card", "Set", "Card number", "Finish", "Condition", "Paid (\xA3)", "Raw value (\xA3)", "Price checked", "Spares", "On wishlist", "Wishlist max (\xA3)", "Notes"]];
+    const rows = [["Dex #", "Pokémon", "Slot", "Gen", "Region", "Types", "Got it?", "In binder", "Card", "Set", "Card number", "Finish", "Condition", "Paid (£)", "Raw value (£)", "Price checked", "Spares", "On wishlist", "Wishlist max (£)", "Notes"]];
     const cardCols = (e) => [
       e?.cardName || "",
       e?.set || "",
@@ -2641,15 +2933,45 @@ label textarea { resize: vertical; min-height: 54px; }
     for (const x of [...extras.values()].sort((a, b) => (SLOT_INDEX.get(keyOf(a)) ?? 9e9) - (SLOT_INDEX.get(keyOf(b)) ?? 9e9))) {
       rows.push([x.dex, slotName(keyOf(x)), keyOf(x), ...base(x.dex), "Yes", "No", ...cardCols(x), "", "", "", x.notes || ""]);
     }
-    download(`living-dex-${today()}.csv`, "\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
+    download(`living-dex-${isEnglish() ? "" : coll + "-"}${today()}.csv`, "\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"), "text/csv");
   }
-  function exportBackup() {
-    const data = { app: "living-dex", version: 2, exportedAt: (/* @__PURE__ */ new Date()).toISOString(), entries: [...owned.values()], wish: [...wish.values()], extras: [...extras.values()] };
+  async function gatherBackup() {
+    const collections = {};
+    for (const id of COLLECTION_IDS) {
+      const st = storeFor(id);
+      const [entries, wishes, xs, hist] = await Promise.all([st.all("entries"), st.all("wish"), st.all("extras"), st.get("meta", "history")]);
+      if (id !== "en" && !entries.size && !wishes.size && !xs.size) continue;
+      collections[id] = { entries: [...entries.values()], wish: [...wishes.values()], extras: [...xs.values()], history: hist || [] };
+    }
+    const en = collections.en;
+    return { app: "living-dex", version: 3, exportedAt: (/* @__PURE__ */ new Date()).toISOString(), entries: en.entries, wish: en.wish, extras: en.extras, collections };
+  }
+  function exportBackup(data) {
     download(`living-dex-backup-${today()}.json`, JSON.stringify(data), "application/json");
     try {
       localStorage.setItem("lastBackup", (/* @__PURE__ */ new Date()).toISOString());
     } catch {
     }
+  }
+  async function restoreInto(id, part, replace) {
+    const st = storeFor(id);
+    if (replace) for (const t of ["entries", "wish", "extras"]) await st.clear(t);
+    let added = 0, wished = 0;
+    for (const e of part.entries || []) if (e && e.dex >= 1 && e.dex <= TOTAL) {
+      if (!isFormKey(e.slot)) delete e.slot;
+      await st.put("entries", keyOf(e), e);
+      added++;
+    }
+    for (const x of part.extras || []) if (x && x.id && x.dex >= 1 && x.dex <= TOTAL) {
+      await st.put("extras", x.id, x);
+      added++;
+    }
+    for (const w of part.wish || []) if (w && w.dex >= 1 && w.dex <= TOTAL) {
+      await st.put("wish", w.dex, w);
+      wished++;
+    }
+    if (Array.isArray(part.history) && part.history.length && (replace || !await st.get("meta", "history"))) await st.put("meta", "history", part.history);
+    return { added, wished };
   }
   function parseCSV(text) {
     const rows = [];
@@ -2688,24 +3010,16 @@ label textarea { resize: vertical; min-height: 54px; }
     if (/\.json$/i.test(file.name) || text.trim().startsWith("{")) {
       const data = JSON.parse(text);
       if (data.app !== "living-dex" || !Array.isArray(data.entries)) throw new Error("That isn't a Living Dex backup.");
+      const parts = data.collections || { en: { entries: data.entries, wish: data.wish, extras: data.extras } };
       if (replace) {
-        for (const t of ["entries", "wish", "extras"]) await store.clear(t);
-        owned = /* @__PURE__ */ new Map();
-        wish = /* @__PURE__ */ new Map();
-        extras = /* @__PURE__ */ new Map();
+        for (const id of COLLECTION_IDS) if (!parts[id]) for (const t of ["entries", "wish", "extras"]) await storeFor(id).clear(t);
       }
-      for (const e of data.entries) if (e && e.dex >= 1 && e.dex <= TOTAL) {
-        await saveEntry(e);
-        added++;
+      for (const id of COLLECTION_IDS) if (parts[id]) {
+        const r = await restoreInto(id, parts[id], replace);
+        added += r.added;
+        wished += r.wished;
       }
-      for (const x of data.extras || []) if (x && x.id && x.dex >= 1 && x.dex <= TOTAL) {
-        await saveExtra(x);
-        added++;
-      }
-      for (const w of data.wish || []) if (w && w.dex >= 1 && w.dex <= TOTAL) {
-        await saveWish(w.dex, w);
-        wished++;
-      }
+      await loadCollection(coll);
     } else {
       const rows = parseCSV(text);
       const head = rows.shift().map((h) => h.trim().toLowerCase());
@@ -2716,7 +3030,7 @@ label textarea { resize: vertical; min-height: 54px; }
         }
         return -1;
       };
-      const iDex = col("dex #"), iGot = col("got it?"), iCard = col("card used (set & number)", "set"), iNum = col("card number"), iSlot = col("slot"), iBinder = col("in binder"), iCond = col("condition"), iPaid = col("paid (\xA3)"), iVal = col("raw value (\xA3)"), iSp = col("spares"), iWish = col("on wishlist"), iMax = col("wishlist max (\xA3)"), iNotes = col("notes");
+      const iDex = col("dex #"), iGot = col("got it?"), iCard = col("card used (set & number)", "set"), iNum = col("card number"), iSlot = col("slot"), iBinder = col("in binder"), iCond = col("condition"), iPaid = col("paid (£)"), iVal = col("raw value (£)"), iSp = col("spares"), iWish = col("on wishlist"), iMax = col("wishlist max (£)"), iNotes = col("notes");
       if (iDex < 0 || iGot < 0) throw new Error("That spreadsheet doesn't have the Dex # and Got it? columns.");
       const numOr = (r, i) => i >= 0 && r[i] !== "" && !isNaN(+r[i]) ? +r[i] : null;
       for (const r of rows) {
@@ -2758,10 +3072,13 @@ label textarea { resize: vertical; min-height: 54px; }
       lastBackup = localStorage.getItem("lastBackup");
     } catch {
     }
+    const backup = gatherBackup();
+    backup.catch(() => {
+    });
     sheetShell("Settings & backup", `
     <div class="setting">
       <h4>Extra binder slots</h4>
-      <p class="hint">Give regional forms and Megas their own slots, straight after their Pok\xE9mon. Your progress counts them too. Milestones stay based on the 1,025 Pok\xE9mon.</p>
+      <p class="hint">Give regional forms and Megas their own slots, straight after their Pokémon. Your progress counts them too. Milestones stay based on the 1,025 Pokémon.</p>
       <button type="button" class="switch" id="regionalSw" aria-pressed="${prefs.regional}"><span class="knob" aria-hidden="true"></span>Regional forms (${FORMS.filter((f) => f.kind === "regional").length}: Alolan, Galarian, Hisuian, Paldean)</button>
       <button type="button" class="switch" id="megaSw" aria-pressed="${prefs.megas}"><span class="knob" aria-hidden="true"></span>Megas and Primal (${FORMS.filter((f) => f.kind === "mega").length})</button>
     </div>
@@ -2774,21 +3091,21 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div class="setting">
       <h4>Backup</h4>
-      <p class="hint">Your collection is saved on this phone only. Save a backup now and then (to iCloud Drive or Files), so you can restore it if you change phones. It includes extra cards from the All cards view.${lastBackup ? ` Last backup ${shortDate(lastBackup)}.` : ""} Photos aren't included.</p>
+      <p class="hint">Your collections are saved on this phone only. Save a backup now and then (to iCloud Drive or Files), so you can restore them if you change phones. One backup holds all your collections (English, Japanese, Korean and Chinese), kept separate, plus extra cards and price history.${lastBackup ? ` Last backup ${shortDate(lastBackup)}.` : ""} Photos aren't included.</p>
       <div class="actions" style="justify-content:flex-start"><button type="button" class="btn primary" id="bkBtn">Save a backup</button><button type="button" class="btn" id="rsBtn">Restore a backup</button></div>
     </div>
     <div class="setting">
       <h4>Spreadsheet</h4>
-      <p class="hint">Export to open in Excel or Numbers, or import a spreadsheet exported from the Claude version of Living Pok\xE9dex. Imported cards keep their set and price but aren't linked for price updates until you pick the card in each entry.</p>
+      <p class="hint">Export the ${cfg().label} collection to open in Excel or Numbers, or import a spreadsheet into it (from this app or the Claude version of Living Pokédex). Imported cards keep their set and price but aren't linked for price updates until you pick the card in each entry.</p>
       <div class="actions" style="justify-content:flex-start"><button type="button" class="btn" id="csvBtn">Export CSV</button><button type="button" class="btn" id="impBtn">Import CSV</button></div>
     </div>
     <div class="setting">
       <h4>Prices</h4>
-      <p class="hint">Cardmarket trend prices, from TCGdex with the Pok\xE9mon TCG API as a backup, converted at \u20AC1 = \xA3${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily.</p>
+      <p class="hint">Cardmarket trend prices, from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
     </div>
     <div class="setting">
       <h4>Start over</h4>
-      <div id="wipeRow" class="actions" style="justify-content:flex-start"><button type="button" class="btn danger" id="wipeBtn">Delete my collection</button></div>
+      <div id="wipeRow" class="actions" style="justify-content:flex-start"><button type="button" class="btn danger" id="wipeBtn">Delete my ${cfg().label} collection</button></div>
     </div>`);
     document.querySelectorAll("[data-b]").forEach((b) => b.onclick = () => {
       prefs.binder = b.dataset.b;
@@ -2806,9 +3123,13 @@ label textarea { resize: vertical; min-height: 54px; }
     };
     $("#regionalSw").onclick = (ev) => toggleForms("regional", ev.currentTarget, "Regional form");
     $("#megaSw").onclick = (ev) => toggleForms("megas", ev.currentTarget, "Mega");
-    $("#bkBtn").onclick = () => {
-      exportBackup();
-      toast("Backup saved to your downloads");
+    $("#bkBtn").onclick = async () => {
+      try {
+        exportBackup(await backup);
+        toast("Backup saved to your downloads");
+      } catch {
+        toast("Couldn't make the backup. Try again.");
+      }
     };
     $("#csvBtn").onclick = exportCSV;
     const pick = (replace) => {
@@ -2834,26 +3155,33 @@ label textarea { resize: vertical; min-height: 54px; }
       $("#rsYes").onclick = () => pick(true);
     };
     $("#wipeBtn").onclick = () => {
-      $("#wipeRow").innerHTML = `<span class="status" style="margin-right:auto">Delete all ${owned.size} cards, your wishlist and photos? This can't be undone.</span><button type="button" class="btn" id="wNo">Keep</button><button type="button" class="btn danger" id="wYes">Delete</button>`;
+      $("#wipeRow").innerHTML = `<span class="status" style="margin-right:auto">Delete all ${owned.size + extras.size} cards in your ${cfg().label} collection, its wishlist and photos? Your other collections aren't touched. This can't be undone.</span><button type="button" class="btn" id="wNo">Keep</button><button type="button" class="btn danger" id="wYes">Delete</button>`;
       $("#wNo").onclick = openSettings;
       $("#wYes").onclick = async () => {
-        for (const t of ["entries", "wish", "photos", "extras"]) await store.clear(t);
+        for (const t of ["entries", "wish", "photos", "extras", "meta"]) await store.clear(t);
         for (const u of photoUrls.values()) URL.revokeObjectURL(u);
         owned = /* @__PURE__ */ new Map();
         wish = /* @__PURE__ */ new Map();
         photoUrls = /* @__PURE__ */ new Map();
         extras = /* @__PURE__ */ new Map();
+        history = [];
+        deals = /* @__PURE__ */ new Map();
+        try {
+          for (const k of ["milestones", "lastPriceRun", "lastDealCheck"]) localStorage.removeItem(lsKey(k));
+        } catch {
+        }
         closeSheet();
         render();
-        toast("Collection deleted");
+        toast(`${cfg().label} collection deleted`);
       };
     };
   }
-  $(".seg").addEventListener("click", (ev) => {
+  $("#viewSeg").addEventListener("click", (ev) => {
     const b = ev.target.closest("button[data-view]");
     if (!b) return;
     view = b.dataset.view;
-    document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    document.querySelectorAll(".seg button[data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    if (view === "top" && top.status !== "ok") top.status = "idle";
     render();
   });
   $("#regions").addEventListener("click", (ev) => {
@@ -2898,7 +3226,7 @@ label textarea { resize: vertical; min-height: 54px; }
   document.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
     setCardsView(b.dataset.mode === "cards");
     render();
-    toast(prefs.cardsView ? "All cards view: tap a Pok\xE9mon to see every card printed for it" : "Dex view: one card per Pok\xE9mon");
+    toast(prefs.cardsView ? "All cards view: tap a Pokémon to see every card printed for it" : "Dex view: one card per Pokémon");
   });
   var setRapid = (on) => {
     prefs.rapid = on;
@@ -2921,17 +3249,46 @@ label textarea { resize: vertical; min-height: 54px; }
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && !document.querySelector(".cropper")) closeSheet();
   });
-  $("#dexList").innerHTML = NAMES.map((nm, i) => `<option value="#${pad(i + 1)} ${esc(nm)}"></option>`).join("");
-  buildSlots();
-  render();
-  (async () => {
+  function renderCollectionChrome() {
+    const c = cfg();
+    document.body.dataset.coll = coll;
+    $("#collBadge").hidden = isEnglish();
+    $("#collBadge").textContent = c.label;
+    $("#subTxt").textContent = isEnglish() ? "One card for each of the 1,025 Pokémon, in National Dex order." : `Your ${c.label} cards, kept separate from your English collection.`;
+    document.querySelectorAll("#collSeg [data-coll]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.coll === coll)));
+    $("#dexList").innerHTML = NAMES.map((nm, i) => `<option value="#${pad(i + 1)} ${esc(nm)}${isEnglish() ? "" : " · " + esc(localName(i + 1))}"></option>`).join("");
+  }
+  async function loadCollection(id) {
+    coll = COLLECTIONS[id] ? id : "en";
+    useCollection(coll);
+    loaded = false;
+    for (const u of photoUrls.values()) URL.revokeObjectURL(u);
+    owned = /* @__PURE__ */ new Map();
+    extras = /* @__PURE__ */ new Map();
+    wish = /* @__PURE__ */ new Map();
+    photoUrls = /* @__PURE__ */ new Map();
+    history = [];
+    deals = /* @__PURE__ */ new Map();
+    lastMilestoneState = null;
+    renderCollectionChrome();
+    render();
+    const want = coll;
     try {
-      owned = await store.all("entries");
-      extras = await store.all("extras");
-      wish = await store.all("wish");
-      history = await store.get("meta", "history") || [];
-      deals = new Map(Object.entries(await store.get("meta", "deals") || {}).map(([k, v]) => [+k, v]));
-      for (const [n, blob] of await store.all("photos")) photoUrls.set(n, URL.createObjectURL(blob));
+      const [o, x, w, h, dl, ph] = await Promise.all([
+        store.all("entries"),
+        store.all("extras"),
+        store.all("wish"),
+        store.get("meta", "history"),
+        store.get("meta", "deals"),
+        store.all("photos")
+      ]);
+      if (want !== coll) return;
+      owned = o;
+      extras = x;
+      wish = w;
+      history = h || [];
+      deals = new Map(Object.entries(dl || {}).map(([k, v]) => [+k, v]));
+      for (const [n, blob] of ph) photoUrls.set(n, URL.createObjectURL(blob));
     } catch {
       const note = $("#notice");
       note.hidden = false;
@@ -2939,12 +3296,26 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     loaded = true;
     render();
+  }
+  $("#collSeg").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-coll]");
+    if (!b || b.dataset.coll === coll) return;
+    if (updating || dealCheck) {
+      toast("Wait for the price check to finish first");
+      return;
+    }
+    prefs.collection = b.dataset.coll;
+    savePrefs();
+    loadCollection(b.dataset.coll).then(() => toast(isEnglish() ? "English collection" : `${cfg().label} collection: kept separate from your English cards`));
+  });
+  buildSlots();
+  loadCollection(prefs.collection || "en").then(() => {
     askToKeepData();
     eurToGbp().then((r) => {
       fx = r;
       renderViewBar();
     });
-  })();
+  });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {
   });
 })();

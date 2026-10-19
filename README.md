@@ -66,6 +66,17 @@ websites you haven't visited in a while, but not for apps on your home screen.
 - **Regional forms and Megas**: switch them on in Settings → Extra binder slots. They get their own
   slots straight after their Pokémon, and scanned form cards (e.g. "Alolan Vulpix", "Mega Charizard X ex")
   go into the right slot by themselves.
+- **Japanese, Korean and Chinese collections**: switch with the English / Japanese / Korean /
+  Chinese buttons at the top. Each is its own binder with its own progress, value, wishlist and stats,
+  stored separately on the phone, so they never mix with your English cards. Scanning reads the name in
+  that language (the first scan downloads the reader for it), and you can type names in English, the
+  local language or by Dex number. Chinese searches both Traditional and Simplified cards. Most of these
+  cards have no market price, so there's a **Your value** box to set your own. The card database is less
+  complete for these languages (Korean especially), so some cards won't be found: save them without card
+  details and set a value.
+- **Price history chart**: open any card to see a line chart of its value over time (tap it for any
+  point). Each card saves a point every day its price is updated or you change your value. Until a card
+  has two saved prices, the chart shows Cardmarket's 30-day, 7-day and yesterday's averages instead.
 - **Settings (cog icon)**: extra slots for forms, official card images or your photos, back up,
   restore, export to a spreadsheet, or import one.
 
@@ -96,9 +107,10 @@ imported card, open it, check the Pokémon and card number, tap **Find** and pic
 
 ## Back it up
 
-Your collection lives on your phone only. Every so often, go to **Settings → Save a backup** and keep
-the file in iCloud Drive or Files. To move to a new phone, install the app there and use
-**Restore a backup**.
+Your collections live on your phone only. Every so often, go to **Settings → Save a backup** and keep
+the file in iCloud Drive or Files. One backup holds every collection (English, Japanese, Korean and
+Chinese), each kept separate, plus each card's price history. To move to a new phone, install the app
+there and use **Restore a backup**.
 
 ## Where prices come from
 
