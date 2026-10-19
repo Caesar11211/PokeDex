@@ -1,7 +1,7 @@
 // sw.js — lets the app open without a connection, and load fast.
 // It keeps a copy of the app's own files. Card lookups and prices always go to the internet.
 // When you change any app file, bump VERSION so phones fetch the new copy.
-const VERSION = "living-dex-v11";
+const VERSION = "living-dex-v12";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

@@ -734,7 +734,7 @@ label textarea { resize: vertical; min-height: 54px; }
     if (!card || !card.number) return card;
     if (card.lang && card.lang !== "en") return card;
     const old = isVintage(cardSetId(card));
-    if (eurPrice(card, "standard") != null && (!old || card.usdEd)) return card;
+    if (eurPrice(card, "standard") != null && (old ? card.usdEd : card.usd != null)) return card;
     try {
       const other = card.source === "ptcg" ? await tcgdexSearch({ species, number: card.number }, signal) : await ptcgSearch({ species, number: card.number, dex }, signal);
       if (!other.exactNumber) return card;
@@ -745,6 +745,9 @@ label textarea { resize: vertical; min-height: 54px; }
         const eur = card.eur || match.eur ? { ...match.eur || {}, ...card.eur || {} } : null;
         if (eur) eur.lowEx = card.eur?.lowEx ?? match.eur?.lowEx ?? null;
         return { ...card, eur, usd: card.usd ?? match.usd, usdEd: card.usdEd || match.usdEd || null, cardmarketUrl: card.cardmarketUrl || match.cardmarketUrl, priceFrom: card.eur ? card.priceFrom : match.source };
+      }
+      if (match && !old && eurPrice(card, "standard") != null && card.usd == null) {
+        return match.usd != null ? { ...card, usd: match.usd, usdEd: card.usdEd || match.usdEd || null } : card;
       }
       if (match && eurPrice(match, "standard") != null) {
         return { ...card, eur: match.eur, usd: card.usd ?? match.usd, usdEd: card.usdEd || match.usdEd || null, cardmarketUrl: card.cardmarketUrl || match.cardmarketUrl, priceFrom: match.source };
@@ -809,9 +812,14 @@ label textarea { resize: vertical; min-height: 54px; }
     const v = finish === "reverse" ? e.trendHolo ?? e.trend ?? e.avg30 : e.trend ?? e.avg30 ?? e.trendHolo;
     if (v == null) return null;
     if (finish !== "reverse") {
+      const usd = card.usdEd?.unlimited ?? card.usd;
+      // Mismatch check: sometimes the card database links a card to the wrong Cardmarket
+      // product, so the trend and all its averages are wrong together. TCGplayer is matched
+      // separately, so if Cardmarket is over 4x TCGplayer's price, trust TCGplayer.
+      const tpE = usd != null && usd > 0 ? usd / (fx.usd || FALLBACK_USD) : null;
+      if (tpE != null && v > tpE * 4 && v - tpE > 3) return { eur: tpE, basis: `TCGplayer market price ($${usd.toFixed(2)}), as the Cardmarket price (${euro(v)}) looks matched to the wrong card` };
       // Spike check: a rarely-sold card can have its trend dragged up by one odd sale.
       // Compare it with yesterday's and the 7-day average sale, plus TCGplayer's price.
-      const usd = card.usdEd?.unlimited ?? card.usd;
       const refs = [e.avg1, e.avg7, usd != null ? usd / (fx.usd || FALLBACK_USD) : null].filter((x) => x != null && x > 0).sort((a, b) => a - b);
       if (refs.length >= 2) {
         const typical = refs.length % 2 ? refs[(refs.length - 1) / 2] : (refs[refs.length / 2 - 1] + refs[refs.length / 2]) / 2;
@@ -3290,7 +3298,7 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div class="setting">
       <h4>Prices</h4>
-      <p class="hint">Cardmarket trend prices for newer cards. For older Wizards-era cards (Base to Neo and e-Card), where Cardmarket mixes 1st Edition with Unlimited and one high sale can skew the trend, the app uses TCGplayer's edition-split price, then the cheapest Excellent-or-better Cardmarket listing, then the lowest recent Cardmarket average. For newer cards, if the trend is more than double the typical recent sale (yesterday's and the 7-day average, and TCGplayer), the typical price is used instead. Market prices are for Near Mint copies, so cards with a condition set are valued lower: Excellent 80%, Good 65%, Light Played 55%, Played 40%, Poor 25%. Prices come from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
+      <p class="hint">Cardmarket trend prices for newer cards. For older Wizards-era cards (Base to Neo and e-Card), where Cardmarket mixes 1st Edition with Unlimited and one high sale can skew the trend, the app uses TCGplayer's edition-split price, then the cheapest Excellent-or-better Cardmarket listing, then the lowest recent Cardmarket average. For newer cards, if Cardmarket's price is over four times TCGplayer's, the card has probably been matched to the wrong Cardmarket product, so TCGplayer's price is used. If the trend is more than double the typical recent sale (yesterday's and the 7-day average, and TCGplayer), the typical price is used instead. Market prices are for Near Mint copies, so cards with a condition set are valued lower: Excellent 80%, Good 65%, Light Played 55%, Played 40%, Poor 25%. Prices come from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
     </div>
     <div class="setting">
       <h4>Start over</h4>
