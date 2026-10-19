@@ -807,9 +807,24 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     if (!e) return null;
     const v = finish === "reverse" ? e.trendHolo ?? e.trend ?? e.avg30 : e.trend ?? e.avg30 ?? e.trendHolo;
-    return v != null ? { eur: v, basis: `Cardmarket trend ${euro(v)}`, solid: true } : null;
+    if (v == null) return null;
+    if (finish !== "reverse") {
+      // Spike check: a rarely-sold card can have its trend dragged up by one odd sale.
+      // Compare it with yesterday's and the 7-day average sale, plus TCGplayer's price.
+      const usd = card.usdEd?.unlimited ?? card.usd;
+      const refs = [e.avg1, e.avg7, usd != null ? usd / (fx.usd || FALLBACK_USD) : null].filter((x) => x != null && x > 0).sort((a, b) => a - b);
+      if (refs.length >= 2) {
+        const typical = refs.length % 2 ? refs[(refs.length - 1) / 2] : (refs[refs.length / 2 - 1] + refs[refs.length / 2]) / 2;
+        if (v > typical * 2 && v - typical > 3) return { eur: typical, basis: `Typical recent price, as the Cardmarket trend (${euro(v)}) looked inflated by an odd sale` };
+      }
+    }
+    return { eur: v, basis: `Cardmarket trend ${euro(v)}`, solid: true };
   }
   var eurPrice = (card, finish) => priceInfo(card, finish)?.eur ?? null;
+  // Market prices are for Near Mint copies. Typical discounts for worn copies (Cardmarket scale).
+  var COND_FACTOR = { "Mint": 1, "Near Mint": 1, "Excellent": 0.8, "Good": 0.65, "Light Played": 0.55, "Played": 0.4, "Poor": 0.25 };
+  var condFactor = (c) => COND_FACTOR[c] ?? 1;
+  var byCondition = (gbpValue, c) => gbpValue == null ? null : Math.round(gbpValue * condFactor(c) * 100) / 100;
   var FX_KEY = "fx-eur-gbp-usd";
   var FALLBACK_RATE = 0.85;
   var FALLBACK_USD = 1.12;
@@ -858,7 +873,7 @@ label textarea { resize: vertical; min-height: 54px; }
   function gradeAdvice(entry, cost) {
     const raw = entry.value;
     const vintage = isVintage(setIdOf(entry));
-    const est = gradedEstimates(raw, vintage);
+    const est = gradedEstimates(entry.nmValue ?? raw, vintage);
     if (!est) return null;
     const assumed = !entry.condition;
     const odds = ODDS[entry.condition || "Near Mint"];
@@ -1692,7 +1707,7 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   function applyCard(entry, card) {
     const market = gbp(eurPrice(card, entry.finish));
-    const value = market ?? (entry.manualValue != null ? entry.manualValue : null);
+    const value = market != null ? byCondition(market, entry.condition) : entry.manualValue != null ? entry.manualValue : null;
     const sameCard = entry.cardId === card.id;
     const moved = sameCard && entry.value != null && value != null && value !== entry.value;
     return {
@@ -1717,6 +1732,7 @@ label textarea { resize: vertical; min-height: 54px; }
       usdEd: card.usdEd || null,
       cardLang: card.lang || "en",
       value,
+      nmValue: market,
       checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
       rate: fx.rate,
       hist: addToHistory(sameCard ? entry : {}, value)
@@ -2561,6 +2577,7 @@ label textarea { resize: vertical; min-height: 54px; }
     };
     syncManual();
     $("#fPoke").addEventListener("input", updateMatch);
+    $("#fCond")?.addEventListener("change", () => renderChosen());
     updateMatch();
     function renderChosen() {
       if (sel && !finishOptions(sel).some(([f]) => f === finish)) finish = "standard";
@@ -2570,7 +2587,7 @@ label textarea { resize: vertical; min-height: 54px; }
         $("#plainBtn").hidden = mode === "edit" && !existing?.cardId;
         return;
       }
-      const eur = eurPrice(sel, finish), p = gbp(eur);
+      const eur = eurPrice(sel, finish), nmP = gbp(eur), cond = $("#fCond")?.value || "", p = byCondition(nmP, cond);
       const updated = sel.eur?.updated ? ` · ${shortDate(sel.eur.updated)}` : "";
       const meta = [sel.setName, sel.number ? sel.setTotal ? `${sel.number}/${sel.setTotal}` : `#${sel.number}` : "", sel.rarity, sel.illustrator ? `Illus. ${sel.illustrator}` : ""].filter(Boolean).join(" · ");
       results.innerHTML = `<div class="chosen">
@@ -2578,12 +2595,12 @@ label textarea { resize: vertical; min-height: 54px; }
       <div>
         <div class="cn">${esc(sel.name)}</div>
         <div class="meta">${esc(meta || "Set unknown")}</div>
-        <div class="price">${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
+        <div class="price">${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${condFactor(cond) !== 1 ? `For a ${esc(cond)} copy (Near Mint ${money(nmP)}). ` : ""}${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
         <div class="finish" role="group" aria-label="Finish">${finishOptions(sel).map(([f, label]) => `
           <button type="button" data-f="${f}" aria-pressed="${finish === f}">${label}</button>`).join("")}
         </div>
         ${(() => {
-        const g = gradedEstimates(p, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
+        const g = gradedEstimates(nmP, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
         return g ? `<p class="graded">If graded (rough guide): PSA 8 <b>~${money(g.p8)}</b> · PSA 9 <b>~${money(g.p9)}</b> · PSA 10 <b>~${money(g.p10)}</b></p>` : "";
       })()}
         <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>
@@ -2771,7 +2788,9 @@ label textarea { resize: vertical; min-height: 54px; }
       if (prev && force) entry.spares = Math.max(entry.spares, prev.spares || 0);
       if (withCard && sameSlot && !selFresh && sel.id === existing.cardId) {
         const eur = eurPrice(sel, finish);
-        entry.value = eur != null ? Math.round(eur * (existing.rate || fx.rate) * 100) / 100 : entry.manualValue ?? null;
+        const nm = eur != null ? Math.round(eur * (existing.rate || fx.rate) * 100) / 100 : null;
+        entry.nmValue = nm;
+        entry.value = nm != null ? byCondition(nm, entry.condition) : entry.manualValue ?? null;
         if (entry.value !== existing.value) entry.hist = addToHistory(existing, entry.value);
       } else if (withCard) entry = applyCard(entry, sel);
       else {
@@ -3271,7 +3290,7 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div class="setting">
       <h4>Prices</h4>
-      <p class="hint">Cardmarket trend prices for newer cards. For older Wizards-era cards (Base to Neo and e-Card), where Cardmarket mixes 1st Edition with Unlimited and one high sale can skew the trend, the app uses TCGplayer's edition-split price, then the cheapest Excellent-or-better Cardmarket listing, then the lowest recent Cardmarket average. Prices come from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
+      <p class="hint">Cardmarket trend prices for newer cards. For older Wizards-era cards (Base to Neo and e-Card), where Cardmarket mixes 1st Edition with Unlimited and one high sale can skew the trend, the app uses TCGplayer's edition-split price, then the cheapest Excellent-or-better Cardmarket listing, then the lowest recent Cardmarket average. For newer cards, if the trend is more than double the typical recent sale (yesterday's and the 7-day average, and TCGplayer), the typical price is used instead. Market prices are for Near Mint copies, so cards with a condition set are valued lower: Excellent 80%, Good 65%, Light Played 55%, Played 40%, Poor 25%. Prices come from TCGdex with the Pokémon TCG API as a backup, converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
     </div>
     <div class="setting">
       <h4>Start over</h4>
