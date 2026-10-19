@@ -1,0 +1,30 @@
+{
+ "updated": "2026-10-19T20:35:54.332Z",
+ "source": "eBay sold listings (median of recent sales) via PokemonPriceTracker",
+ "currency": "USD",
+ "minSales": 2,
+ "cards": {
+  "base2-20": {
+   "tcgPlayerId": "106982",
+   "name": "Jolteon",
+   "number": "20",
+   "set": "Jungle",
+   "psa8": {
+    "usd": 37.2,
+    "sales": 56,
+    "last": "2026-10-03T00:00:00.000Z"
+   },
+   "psa9": {
+    "usd": 66.53,
+    "sales": 74,
+    "last": "2026-10-11T00:00:00.000Z"
+   },
+   "psa10": {
+    "usd": 522.48,
+    "sales": 58,
+    "last": "2026-10-07T00:00:00.000Z"
+   },
+   "checked": "2026-10-19T20:35:54.330Z"
+  }
+ }
+}
