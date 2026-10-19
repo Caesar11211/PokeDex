@@ -57,9 +57,10 @@ scan and the Spares list. The light on the red bar blinks while a card is being 
   and milestones (with a pop-up when you earn one).
 - **Grading tab**: your cards ranked by the likely gain from grading, after the grading cost (set it
   at the top of the tab; it starts at £45, roughly PSA's cheapest open service). Uses the condition
-  you recorded, so set it on your best cards. Graded values are **rough guides** worked out from typical
-  PSA premiums, not real sales: check recent sold slabs before sending anything off. Each card also
-  shows its estimated PSA 8, 9 and 10 values when you open it.
+  you recorded, so set it on your best cards. Cards on your graded watch list (see below) show **real
+  PSA 8, 9 and 10 prices**: the median of recent eBay sales, with how many sold. Anything shown with a
+  **~** is a rough guide worked out from typical PSA premiums, so check recent sold slabs before
+  sending those off. Each card also shows its PSA 8, 9 and 10 values when you open it.
 - **Wishlist tab**: tap **Check prices** to find the cheapest card for each wishlisted Pokémon. Any at or
   under your "most I'd pay" price get a **Deal** tag.
 - **Top cards tab**: the 500 most valuable Pokémon cards of all, by Cardmarket trend price, with a tag on
@@ -105,6 +106,27 @@ The list is built once a day by GitHub itself, for free, and saved to your site.
 If the run fails with a permissions error: **Settings → Actions → General → Workflow permissions**,
 choose **Read and write permissions**, save, and run it again.
 
+## Setting up real graded prices (once)
+
+Real PSA prices come from [PokemonPriceTracker](https://www.pokemonpricetracker.com), which tracks eBay
+sold listings. Its free plan allows about 40 cards a day, so you pick which cards to watch. GitHub
+fetches their prices every morning and saves them to your site, so your key never goes near the app.
+
+1. **Get a free key.** Sign up at pokemonpricetracker.com and copy your API key from the API keys page.
+2. **Give it to GitHub.** In your repository: **Settings → Secrets and variables → Actions → New
+   repository secret**. Name it `PPT_API_KEY` exactly, paste the key, and **Add secret**.
+3. **Upload the files** from the update: `scripts/graded-prices.mjs`, `data/graded-watch.json`, and the
+   workflow (create `.github/workflows/graded-prices.yml` the same way as the top cards one).
+4. **Choose your cards.** In the app, go to **Value → Grading** and tap **Copy list for real graded
+   prices**. It copies your 40 most valuable cards. On GitHub, open `data/graded-watch.json`, tap the
+   pencil, select everything, paste, and commit.
+5. Saving that file starts a run straight away (watch it in the **Actions** tab, **Update graded
+   prices**). New cards are searched for once, which costs more, so a long list can take two mornings
+   to fill in. After that it refreshes each card once a week.
+
+Copy and paste the list again whenever your best cards change. If a run fails, open it in the Actions
+tab: the log says which cards weren't found and shows an example answer from the price service.
+
 ## Moving your cards over from the Claude version
 
 In the Claude version, tap **Export CSV** and save the file. Here, go to **Settings → Import CSV**
@@ -134,6 +156,9 @@ Pokémon names and types come from [PokéAPI](https://pokeapi.co).
 | `index.html` | The whole app: page, styles and code in one file |
 | `scripts/top-cards.mjs` | Builds the Top cards list from TCGdex (run by GitHub) |
 | `.github/workflows/top-cards.yml` | Tells GitHub to run that script twice a week |
+| `scripts/graded-prices.mjs` | Fetches real PSA prices for your watch list (run by GitHub) |
+| `.github/workflows/graded-prices.yml` | Tells GitHub to run that script every morning |
+| `data/graded-watch.json` | The cards to fetch graded prices for (paste from the app) |
 | `sw.js` | Lets the app open offline and load fast |
 | `manifest.webmanifest`, `icons/` | Home screen name and icon |
 

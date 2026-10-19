@@ -873,6 +873,46 @@ label textarea { resize: vertical; min-height: 54px; }
     const m10 = raw < 10 ? 3.5 : raw < 50 ? 2.5 : 2;
     return { p8: Math.max(4, raw * 1), p9: Math.max(6, raw * (raw < 10 ? 1.6 : 1.3)), p10: Math.max(12, raw * m10) };
   }
+  // Real graded prices: data/graded.json, built daily by GitHub from eBay sold listings
+  // (scripts/graded-prices.mjs). Prices there are US dollars; a grade is only listed with 2+ sales.
+  var graded = { status: "idle", data: null };
+  async function loadGraded() {
+    graded.status = "loading";
+    try {
+      const res = await fetch("data/graded.json?v=" + dayKey(), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      graded.data = data && data.cards ? data : null;
+      graded.status = graded.data ? "ok" : "missing";
+    } catch {
+      graded.status = "missing";
+    }
+    if (loaded) render();
+  }
+  // Estimates, with any grade that has real sales swapped for the real median price.
+  function gradedFor(cardId, raw, vintage) {
+    const est = gradedEstimates(raw, vintage);
+    if (!est) return null;
+    const real = cardId && graded.data?.cards?.[cardId];
+    const out = { ...est, real: {}, sales: {}, any: false, checked: real?.checked || null };
+    if (!real) return out;
+    for (const g of [8, 9, 10]) {
+      const s = real["psa" + g];
+      if (s && s.usd > 0) {
+        out["p" + g] = gbp(s.usd / (fx.usd || FALLBACK_USD));
+        out.real[g] = true;
+        out.sales[g] = s.sales;
+        out.any = true;
+      }
+    }
+    return out;
+  }
+  // "PSA 10 £186.75 (84 sold)" for real prices, "PSA 10 ~£79.78" for estimates
+  var gradeText = (g, n, short) => {
+    const v = g["p" + n];
+    if (g.real?.[n]) return `${short ? "" : "PSA "}${n} <b>${money(v)}</b>${short ? "" : ` <small>(${g.sales[n]} sold)</small>`}`;
+    return `${short ? "" : "PSA "}${n} <b>~${money(v)}</b>`;
+  };
   var ODDS = {
     "Mint": { p10: 0.45, p9: 0.4, p8: 0.12 },
     "Near Mint": { p10: 0.2, p9: 0.45, p8: 0.28 },
@@ -881,7 +921,7 @@ label textarea { resize: vertical; min-height: 54px; }
   function gradeAdvice(entry, cost) {
     const raw = entry.value;
     const vintage = isVintage(setIdOf(entry));
-    const est = gradedEstimates(entry.nmValue ?? raw, vintage);
+    const est = gradedFor(entry.cardId, entry.nmValue ?? raw, vintage);
     if (!est) return null;
     const assumed = !entry.condition;
     const odds = ODDS[entry.condition || "Near Mint"];
@@ -1977,7 +2017,9 @@ label textarea { resize: vertical; min-height: 54px; }
       }
     } else if (view === "grading") {
       bar.hidden = false;
-      bar.innerHTML = `<label class="costrow" for="gCost">Grading cost per card, with postage £<input id="gCost" type="number" inputmode="decimal" min="0" step="1" value="${prefs.gradingCost}"></label>`;
+      bar.innerHTML = `<label class="costrow" for="gCost">Grading cost per card, with postage £<input id="gCost" type="number" inputmode="decimal" min="0" step="1" value="${prefs.gradingCost}"></label>
+        ${isEnglish() ? `<span class="spacer"></span><button type="button" class="btn small" id="gWatch">Copy list for real graded prices</button>` : ""}`;
+      $("#gWatch")?.addEventListener("click", copyGradedWatch);
       $("#gCost").addEventListener("change", (ev) => {
         prefs.gradingCost = Math.max(0, +ev.target.value || 0);
         savePrefs();
@@ -2294,16 +2336,28 @@ label textarea { resize: vertical; min-height: 54px; }
     const row = ({ e, a }) => `<button type="button" class="row-item" data-open="${esc(keyOf(e))}">${thumb(e.image || photoUrls.get(keyOf(e)))}
     <span style="min-width:0"><span class="rt">${esc(slotLabel(keyOf(e)))}${a.assumed ? `<span class="chip warn">condition not set</span>` : ""}</span>
       <span class="rs">${esc([e.set, e.condition || "assumed Near Mint", a.vintage ? "vintage" : ""].filter(Boolean).join(" · "))}<br>
-      Raw ${money(e.value)} · PSA 8 ~${money(a.est.p8)} · 9 ~${money(a.est.p9)} · 10 ~${money(a.est.p10)}</span></span>
+      Raw ${money(e.value)} · ${gradeText(a.est, 8)} · ${gradeText(a.est, 9, true)} · ${gradeText(a.est, 10, true)}${a.est.any ? ` <span class="chip own">eBay sales</span>` : ""}</span></span>
     <span class="rv ${a.gain > 0 ? "up" : "down"}">${a.gain >= 0 ? "+" : "−"}${money(Math.abs(a.gain))}<small>likely gain</small></span></button>`;
     return `<div class="stats-view">
     <section class="panel"><h2>Worth grading</h2>
-      <p class="lede">Ranked by likely gain after the ${money(cost)} grading cost, using the condition you recorded. Graded values are rough guides worked out from typical PSA premiums, not real sales, so check recent sold slabs before sending anything.</p>
+      <p class="lede">Ranked by likely gain after the ${money(cost)} grading cost, using the condition you recorded. Prices without a <b>~</b> are real: the median of recent eBay sales of that exact card at that grade${graded.data ? `, updated ${shortDate(graded.data.updated)}` : ""}. Prices with a <b>~</b> are rough guides worked out from typical PSA premiums, so check recent sold slabs before sending those off. To get real prices for your cards, tap <b>Copy list for real graded prices</b> above.</p>
       ${worth.length ? `<div class="rows">${worth.map(row).join("")}</div>` : `<p class="lede"><b>None of your cards are likely to make money from grading at ${money(cost)} a card.</b> Grading usually pays on cards worth £20 or more raw, in Mint condition, or vintage cards.</p>`}
     </section>
     ${close.length ? `<section class="panel"><h2>Closest to worth it</h2><div class="rows">${close.map(row).join("")}</div></section>` : ""}
     ${worn ? `<p class="hint">${worn} card${worn > 1 ? "s are" : " is"} marked Light Played or worse, so ${worn > 1 ? "they're" : "it's"} left out: worn cards rarely grade high enough to pay.</p>` : ""}
   </div>`;
+  }
+  // Copies your most valuable English cards as the watch list for data/graded-watch.json on GitHub.
+  // The free price service allows about 40 cards a day, so the list is capped there.
+  var WATCH_MAX = 40;
+  function copyGradedWatch() {
+    const cards = [...owned.values()].filter((e) => e.cardId && e.number && (e.cardLang || "en") === "en" && (e.nmValue ?? e.value) > 0).sort((a, b) => (b.nmValue ?? b.value) - (a.nmValue ?? a.value)).slice(0, WATCH_MAX).map((e) => ({ id: e.cardId, name: e.cardName || nameOf(e.dex), number: String(e.number), set: e.set || "" }));
+    if (!cards.length) {
+      toast("Your cards need prices first. Update prices, then try again.");
+      return;
+    }
+    const text = JSON.stringify({ note: "Made by Living Dex. Paste over everything in data/graded-watch.json on GitHub.", cards }, null, 1);
+    navigator.clipboard.writeText(text).then(() => toast(`Copied your top ${cards.length} cards. Paste them into data/graded-watch.json on GitHub.`), () => toast("Couldn't copy. Try again."));
   }
   function wishHTML() {
     const items = [...wish.values()].filter((w) => wishActive(w) && matches(slotOf(w.dex))).sort((a, b) => a.dex - b.dex);
@@ -2629,8 +2683,11 @@ label textarea { resize: vertical; min-height: 54px; }
         </div>
         ${dex && sel.id && !isFormKey(slotKey) && !(existing && sel.id === existing.cardId) ? `<div style="margin-top:10px"><button type="button" class="wishbtn" id="wishCardBtn" aria-pressed="${wantsCard(dex, sel.id)}">${wantsCard(dex, sel.id) ? "★ On your wishlist" : "☆ Add this card to wishlist"}</button></div>` : ""}
         ${(() => {
-        const g = gradedEstimates(nmP, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
-        return g ? `<p class="graded">If graded (rough guide): PSA 8 <b>~${money(g.p8)}</b> · PSA 9 <b>~${money(g.p9)}</b> · PSA 10 <b>~${money(g.p10)}</b></p>` : "";
+        const g = gradedFor(sel.id, nmP, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
+        if (!g) return "";
+        const all = g.real[8] && g.real[9] && g.real[10];
+        const note = g.any ? `<br><small>Recent eBay sales (median)${all ? "" : "; ~ is a rough guide"}, updated ${shortDate(g.checked)}${finish === "first" ? ". Sales may include Unlimited copies" : ""}.</small>` : "";
+        return `<p class="graded">${g.any ? "If graded:" : "If graded (rough guide):"} ${gradeText(g, 8)} · ${gradeText(g, 9)} · ${gradeText(g, 10)}${note}</p>`;
       })()}
         <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>
         ${mode === "edit" && sel.id ? ` · <button type="button" class="textbtn" id="refreshBtn" style="padding:0">Refresh price</button>` : ""}</p>
@@ -3599,6 +3656,7 @@ label textarea { resize: vertical; min-height: 54px; }
   buildSlots();
   loadCollection(prefs.collection || "en").then(() => {
     askToKeepData();
+    loadGraded();
     eurToGbp().then((r) => {
       fx = r;
       renderViewBar();
