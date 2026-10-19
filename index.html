@@ -1675,6 +1675,26 @@ label textarea { resize: vertical; min-height: 54px; }
       await store.remove("wish", n);
     }
   }
+  // A wish can name one specific card (from a search). Then it stays on the list even if you
+  // already have a different card of that Pokémon, so it works for upgrades too.
+  var wishCard = (c, finish) => ({ id: c.id, source: c.source, lang: c.lang || "en", name: c.name, setName: c.setName || null, setId: cardSetId(c), number: c.number || null, setTotal: c.setTotal ?? null, image: c.image || null, cardmarketUrl: c.cardmarketUrl || null, finish: finish || "standard" });
+  var wantsCard = (n, id) => !!id && wish.get(n)?.card?.id === id;
+  var wishActive = (w) => !owned.has(w.dex) || !!w.card && owned.get(w.dex)?.cardId !== w.card.id;
+  var clearsWish = (n, cardId) => wish.has(n) && (!wish.get(n).card || wish.get(n).card.id === cardId);
+  async function toggleWishCard(n, card, finish) {
+    if (!n || !card?.id) return false;
+    if (wantsCard(n, card.id)) {
+      await saveWish(n, null);
+      toast("Removed from wishlist");
+    } else {
+      const old = wish.get(n);
+      await saveWish(n, { dex: n, target: old?.target ?? null, addedAt: old?.addedAt || (/* @__PURE__ */ new Date()).toISOString(), card: wishCard(card, finish) });
+      deals.delete(n);
+      toast(`${card.name}${card.number ? " #" + card.number : ""} added to your wishlist`);
+    }
+    render();
+    return wantsCard(n, card.id);
+  }
   async function savePhoto(n, blob) {
     try {
       const bmp = await createImageBitmap(blob);
@@ -1868,7 +1888,7 @@ label textarea { resize: vertical; min-height: 54px; }
     $("#sValueNote").textContent = priced < cardsTotal ? `raw value · ${cardsTotal - priced} unpriced` : "raw value";
     $("#sLeg").textContent = leg + "/" + LEGEND.size;
     let wished = 0;
-    for (const n of wish.keys()) if (!owned.has(n)) wished++;
+    for (const w of wish.values()) if (wishActive(w)) wished++;
     $("#cWish").textContent = wished || "";
     $("#cRe").textContent = stale || "";
     const counts = Array(10).fill(0), sizes = Array(10).fill(0), baseCounts = Array(10).fill(0);
@@ -2286,28 +2306,28 @@ label textarea { resize: vertical; min-height: 54px; }
   </div>`;
   }
   function wishHTML() {
-    const items = [...wish.values()].filter((w) => !owned.has(w.dex) && matches(slotOf(w.dex))).sort((a, b) => a.dex - b.dex);
+    const items = [...wish.values()].filter((w) => wishActive(w) && matches(slotOf(w.dex))).sort((a, b) => a.dex - b.dex);
     if (!items.length) return `<p class="empty">${wish.size ? "No wishlist Pokémon match that." : "Your wishlist is empty. Tap any missing slot in the binder to add it."}</p>`;
     let dealsFound = 0;
     const rows = items.map((w) => {
-      const d = deals.get(w.dex), c = d?.card;
-      const price = c ? gbp(eurPrice(c, "standard")) : null;
+      const d = deals.get(w.dex), c = d?.card, wc = w.card;
+      const price = c ? gbp(eurPrice(c, wc?.finish || "standard")) : null;
       const isDeal = price != null && w.target != null && price <= w.target;
       if (isDeal) dealsFound++;
       return `<div class="row-item" style="grid-template-columns:44px 1fr auto">
-      ${thumb(c?.image)}
+      ${thumb(c?.image || wc?.image)}
       <button type="button" data-open="${w.dex}" style="all:unset;cursor:pointer;min-width:0">
         <span class="rt">#${pad(w.dex)} ${esc(nameOf(w.dex))}${isDeal ? `<span class="chip deal">Deal</span>` : ""}</span>
-        <span class="rs">${c ? `Cheapest: ${esc([c.setName, c.number ? "#" + c.number : ""].filter(Boolean).join(" "))}` : d ? "No priced cards found" : "Not checked yet"}${w.target != null ? ` · your max ${money(w.target)}` : ""}<br>
-        ${c ? `<a class="pricelink" href="${esc(cardmarketLink(c, nameOf(w.dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>` : ""}</span>
+        <span class="rs">${wc ? `Wanted: ${esc([wc.setName, wc.number ? "#" + wc.number : "", wc.finish === "first" ? "1st Edition" : wc.finish === "reverse" ? "Reverse holo" : ""].filter(Boolean).join(" "))}${owned.has(w.dex) ? " · upgrade" : ""}${c ? "" : d ? " · no price found" : " · price not checked yet"}` : c ? `Cheapest: ${esc([c.setName, c.number ? "#" + c.number : ""].filter(Boolean).join(" "))}` : d ? "No priced cards found" : "Not checked yet"}${w.target != null ? ` · your max ${money(w.target)}` : ""}<br>
+        ${c || wc ? `<a class="pricelink" href="${esc(cardmarketLink(c || wc, nameOf(w.dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>` : ""}</span>
       </button>
-      <span class="rv ${isDeal ? "up" : ""}">${price != null ? money(price) : "–"}<small>${price != null ? "cheapest" : ""}</small></span></div>`;
+      <span class="rv ${isDeal ? "up" : ""}">${price != null ? money(price) : "–"}<small>${price != null ? wc ? "this card" : "cheapest" : ""}</small></span></div>`;
     }).join("");
     return `<section class="panel">${dealsFound ? `<p class="lede"><b>${dealsFound} wishlist Pokémon ${dealsFound > 1 ? "are" : "is"} available at or under your price.</b></p>` : ""}<div class="rows">${rows}</div></section>`;
   }
   async function checkDeals() {
     if (dealCheck || !isEnglish()) return;
-    const items = [...wish.values()].filter((w) => !owned.has(w.dex));
+    const items = [...wish.values()].filter(wishActive);
     if (!items.length) {
       toast("Add some missing Pokémon to your wishlist first.");
       return;
@@ -2319,8 +2339,8 @@ label textarea { resize: vertical; min-height: 54px; }
     for (let i = 0; i < items.length && !ctl.signal.aborted; i += 3) {
       await Promise.all(items.slice(i, i + 3).map(async (w) => {
         try {
-          const c = await cheapestCard(nameOf(w.dex), w.dex, ctl.signal);
-          deals.set(w.dex, { at: (/* @__PURE__ */ new Date()).toISOString(), card: c ? { id: c.id, source: c.source, name: c.name, setName: c.setName, number: c.number, image: c.image, eur: c.eur, cardmarketUrl: c.cardmarketUrl } : null });
+          const c = w.card ? await withPrice(await getCard(w.card.id, w.card.source, ctl.signal, w.card.lang), { species: nameOf(w.dex), dex: w.dex }, ctl.signal) : await cheapestCard(nameOf(w.dex), w.dex, ctl.signal);
+          deals.set(w.dex, { at: (/* @__PURE__ */ new Date()).toISOString(), card: c ? { id: c.id, source: c.source, lang: c.lang || "en", name: c.name, setName: c.setName, setId: cardSetId(c), number: c.number, image: c.image, eur: c.eur, usd: c.usd ?? null, usdEd: c.usdEd || null, cardmarketUrl: c.cardmarketUrl } : null });
         } catch {
           if (!ctl.signal.aborted) dealCheck.failed++;
         } finally {
@@ -2340,7 +2360,7 @@ label textarea { resize: vertical; min-height: 54px; }
     render();
     const under = items.filter((w) => {
       const c = deals.get(w.dex)?.card;
-      const p = c ? gbp(eurPrice(c, "standard")) : null;
+      const p = c ? gbp(eurPrice(c, w.card?.finish || "standard")) : null;
       return p != null && w.target != null && p <= w.target;
     }).length;
     toast(ctl.signal.aborted ? "Stopped" : under ? `${under} wishlist Pokémon ${under > 1 ? "are" : "is"} at or under your price` : failed ? `Checked. ${failed} couldn't be reached.` : "Prices checked. No deals under your price yet.");
@@ -2520,7 +2540,7 @@ label textarea { resize: vertical; min-height: 54px; }
     let dex = ctx.dex || (ctx.slot ? slotDex(ctx.slot) : 0);
     const existing = mode === "edit" ? owned.get(slotKey) : null;
     const d = existing || {};
-    const showWish = mode === "add" && dex && !isFormKey(slotKey) && !owned.has(dex);
+    const showWish = dex && !isFormKey(slotKey) && (mode === "add" && !owned.has(dex) || !!wish.get(dex)?.card);
     const w = wish.get(dex);
     const photoUrl = photo ? URL.createObjectURL(photo) : existing && photoUrls.get(slotKey) || null;
     const title = mode === "scan" ? "New card" : slotKey ? slotLabel(slotKey) + (localName(dex) ? ` · ${localName(dex)}` : "") : "Add a card";
@@ -2607,6 +2627,7 @@ label textarea { resize: vertical; min-height: 54px; }
         <div class="finish" role="group" aria-label="Finish">${finishOptions(sel).map(([f, label]) => `
           <button type="button" data-f="${f}" aria-pressed="${finish === f}">${label}</button>`).join("")}
         </div>
+        ${dex && sel.id && !isFormKey(slotKey) && !(existing && sel.id === existing.cardId) ? `<div style="margin-top:10px"><button type="button" class="wishbtn" id="wishCardBtn" aria-pressed="${wantsCard(dex, sel.id)}">${wantsCard(dex, sel.id) ? "★ On your wishlist" : "☆ Add this card to wishlist"}</button></div>` : ""}
         ${(() => {
         const g = gradedEstimates(nmP, isVintage(sel.setId || (sel.id ? String(sel.id).replace(/-[^-]+$/, "") : "")));
         return g ? `<p class="graded">If graded (rough guide): PSA 8 <b>~${money(g.p8)}</b> · PSA 9 <b>~${money(g.p9)}</b> · PSA 10 <b>~${money(g.p10)}</b></p>` : "";
@@ -2617,6 +2638,15 @@ label textarea { resize: vertical; min-height: 54px; }
       ${cardChartHTML(existing && sel.id === existing.cardId ? existing : null, sel, finish, results.clientWidth)}
       ${cards.length > 1 ? `<button type="button" class="textbtn" id="showAll">Not this one? Show all ${cards.length} matches</button>` : ""}`;
       bindCardCharts(results);
+      $("#wishCardBtn", results)?.addEventListener("click", async () => {
+        await toggleWishCard(dex, sel, finish);
+        const tb = $("#wishBtn");
+        if (tb) {
+          tb.setAttribute("aria-pressed", String(wish.has(dex)));
+          tb.textContent = wish.has(dex) ? "★ On wishlist" : "☆ Add to wishlist";
+        }
+        renderChosen();
+      });
       results.querySelectorAll(".finish button").forEach((b) => b.onclick = () => {
         finish = b.dataset.f;
         renderChosen();
@@ -2726,7 +2756,7 @@ label textarea { resize: vertical; min-height: 54px; }
           btn.setAttribute("aria-pressed", "true");
           btn.textContent = "★ On wishlist";
         }
-        await saveWish(dex, { dex, target: cur(), addedAt: wish.get(dex)?.addedAt || (/* @__PURE__ */ new Date()).toISOString() });
+        await saveWish(dex, { ...wish.get(dex) || {}, dex, target: cur(), addedAt: wish.get(dex)?.addedAt || (/* @__PURE__ */ new Date()).toISOString() });
         render();
       });
     }
@@ -2827,7 +2857,7 @@ label textarea { resize: vertical; min-height: 54px; }
         }
         if (photo) entry.hasPhoto = await savePhoto(key, photo);
         await saveEntry(entry);
-        if (!isFormKey(key) && wish.has(n)) await saveWish(n, null);
+        if (!isFormKey(key) && clearsWish(n, entry.cardId)) await saveWish(n, null);
         done(key, prev || null, false);
       } catch {
         $("#saveBtn").disabled = false;
@@ -2979,20 +3009,29 @@ label textarea { resize: vertical; min-height: 54px; }
       const meta = [card.setName, card.number ? card.setTotal ? `${card.number}/${card.setTotal}` : `#${card.number}` : "", card.rarity].filter(Boolean).join(" · ");
       box.innerHTML = `<div class="chosen">${card.imageLarge || card.image ? `<img src="${esc(card.imageLarge || card.image)}" alt="${esc(card.name)}">` : "<div></div>"}
       <div><div class="cn">${esc(card.name)}</div><div class="meta">${esc(meta || "Set unknown")}</div>
-        <div class="price">${p != null ? money(p) : "No price yet"}<small>${o ? o.kind === "binder" ? "Your binder card" : "In your collection" : "Cardmarket trend"}</small></div>
+        <div class="price">${p != null ? money(p) : "No price yet"}<small>${o ? o.kind === "binder" ? "Your binder card" : "In your collection" : esc(priceInfo(card, "standard")?.basis || "No market price")}</small></div>
         <div class="actions" style="justify-content:flex-start;margin-top:10px" id="acActs">
           ${!o ? `<button type="button" class="btn primary small" id="acAdd">${binder() ? "Add to my collection" : "Add to my binder"}</button>` : ""}
+          ${!o && !isFormKey(k) ? `<button type="button" class="wishbtn" id="acWish" aria-pressed="${wantsCard(n, card.id)}">${wantsCard(n, card.id) ? "★ On wishlist" : "☆ Wishlist"}</button>` : ""}
           ${o?.kind === "extra" ? `<button type="button" class="btn primary small" id="acMake">Make this my binder card</button><button type="button" class="btn small danger" id="acRm">Remove</button>` : ""}
           ${o?.kind === "binder" ? `<button type="button" class="btn small" id="acEdit">Edit details</button>` : ""}
         </div></div></div>
       ${cardChartHTML(o ? o.e : null, card, o?.e.finish || "standard", box.clientWidth)}`;
       bindCardCharts(box);
       const slotField = isFormKey(k) ? k : void 0;
+      $("#acWish")?.addEventListener("click", async () => {
+        const on = await toggleWishCard(n, card, "standard");
+        const b = $("#acWish");
+        if (b) {
+          b.setAttribute("aria-pressed", String(on));
+          b.textContent = on ? "★ On wishlist" : "☆ Wishlist";
+        }
+      });
       $("#acAdd")?.addEventListener("click", async () => {
         const base = { dex: n, slot: slotField, name: nameOf(n), finish: "standard", spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() };
         if (!binder()) {
           await saveEntry(applyCard(base, card));
-          if (!isFormKey(k) && wish.has(n)) await saveWish(n, null);
+          if (!isFormKey(k) && clearsWish(n, card.id)) await saveWish(n, null);
           toast(`Added to your binder · ${pagePos(k)}`);
         } else {
           const x = applyCard({ ...base, id: newId() }, card);
