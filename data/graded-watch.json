@@ -1,0 +1,6 @@
+{
+ "note": "Cards to fetch real graded prices for. Replace this with the list the app copies for you (Value → Grading → Copy list for real graded prices).",
+ "cards": [
+  { "id": "base2-20", "name": "Jolteon", "number": "20", "set": "Jungle" }
+ ]
+}
