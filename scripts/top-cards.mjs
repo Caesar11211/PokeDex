@@ -1,24 +1,25 @@
-// top-cards.mjs — builds data/top-cards.json: the most valuable Pokémon cards by Cardmarket trend price.
+// top-cards.mjs — builds data/top-cards.json: the most valuable Pokémon cards by TCGplayer market price.
 //
 // GitHub runs this on a schedule (see .github/workflows/top-cards.yml) and saves the result to your site,
-// so the app's Top cards tab opens instantly without your phone looking up 20,000+ prices.
+// so the app's Top cards tab opens instantly without your phone looking up 17,000+ prices.
 //
-// Data: TCGdex (tcgdex.dev), free and with no sign-up. Its card list doesn't include prices, so:
-//   1. Quick way: ask TCGdex to sort cards by Cardmarket price, then check the first few really are in order.
-//   2. Thorough way (if the quick way isn't supported): look up every Pokémon card's price, a few at a time.
+// Data: the Pokémon TCG API (pokemontcg.io), free and with no sign-up. It lists every card with its
+// TCGplayer prices, 250 cards a page, so the whole lot takes about 70 requests. It often answers with
+// a server error and then works a moment later, so every request is retried.
 // Needs Node 18 or newer (for fetch).
 
 import { mkdir, writeFile } from "node:fs/promises";
 
-const API = process.env.TCGDEX_API || "https://api.tcgdex.net/v2/en";
+const API = process.env.PTCG_API || "https://api.pokemontcg.io/v2";
 const KEEP = 500;                // how many cards go in the list
-const AT_ONCE = 6;               // lookups running at the same time (kept low to be polite to a free service)
+const PAGE = 250;                // the most the API gives per page
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const headers = { "User-Agent": "living-dex-top-cards", ...(process.env.PTCG_KEY ? { "X-Api-Key": process.env.PTCG_KEY } : {}) };
 
-async function get(path, tries = 4) {
+async function get(path, tries = 8) {
   for (let attempt = 1; attempt <= tries; attempt++) {
     try {
-      const res = await fetch(API + path, { headers: { "User-Agent": "living-dex-top-cards" } });
+      const res = await fetch(API + path, { headers });
       if (res.ok) return await res.json();
       if (res.status === 404 || res.status === 400) throw Object.assign(new Error(`HTTP ${res.status}`), { final: true });
       console.log(`${path}: HTTP ${res.status} (attempt ${attempt})`);
@@ -26,72 +27,56 @@ async function get(path, tries = 4) {
       if (e.final) throw e;
       console.log(`${path}: ${e.message} (attempt ${attempt})`);
     }
-    await sleep(1500 * attempt);
+    await sleep(2000 * attempt);
   }
   throw new Error(`Couldn't fetch ${path}`);
 }
 
-const priceOf = c => {
-  const cm = c?.pricing?.cardmarket;
-  return cm ? (cm.trend || cm.avg || cm["trend-holo"] || cm["avg-holo"] || 0) : 0;
-};
-const isPokemon = c => !c.category || /pok[eé]mon/i.test(c.category);
+// The card's most valuable finish (normal, holo, reverse holo, 1st Edition), in US dollars
+function bestPrice(c) {
+  let best = 0, finish = null;
+  for (const [k, v] of Object.entries(c?.tcgplayer?.prices || {})) {
+    const p = v?.market ?? v?.mid;
+    if (typeof p === "number" && p > best) { best = p; finish = k; }
+  }
+  return { usd: best, finish };
+}
+const FINISH = k => /reverse/i.test(k) ? "Reverse holo" : /1st/i.test(k) ? "1st Edition" : /holo/i.test(k) ? "Holo" : "Normal";
+
 function summarise(c) {
-  const eur = priceOf(c);
-  const number = String(c.localId ?? "");
+  const { usd, finish } = bestPrice(c);
   return {
-    id: c.id, name: c.name, number, set: c.set?.name ?? null, total: c.set?.cardCount?.official ?? null,
-    rarity: c.rarity ?? null, image: c.image ? c.image + "/low.webp" : null, dex: Array.isArray(c.dexId) ? c.dexId : [],
-    eur: Math.round(eur * 100) / 100,
-    url: "https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=" + encodeURIComponent(`${c.name} ${number.replace(/^0+(?=\d)/, "")}`),
+    id: c.id, name: c.name, number: String(c.number ?? ""), set: c.set?.name ?? null, total: c.set?.printedTotal ?? null,
+    rarity: [c.rarity, finish ? FINISH(finish) : null].filter(Boolean).join(" · ") || null,
+    image: c.images?.small ?? null, dex: c.nationalPokedexNumbers ?? [],
+    usd: Math.round(usd * 100) / 100,
+    url: c.tcgplayer?.url ?? null,
   };
 }
-async function details(briefs, label) {
-  const out = [];
-  let done = 0;
-  for (let i = 0; i < briefs.length; i += AT_ONCE) {
-    const batch = await Promise.all(briefs.slice(i, i + AT_ONCE).map(b => get(`/cards/${encodeURIComponent(b.id)}`, 3).catch(() => null)));
-    for (const c of batch) if (c) out.push(c);
-    done += batch.length;
-    if (done % 1200 < AT_ONCE || done === briefs.length) console.log(`${label}: ${done}/${briefs.length} looked up`);
-  }
-  return out;
+
+const q = encodeURIComponent("supertype:pokemon");
+const select = "id,name,number,set,rarity,images,tcgplayer,nationalPokedexNumbers";
+const first = await get(`/cards?q=${q}&page=1&pageSize=${PAGE}&select=${select}`);
+const pages = Math.ceil((first.totalCount || 0) / PAGE);
+console.log(`${first.totalCount} Pokémon cards, ${pages} pages.`);
+const all = [...(first.data || [])];
+for (let page = 2; page <= pages; page++) {
+  const res = await get(`/cards?q=${q}&page=${page}&pageSize=${PAGE}&select=${select}`);
+  all.push(...(res.data || []));
+  if (page % 10 === 0 || page === pages) console.log(`${page}/${pages} pages`);
+  await sleep(300);
 }
 
-// --- 1. Quick way: cards sorted by price, if TCGdex supports it ---
-let picked = null;
-try {
-  const sorted = await get("/cards?category=Pokemon&sort:field=pricing.cardmarket.trend&sort:order=DESC&pagination:page=1&pagination:itemsPerPage=700");
-  if (Array.isArray(sorted) && sorted.length >= 100) {
-    const sample = (await details(sorted.slice(0, 40), "Checking sort")).map(priceOf);
-    const inOrder = sample.length >= 30 && sample[0] > 20 && sample.every((p, i) => i === 0 || p <= sample[i - 1] + 0.01);
-    if (inOrder) {
-      console.log("TCGdex sorted the cards by price, so only the top ones need looking up.");
-      picked = (await details(sorted, "Top cards")).filter(isPokemon).filter(c => priceOf(c) > 0);
-    } else console.log("Sorting by price isn't supported, so every card will be checked.");
-  }
-} catch (e) { console.log(`Quick way not available (${e.message}), so every card will be checked.`); }
-
-// --- 2. Thorough way: every Pokémon card ---
-let checked = picked ? picked.length : 0;
-if (!picked) {
-  let briefs = await get("/cards?category=Pokemon").catch(() => null);
-  if (!Array.isArray(briefs) || briefs.length < 1000) briefs = await get("/cards");
-  console.log(`${briefs.length} cards to check.`);
-  const all = await details(briefs, "All cards");
-  picked = all.filter(isPokemon).filter(c => priceOf(c) > 0);
-  checked = picked.length;
-}
-
-const cards = picked.map(summarise).sort((a, b) => b.eur - a.eur);
+const cards = all.map(summarise).filter(c => c.usd > 0).sort((a, b) => b.usd - a.usd);
 if (!cards.length) { console.error("No priced cards found, so the list wasn't changed."); process.exit(1); }
 
 await mkdir("data", { recursive: true });
 await writeFile("data/top-cards.json", JSON.stringify({
   updated: new Date().toISOString(),
-  source: "Cardmarket trend prices via TCGdex",
-  scanned: checked,
-  method: picked && checked <= 700 ? "sorted" : "full",   // "full" means every Pokémon card was checked
+  source: "TCGplayer market prices via the Pokémon TCG API",
+  currency: "USD",
+  scanned: cards.length,
+  method: "full",
   cards: cards.slice(0, KEEP),
 }));
-console.log(`Saved the top ${Math.min(KEEP, cards.length)} of ${checked} priced Pokémon cards. Most valuable: ${cards[0].name} (${cards[0].set}) at €${cards[0].eur}.`);
+console.log(`Saved the top ${Math.min(KEEP, cards.length)} of ${cards.length} priced Pokémon cards. Most valuable: ${cards[0].name} (${cards[0].set}) at $${cards[0].usd}.`);
