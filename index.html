@@ -246,7 +246,7 @@ label textarea { resize: vertical; min-height: 54px; }
 .finish button[aria-pressed="true"] { background: var(--red); color: #fff; border-color: var(--red); }
 .edask { margin-top: 8px; padding: 10px 12px; border: 2px solid #f2b632; border-radius: 14px; background: var(--panel); }
 .edask p { margin: 4px 0 8px; font-size: 12.5px; color: var(--muted); }
-.edbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.edbtns { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 .edbtns button { border: 1px solid var(--line); background: var(--sunk); border-radius: 12px; padding: 8px; font-weight: 700; color: var(--ink); text-align: left; }
 .edbtns small { display: block; font-weight: 500; color: var(--muted); margin-top: 2px; }
 .graded { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
@@ -285,6 +285,20 @@ label textarea { resize: vertical; min-height: 54px; }
 .fp { background: var(--sunk); border-radius: 8px; padding: 2px 7px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .fp i { font-style: normal; font-weight: 500; color: var(--muted); margin-right: 4px; font-size: 11px; }
 .padd { color: var(--miss); font-size: 22px; line-height: 1; }
+.prow { grid-template-columns: 74px 1fr auto; }
+.pimg { position: relative; }
+.vtag { position: absolute; left: 3px; right: 3px; bottom: 3px; text-align: center; font-size: 9.5px; font-weight: 800; border-radius: 5px; padding: 1px 2px; background: rgba(18,20,28,.82); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pvar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.pvar .chip { margin: 0; }
+.vchip { font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 1px 7px; background: var(--sunk); color: var(--ink); }
+.v-first { background: #12141c; color: #fff; }
+.v-shadowless { background: #fff3d6; color: #8a5a00; }
+.v-reverse { background: linear-gradient(90deg, #e3f0ff, #f1e6ff); color: #3437b8; }
+.v-holo { background: linear-gradient(90deg, #fff6c9, #dff7ff); color: #5b4a00; }
+.vprice { font: 800 16px/1.15 var(--body); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vprice small { display: block; font: 500 11px var(--body); color: var(--muted); }
+.vprice.none { font-size: 13px; color: var(--muted); font-weight: 700; }
+.frow.sel { box-shadow: inset 0 0 0 2px var(--red); background: var(--accent-soft); }
 .chip { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
 .chip.deal { background: var(--red); color: #fff; }
 .chip.own { background: var(--got-soft); color: var(--got); }
@@ -914,13 +928,38 @@ body.quick-open .toast { z-index: 40; }
   // The price is TCGplayer's market price for the card's finish (US dollars, worked in euros
   // inside the app and shown in pounds). Holo cards use the holofoil price, others the normal one.
   var TP_OLD_DAYS = 30;
+  // Every version a card was printed in, each with its own TCGplayer price (US dollars) if there is one.
+  //   finish "standard": the plain card (Normal, or Holo for holo-only cards, or Unlimited for old sets)
+  //   "holo": the holo version when a card came both plain and holo
+  //   "reverse", "first" (1st Edition), "shadowless" (Base Set printed before the drop shadow was added)
+  // pokemontcg.io has no shadowless prices, so those show as "no price" and you can set your own value.
+  var SHADOWLESS_SET = /^base1$/i;
+  function variantsOf(c) {
+    const set = cardSetId(c), en = !c?.lang || c.lang === "en", t = c?.tp || {};
+    const out = [], add = (finish, label, usd) => {
+      if (!out.some((v) => v.finish === finish)) out.push({ finish, label, usd: usd ?? null });
+    };
+    if (en && FIRST_ED_SET.test(set)) {
+      add("first", "1st Edition", t.first ?? c?.usdEd?.first);
+      if (SHADOWLESS_SET.test(set)) add("shadowless", "Shadowless", t.shadowless);
+      add("standard", "Unlimited", t.holo ?? t.normal ?? c?.usdEd?.unlimited);
+    } else {
+      if (t.normal != null && t.holo != null) {
+        add("standard", "Normal", t.normal);
+        add("holo", "Holo", t.holo);
+      } else add("standard", t.holo != null ? "Holo" : t.normal != null ? "Normal" : "Standard", t.holo ?? t.normal);
+      if (t.first != null) add("first", "1st Edition", t.first);
+      if (t.reverse != null || !c?.tp && !(en && NO_REVERSE_SET.test(set))) add("reverse", "Reverse holo", t.reverse);
+    }
+    return out;
+  }
   function priceInfo(card, finish) {
     const t = card?.tp;
     if (!t) return null;
-    const holoFirst = /holo|ex\b|gx\b|vmax|vstar|\bv\b|ultra|secret|illustration|rare rainbow|shiny|hyper/i.test(card.rarity || "");
-    const usd = finish === "reverse" ? t.reverse : finish === "first" ? t.first : holoFirst ? t.holo ?? t.normal : t.normal ?? t.holo;
+    const v = variantsOf(card).find((x) => x.finish === (finish || "standard"));
+    const usd = v?.usd;
     if (usd == null) return null;
-    const what = finish === "reverse" ? "reverse holo " : finish === "first" ? "1st Edition " : isVintage(cardSetId(card)) ? "Unlimited " : "";
+    const what = v.label === "Standard" ? "" : v.label.replace(/^Normal$/, "") + (v.label === "Normal" ? "" : " ");
     const age = t.updated ? (Date.now() - Date.parse(t.updated)) / 864e5 : null;
     const when = age != null && age > TP_OLD_DAYS ? `, last updated ${shortDate(t.updated)}, so it may be out of date` : t.updated ? `, updated ${shortDate(t.updated)}` : "";
     return { eur: usd / (fx.usd || FALLBACK_USD), usd, basis: `TCGplayer ${what}market price ($${usd.toFixed(2)})${when}`, solid: age == null || age <= TP_OLD_DAYS };
@@ -1735,9 +1774,13 @@ body.quick-open .toast { z-index: 40; }
   var dealCheck = null;
   var top = { status: "idle", data: null, limit: 100 };
   var prefs = (() => {
-    const d = { rapid: false, quick: false, binder: "card", sort: "dex", gradingCost: DEFAULT_GRADING_COST, regional: false, megas: false, cardsView: false };
+    const d = { rapid: false, quick: true, quickOn: 1, binder: "card", sort: "dex", gradingCost: DEFAULT_GRADING_COST, regional: false, megas: false, cardsView: false };
     try {
-      return { ...d, ...JSON.parse(localStorage.getItem("prefs") || "{}") };
+      const saved = JSON.parse(localStorage.getItem("prefs") || "{}");
+      const p = { ...d, ...saved };
+      // Quick scan became the normal way to scan (Oct 2026): switch it on once for everyone
+      if (!saved.quickOn) Object.assign(p, { quick: true, rapid: false, quickOn: 1 });
+      return p;
     } catch {
       return d;
     }
@@ -2176,8 +2219,8 @@ body.quick-open .toast { z-index: 40; }
     const n = activeFilters();
     $("#filterCount").hidden = !n;
     $("#filterCount").textContent = n;
-    $("#scanBtn").classList.toggle("rapid", !!(prefs.rapid || prefs.quick));
-    $("#scanBtn span").textContent = prefs.quick ? "Quick" : prefs.rapid ? "Rapid" : "Scan";
+    $("#scanBtn").classList.toggle("rapid", !!prefs.rapid && !prefs.quick);
+    $("#scanBtn span").textContent = prefs.rapid && !prefs.quick ? "Rapid" : "Scan";
   }
   function render() {
     stats();
@@ -2672,18 +2715,15 @@ body.quick-open .toast { z-index: 40; }
     };
     return `<div class="edask"><b>Is your card 1st Edition?</b>
       <p>Look just below the bottom-left corner of the picture. 1st Edition cards have a small black stamp there with EDITION around a 1. The two are priced very differently.</p>
-      <div class="edbtns"><button type="button" data-ed="standard">No stamp<small>Unlimited · ${priceFor("standard")}</small></button>
-      <button type="button" data-ed="first">Has the stamp<small>1st Edition · ${priceFor("first")}</small></button></div></div>`;
+      ${SHADOWLESS_SET.test(cardSetId(card)) ? `<p>No stamp? Base Set cards printed early have no shadow along the right edge of the picture box: that's <b>Shadowless</b>.</p>` : ""}
+      <div class="edbtns"><button type="button" data-ed="first">Has the stamp<small>1st Edition · ${priceFor("first")}</small></button>
+      ${SHADOWLESS_SET.test(cardSetId(card)) ? `<button type="button" data-ed="shadowless">No stamp, no shadow<small>Shadowless · ${priceFor("shadowless")}</small></button>` : ""}
+      <button type="button" data-ed="standard">No stamp${SHADOWLESS_SET.test(cardSetId(card)) ? ", has a shadow" : ""}<small>Unlimited · ${priceFor("standard")}</small></button></div></div>`;
   }
   function finishOptions(card) {
-    const set = cardSetId(card), en = !card?.lang || card.lang === "en";
-    const opts = [];
-    if (en && (FIRST_ED_SET.test(set) || card?.usdEd?.first != null)) opts.push(["standard", "Unlimited"], ["first", "1st Edition"]);
-    else opts.push(["standard", "Standard"]);
-    if (!(en && NO_REVERSE_SET.test(set))) opts.push(["reverse", "Reverse holo"]);
-    return opts;
+    return variantsOf(card).map((v) => [v.finish, v.label]);
   }
-  var finishLabel = (f) => f === "reverse" ? "Reverse holo" : f === "first" ? "1st Edition" : "Standard";
+  var finishLabel = (f) => ({ reverse: "Reverse holo", first: "1st Edition", shadowless: "Shadowless", holo: "Holo" })[f] || "Standard";
   var bindCardCharts = (root) => root.querySelectorAll(".pchart .chart").forEach((el) => bindLineChart(el.id, root));
   var sheetCtl = null;
   function closeSheet() {
@@ -3184,8 +3224,8 @@ body.quick-open .toast { z-index: 40; }
       const shown = sortPrintings(all, sort);
       const ownN = all.filter((c) => copiesOf(c).length).length;
       $("#acSummary").innerHTML = all.length ? `<b>${all.length}</b> ${which}${esc(sl.name)} card${all.length === 1 ? "" : "s"} · you own ${ownN}${note ? `. ${esc(note)}` : ""}` : `No ${which}${esc(sl.name)} cards found.${isEnglish() ? "" : ` The ${cfg().label} card database is less complete than the English one.`}`;
-      $("#acRows").innerHTML = shown.map((c) => printingRowHTML(c, all.indexOf(c))).join("");
-      $("#acRows").querySelectorAll("[data-pi]").forEach((b) => b.onclick = () => openCardDetail(all[+b.dataset.pi], { dex: n, back: () => openAllCards(k) }));
+      $("#acRows").innerHTML = rowsOf(shown, sort, "all").map((r) => printingRowHTML(r.c, all.indexOf(r.c), r.v)).join("");
+      $("#acRows").querySelectorAll("[data-pi]").forEach((b) => b.onclick = () => openCardDetail(all[+b.dataset.pi], { dex: n, finish: b.dataset.fin, back: () => openAllCards(k) }));
     };
     $("#acSort").onchange = (ev) => {
       sort = ev.target.value;
@@ -3193,15 +3233,25 @@ body.quick-open .toast { z-index: 40; }
     };
     draw();
   }
-  var APP_VERSION = "22 (27 Oct 2026)";
+  var APP_VERSION = "24 (27 Oct 2026)";
   // ---------- Card search: every printing of a card, in full detail ----------
   // pokemontcg.io gives everything in one go for English cards: set, symbol, release date,
   // rarity, illustrator and TCGplayer prices for each finish. TCGdex is the fallback, and the
   // source for Japanese, Korean and Chinese cards.
-  var FINISHES = [["normal", "Normal"], ["holo", "Holo"], ["reverse", "Reverse holo"], ["first", "1st Edition"]];
-  var FINISH_OF_SLOT = { normal: "standard", holo: "standard", reverse: "reverse", first: "first" };
+
   var usdToGbp = (usd) => usd == null ? null : gbp(usd / (fx.usd || FALLBACK_USD));
-  var topUsd = (c) => Math.max(0, ...FINISHES.map(([f]) => c.tp?.[f] ?? 0));
+  var topUsd = (c) => Math.max(0, ...variantsOf(c).map((v) => v.usd ?? 0));
+  // Your copies of one version of a card
+  var copiesIn = (c, finish) => copiesOf(c).filter((o) => (o.e.finish || "standard") === finish);
+  // One row per version: a card printed Normal and Reverse holo is two rows, each with its own price
+  function rowsOf(cards, how, show) {
+    let rows = cards.flatMap((c) => variantsOf(c).map((v) => ({ c, v })));
+    if (how === "high") rows.sort((a, b) => (b.v.usd ?? -1) - (a.v.usd ?? -1));
+    else if (how === "low") rows.sort((a, b) => (a.v.usd ?? 1e9) - (b.v.usd ?? 1e9));
+    if (show === "owned") rows = rows.filter((r) => copiesIn(r.c, r.v.finish).length);
+    if (show === "missing") rows = rows.filter((r) => !copiesIn(r.c, r.v.finish).length);
+    return rows;
+  }
   var yearOf = (c) => c.releaseDate ? c.releaseDate.slice(0, 4) : "";
   // A search can be a Pokémon ("Mewtwo"), a Dex number ("150"), a card name ("Charizard ex"),
   // an illustrator ("artist: Arita"), plus a card number ("51" or "51/108") and set words
@@ -3242,9 +3292,12 @@ body.quick-open .toast { z-index: 40; }
     const nameW = dex ? words(nameOf(dex)).trim().split(" ") : [];
     const extra = words(rest).trim().split(" ").filter((w) => w && !nameW.includes(w) && !FILLER.has(w)).join(" ");
     const bits = [num && (total ? `${num}/${total}` : `#${num}`), extra].filter(Boolean).join(" · ");
-    if (dex) return { kind: "dex", dex, text: nameOf(dex), num, total, extra, label: `${nameOf(dex)}${bits ? " · " + bits : ` · #${pad(dex)}`}` };
+    // Version words pick the version: "shadowless", "1st edition", "reverse holo", "unlimited"
+    const lw = " " + words(t) + " ";
+    const finish = / shadowless /.test(lw) ? "shadowless" : / (1st|first) (ed|edition) | 1st /.test(lw) ? "first" : / (reverse|rev) /.test(lw) ? "reverse" : / unlimited /.test(lw) ? "standard" : null;
+    if (dex) return { kind: "dex", dex, text: nameOf(dex), num, total, extra, finish, label: `${nameOf(dex)}${bits ? " · " + bits : ` · #${pad(dex)}`}${finish ? " · " + finishLabel(finish) : ""}` };
     const clean = words(rest).trim().split(" ").filter((w) => w && !FILLER.has(w)).join(" ") || rest || t;
-    return { kind: "name", dex: 0, text: clean, num, total, extra: "", label: `“${t}”` };
+    return { kind: "name", dex: 0, text: clean, num, total, extra: "", finish, label: `“${t}”` };
   }
   // Narrow results to the number and set words typed (all cards come back if nothing matches)
   function narrowTo(p, cards) {
@@ -3312,17 +3365,19 @@ body.quick-open .toast { z-index: 40; }
     return out;
   }
   var setBadge = (c) => c.setSymbol ? `<img class="setsym" src="${esc(c.setSymbol)}" alt="" loading="lazy" onerror="this.remove()">` : "";
-  function printingRowHTML(c, i) {
-    const own = copiesOf(c);
-    const prices = FINISHES.filter(([f]) => c.tp?.[f] != null).map(([f, l]) => `<span class="fp"><i>${l}</i>${money(usdToGbp(c.tp[f]))}</span>`).join("");
+  function printingRowHTML(c, i, v) {
+    v = v || variantsOf(c)[0];
+    const own = copiesIn(c, v.finish), others = variantsOf(c).length;
     const meta = [c.number ? c.setTotal ? `${c.number}/${c.setTotal}` : `#${c.number}` : "", c.rarity, yearOf(c)].filter(Boolean).join(" · ");
-    return `<button type="button" class="prow${own.length ? " owned" : ""}" data-pi="${i}">
-      <span class="pimg">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}</span>
-      <span class="pbody"><span class="pname">${esc(c.name)}${own.length ? `<span class="chip own">${own.length > 1 ? `Owned ×${own.length}` : "Owned"}</span>` : `<span class="chip miss">Missing</span>`}</span>
+    const price = v.usd != null ? `<span class="vprice">${money(usdToGbp(v.usd))}<small>$${v.usd.toFixed(2)}</small></span>`
+      : `<span class="vprice none">No price<small>${v.finish === "shadowless" ? "set your own" : c.lang && c.lang !== "en" ? "no market price" : "not on TCGplayer"}</small></span>`;
+    return `<button type="button" class="prow${own.length ? " owned" : ""}" data-pi="${i}" data-fin="${esc(v.finish)}">
+      <span class="pimg">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}${others > 1 ? `<span class="vtag v-${esc(v.finish)}">${esc(v.label)}</span>` : ""}</span>
+      <span class="pbody"><span class="pname">${esc(c.name)}</span>
+        <span class="pvar"><span class="vchip v-${esc(v.finish)}">${esc(v.label)}</span>${own.length ? `<span class="chip own">${own.length > 1 ? `Owned ×${own.length}` : "Owned"}</span>` : `<span class="chip miss">Missing</span>`}</span>
         <span class="pset">${setBadge(c)}${esc(c.setName || c.setId || "Unknown set")}</span>
-        <span class="pmeta">${esc(meta)}${c.illustrator ? ` · <span class="pill-art">${esc(c.illustrator)}</span>` : ""}</span>
-        ${prices ? `<span class="fps">${prices}</span>` : `<span class="pmeta">${c.lang && c.lang !== "en" ? "No market price" : "No TCGplayer price"}</span>`}</span>
-      <span class="padd" aria-hidden="true">›</span></button>`;
+        <span class="pmeta">${esc(meta)}${c.illustrator ? ` · <span class="pill-art">${esc(c.illustrator)}</span>` : ""}</span></span>
+      ${price}</button>`;
   }
   var SORTS = [["new", "Newest"], ["old", "Oldest"], ["high", "Price: high"], ["low", "Price: low"]];
   function sortPrintings(cards, how) {
@@ -3376,7 +3431,7 @@ body.quick-open .toast { z-index: 40; }
         finder.parsed = parsed = { ...parsed, kind: "set", extra: "", text: parsed.text, label: `${sets.size > 1 ? `Sets matching “${parsed.text}”` : `${res.set} set`}${parsed.num ? ` · #${parsed.num}` : ""}` };
       }
       const nar = narrowTo(parsed, res.cards);
-      if (nar.exact && nar.cards.length === 1 && (parsed.num || parsed.extra)) setTimeout(() => tab === "search" && openCardDetail(nar.cards[0], { dex: parsed.dex }), 0);
+      if (nar.exact && nar.cards.length === 1 && (parsed.num || parsed.extra)) setTimeout(() => tab === "search" && openCardDetail(nar.cards[0], { dex: parsed.dex, finish: parsed.finish }), 0);
     } catch {
       if (ctl.signal.aborted) return;
       finder.status = "error";
@@ -3398,9 +3453,9 @@ body.quick-open .toast { z-index: 40; }
     let cards = sortPrintings(narrowTo(finder.parsed, finder.cards).cards, finder.sort);
     const sp = finder.parsed?.kind === "set" ? { extra: words(finder.parsed.text).trim() } : finder.parsed;
     if (sp?.extra) cards = cards.map((c, i) => [c, setScore(sp, c), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(([c]) => c);
-    if (finder.show === "owned") cards = cards.filter((c) => copiesOf(c).length);
-    if (finder.show === "missing") cards = cards.filter((c) => !copiesOf(c).length);
-    return cards;
+    const rows = rowsOf(cards, finder.sort, finder.show), f = finder.parsed?.finish;
+    const picked = f ? rows.filter((r) => r.v.finish === f) : [];
+    return picked.length ? picked : rows;
   }
   function searchHTML() {
     const recent = recentSearches();
@@ -3412,13 +3467,13 @@ body.quick-open .toast { z-index: 40; }
     else if (finder.status === "error") body = `<p class="empty">Couldn't reach the card databases. Check your connection and try again.</p>`;
     else {
       const all = finder.cards, nar = narrowTo(finder.parsed, all), shown = finderShown();
-      const ownedN = nar.cards.filter((c) => copiesOf(c).length).length;
-      body = `<div class="resulthead"><div><b>${nar.cards.length}${nar.cards.length >= 1e3 ? "+" : ""} card${nar.cards.length === 1 ? "" : "s"}</b> <span class="hint">· ${esc(finder.parsed.label)} · you own ${ownedN}</span>
+      const ownedN = rowsOf(nar.cards, "new", "owned").length, versions = rowsOf(nar.cards, "new", "all").length;
+      body = `<div class="resulthead"><div><b>${nar.cards.length}${nar.cards.length >= 1e3 ? "+" : ""} card${nar.cards.length === 1 ? "" : "s"}</b>${versions > nar.cards.length ? ` <span class="hint">in ${versions} versions</span>` : ""} <span class="hint">· ${esc(finder.parsed.label)} · you own ${ownedN}</span>
         ${!nar.exact ? `<p class="hint" style="margin-top:4px">No ${esc(finder.parsed.text)} card matches “${esc([finder.parsed.num, finder.parsed.extra].filter(Boolean).join(" "))}”, so here are all of them.</p>` : nar.cards.length < all.length ? `<button type="button" class="textbtn" id="showAllRes">Show all ${all.length} ${esc(finder.parsed.text)} cards</button>` : ""}</div>
         <div class="seg mini" id="showSeg">${[["all", "All"], ["owned", "Owned"], ["missing", "Missing"]].map(([v, l]) => `<button type="button" data-show="${v}" aria-pressed="${finder.show === v}">${l}</button>`).join("")}</div>
         <select id="sortSel" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}"${finder.sort === v ? " selected" : ""}>${l}</option>`).join("")}</select></div>
         ${finder.note ? `<p class="notice">${esc(finder.note)}</p>` : ""}
-        ${shown.length ? `<div class="prows">${shown.slice(0, finder.limit).map((c) => printingRowHTML(c, all.indexOf(c))).join("")}</div>` : `<p class="empty">No cards match that.</p>`}
+        ${shown.length ? `<div class="prows">${shown.slice(0, finder.limit).map((r) => printingRowHTML(r.c, all.indexOf(r.c), r.v)).join("")}</div>` : `<p class="empty">No cards match that.</p>`}
         ${shown.length > finder.limit ? `<button type="button" class="btn" id="moreRes" style="align-self:center">Show more (${shown.length - finder.limit} left)</button>` : ""}`;
     }
     return `<div class="searchview"><form class="bigsearch" id="finderForm" role="search">
@@ -3451,7 +3506,7 @@ body.quick-open .toast { z-index: 40; }
       finder.limit += 40;
       render();
     });
-    $("#list").querySelectorAll("[data-pi]").forEach((b) => b.onclick = () => openCardDetail(finder.cards[+b.dataset.pi], { dex: finder.parsed?.dex }));
+    $("#list").querySelectorAll("[data-pi]").forEach((b) => b.onclick = () => openCardDetail(finder.cards[+b.dataset.pi], { dex: finder.parsed?.dex, finish: b.dataset.fin }));
   }
   function searchFor(text) {
     closeSheet();
@@ -3459,7 +3514,7 @@ body.quick-open .toast { z-index: 40; }
     runFinder(text);
   }
   // ---------- Card detail page ----------
-  async function openCardDetail(card, { dex = 0, back = null } = {}) {
+  async function openCardDetail(card, { dex = 0, back = null, finish = null } = {}) {
     const dexes = card?.dex?.length ? card.dex : [];
     const n = dexes.includes(dex) ? dex : dexes[0] || dex || 0;
     const signal = sheetShell(card.name, `<div id="cdBody"></div>`, n);
@@ -3477,26 +3532,26 @@ body.quick-open .toast { z-index: 40; }
       const c = full, copies = copiesOf(c), slotKey = n ? slotFor(n, c) : 0;
       const binder = slotKey ? owned.get(slotKey) : null;
       const vintage = isVintage(cardSetId(c));
-      const headFinish = copies.find((o) => o.kind === "binder")?.e.finish || copies[0]?.e.finish || "standard";
-      const raw = gbp(eurPrice(c, headFinish)) ?? gbp(eurPrice(c, "standard"));
+      const headFinish = finish || copies.find((o) => o.kind === "binder")?.e.finish || copies[0]?.e.finish || "standard";
+      const raw = gbp(eurPrice(c, headFinish));
+      const headLabel = variantsOf(c).find((v) => v.finish === headFinish)?.label || finishLabel(headFinish);
       const g = raw != null ? gradedFor(c.id, raw, vintage) : null;
-      const finRows = FINISHES.filter(([f]) => c.tp?.[f] != null || (!c.tp && f === "normal")).map(([f, l]) => {
-        const mine = copies.filter((o) => (o.e.finish || "standard") === FINISH_OF_SLOT[f]).length;
-        const usd = c.tp?.[f];
-        return `<div class="frow"><span><b>${l}</b>${mine ? `<small>You have ${mine}</small>` : ""}</span>
-          <span class="fval">${usd != null ? `${money(usdToGbp(usd))}<small>$${usd.toFixed(2)}</small>` : `<small>No price</small>`}</span>
-          ${n ? `<button type="button" class="btn small primary" data-add="${f}">Add</button>` : ""}</div>`;
+      const finRows = variantsOf(c).map((v) => {
+        const mine = copies.filter((o) => (o.e.finish || "standard") === v.finish).length;
+        return `<div class="frow${v.finish === headFinish ? " sel" : ""}"><span><b>${esc(v.label)}</b>${mine ? `<small>You have ${mine}</small>` : v.finish === "shadowless" ? `<small>No price source: set your own value</small>` : ""}</span>
+          <span class="fval">${v.usd != null ? `${money(usdToGbp(v.usd))}<small>$${v.usd.toFixed(2)}</small>` : `<small>No price</small>`}</span>
+          ${n ? `<button type="button" class="btn small primary" data-add="${esc(v.finish)}">Add</button>` : ""}</div>`;
       }).join("");
       const facts = [["Set", `${setBadge(c)}${esc(c.setName || c.setId || "Unknown")}`], ["Series", esc(c.series || "")], ["Number", esc(c.number ? c.setTotal ? `${c.number}/${c.setTotal}` : c.number : "")], ["Rarity", esc(c.rarity || "")],
         ["Released", c.releaseDate ? esc(shortDate(c.releaseDate)) : ""], ["Illustrator", c.illustrator ? `<button type="button" class="linkbtn" id="cdArt">${esc(c.illustrator)}</button>` : ""], ["Pokédex", n ? `<button type="button" class="linkbtn" id="cdDex">#${pad(n)} ${esc(nameOf(n))}</button>` : "Not a Pokémon card"]].filter(([, v]) => v);
       $("#cdBody").innerHTML = `<div class="detail">
         <button type="button" class="dimg" id="cdZoom" aria-label="Show the card bigger">${c.imageLarge || c.image ? `<img src="${esc(c.imageLarge || c.image)}" alt="${esc(c.name)}">` : `<span class="noimg"></span>`}</button>
         <div class="dside">
-          <div class="dprice">${raw != null ? money(raw) : "No price yet"}<small>${esc(priceInfo(c, headFinish)?.basis || priceInfo(c, "standard")?.basis || (c.lang && c.lang !== "en" ? "Most non-English cards have no market price" : "No TCGplayer price for this card"))}</small></div>
+          <div class="dprice">${raw != null ? money(raw) : "No price yet"}<small>${esc(priceInfo(c, headFinish)?.basis || (headFinish === "shadowless" ? "There's no free price source for Shadowless cards, so tap Edit on your copy to set your own value" : c.lang && c.lang !== "en" ? "Most non-English cards have no market price" : `No TCGplayer price for the ${headLabel} version`))}</small></div>
           <div class="dtags">${copies.length ? `<span class="chip own">${copies.some((o) => o.kind === "binder") ? "★ In your binder" : "Owned"}${copies.length > 1 ? ` ×${copies.length}` : ""}</span>` : `<span class="chip miss">Not in your collection</span>`}${binder && !copies.some((o) => o.kind === "binder") ? `<span class="chip have">Binder has another ${esc(nameOf(n))}</span>` : ""}</div>
           ${n && !isFormKey(slotKey) ? `<button type="button" class="wishbtn" id="cdWish" aria-pressed="${wantsCard(n, c.id)}">${wantsCard(n, c.id) ? "★ On wishlist" : "☆ Add to wishlist"}</button>` : ""}
         </div></div>
-        <section class="dsec"><h4>Prices by finish</h4><p class="hint">TCGplayer market prices (US), in pounds.${c.tp?.updated ? ` Updated ${esc(shortDate(c.tp.updated))}.` : ""}</p><div class="frows">${finRows || `<p class="hint">No prices for this card.</p>`}</div></section>
+        <section class="dsec"><h4>Versions</h4><p class="hint">TCGplayer market prices (US), in pounds.${c.tp?.updated ? ` Updated ${esc(shortDate(c.tp.updated))}.` : ""}</p><div class="frows">${finRows || `<p class="hint">No prices for this card.</p>`}</div></section>
         ${copies.length ? `<section class="dsec"><h4>Your copies</h4>${copies.map((o, i) => `<div class="copy"><span><b>${o.kind === "binder" ? "★ Binder card" : "Extra copy"}</b><small>${esc([finishLabel(o.e.finish || "standard"), o.e.condition, o.e.paid != null ? "paid " + money(o.e.paid) : "", o.e.spares ? `+${o.e.spares} spare${o.e.spares > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · "))}</small></span>
           <span class="fval">${o.e.value != null ? money(o.e.value) : "–"}</span>
           <span class="copyacts">${o.kind === "binder" ? `<button type="button" class="btn small" data-edit="${i}">Edit</button>` : `<button type="button" class="btn small" data-make="${i}">Make binder card</button><button type="button" class="btn small danger" data-rm="${i}">Remove</button>`}</span></div>`).join("")}</section>` : ""}
@@ -3524,7 +3579,7 @@ body.quick-open .toast { z-index: 40; }
         draw();
       });
       $("#cdBody").querySelectorAll("[data-add]").forEach((b) => b.onclick = async () => {
-        const finish = FINISH_OF_SLOT[b.dataset.add];
+        const finish = b.dataset.add;
         const base = { dex: n, slot: isFormKey(slotKey) ? slotKey : void 0, name: nameOf(n), finish, manualValue: null, paid: null, condition: null, spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() };
         if (!owned.get(slotKey)) {
           await saveEntry(applyCard(base, c));
@@ -3598,7 +3653,8 @@ body.quick-open .toast { z-index: 40; }
     root.setAttribute("aria-modal", "true");
     root.setAttribute("aria-label", "Quick scan");
     root.innerHTML = `<div class="crop-top"><span>Quick scan <span class="count" id="qsCount"></span></span>
-      <span><button type="button" class="btn small" id="qsTorch" hidden style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">Light</button>
+      <span><button type="button" class="btn small" id="qsPhoto" style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">One photo</button>
+      <button type="button" class="btn small" id="qsTorch" hidden style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">Light</button>
       <button type="button" class="btn small primary" id="qsDone" style="background:#4b4fe0;border-color:#4b4fe0;color:#fff">Done</button></span></div>
       <p class="crop-hint">Hold one card at a time inside the frame, flat and in good light. It adds the card, beeps, then waits for the next one.</p>
       <div class="qs-view"><video id="qsVideo" playsinline muted autoplay></video><div class="qs-guide" id="qsGuide"></div><div class="qs-status" id="qsStatus" aria-live="polite">Starting the camera…</div></div>
@@ -3654,6 +3710,12 @@ body.quick-open .toast { z-index: 40; }
       if (added || spares || checks) toast([added && `${added} added`, spares && `${spares} spare${spares > 1 ? "s" : ""}`, checks && `${checks} left to check`].filter(Boolean).join(" · "));
     };
     $("#qsDone").onclick = close;
+    // A single photo instead (with the crop step), for a card the live camera struggles with
+    $("#qsPhoto").onclick = () => {
+      close();
+      $("#cam").value = "";
+      $("#cam").click();
+    };
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) close();
     }, { signal: ctl.signal });
@@ -4267,7 +4329,7 @@ body.quick-open .toast { z-index: 40; }
       <p class="hint">All cards: tap a Pokémon to see every card printed for it and which you own.</p></div>
     <div class="setting"><h4>Scanning</h4>
       <button type="button" class="switch" id="rapidBtn" aria-pressed="${!!prefs.rapid}"><span class="knob" aria-hidden="true"></span>Rapid scan: add clear matches and count duplicates as spares without asking</button>
-      <button type="button" class="switch" id="quickBtn" aria-pressed="${!!prefs.quick}"><span class="knob" aria-hidden="true"></span>Quick scan: live camera that adds each card as you hold it up, then waits for the next</button></div>
+      <button type="button" class="switch" id="quickBtn" aria-pressed="${!!prefs.quick}"><span class="knob" aria-hidden="true"></span>Quick scan (Scan button opens a live camera that adds each card as you hold it up). Off: Scan takes one photo at a time</button></div>
     <div class="setting"><h4>Trading</h4><div><button type="button" class="btn small" id="sparesBtn">Spares list</button></div></div>
     <div class="actions sticky"><button type="button" class="textbtn" id="optReset">Clear filters</button><span class="spacer"></span><button type="button" class="btn primary" id="optDone"></button></div>`);
     const sync = () => {

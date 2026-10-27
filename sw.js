@@ -3,7 +3,7 @@
 // as GitHub Pages has published it. The saved copy is only used when you're offline.
 // Card lookups and prices always go to the internet.
 // When you change any app file, bump VERSION so phones fetch the new copy.
-const VERSION = "living-dex-v22";
+const VERSION = "living-dex-v24";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
