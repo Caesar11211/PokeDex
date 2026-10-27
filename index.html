@@ -523,15 +523,17 @@ label textarea { resize: vertical; min-height: 54px; }
   var tcgdexUrl = (lang = "en") => TCGDEX_BASE + lang;
   var PTCG = "https://api.pokemontcg.io/v2";
   var num = (v) => typeof v === "number" && isFinite(v) && v > 0 ? v : null;
-  // pokemontcg.io often answers with a server error, then works a moment later, so retry it
+  // pokemontcg.io fails often (server errors and dropped connections, about two requests in
+  // three in Oct 2026) but works when asked again, and failures come back fast, so retry it
+  // several times. Not-found and bad-request answers aren't retried.
   async function getJSON(url, opts = {}) {
-    const tries = String(url).startsWith(PTCG) ? 3 : 1;
+    const tries = String(url).startsWith(PTCG) ? 8 : 2;
     for (let i = 1; ; i++) {
       try {
         return await getJSONOnce(url, opts);
       } catch (e) {
-        if (i >= tries || opts.signal?.aborted || !/HTTP 5\d\d/.test(String(e?.message))) throw e;
-        await new Promise((r) => setTimeout(r, 700 * i));
+        if (i >= tries || opts.signal?.aborted || /HTTP 4\d\d/.test(String(e?.message))) throw e;
+        await new Promise((r) => setTimeout(r, Math.min(400 * i, 2500)));
       }
     }
   }
