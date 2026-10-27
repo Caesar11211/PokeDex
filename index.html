@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Living Dex</title>
-  <meta name="description" content="Scan Pokémon cards into a 1,025-slot living Pokédex binder with live Cardmarket prices.">
+  <meta name="description" content="Scan Pokémon cards into a 1,025-slot living Pokédex binder with TCGplayer prices.">
   <meta name="theme-color" content="#d3202f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -583,8 +583,21 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     return first == null && unlimited == null ? null : { first, unlimited };
   }
+  // TCGplayer market prices (US dollars) for each finish of a card
+  function tpPrices(prices, field, updated, url) {
+    if (!prices || typeof prices !== "object") return null;
+    const t = { normal: null, holo: null, reverse: null, first: null, updated: updated ? String(updated).replace(/\//g, "-") : null, url: url || null };
+    for (const [k, v] of Object.entries(prices)) {
+      if (!v || typeof v !== "object") continue;
+      const p = num(v[field]) ?? num(v.mid ?? v.midPrice);
+      if (p == null) continue;
+      const slot = /reverse/i.test(k) ? "reverse" : /1st/i.test(k) ? "first" : /holo/i.test(k) ? "holo" : "normal";
+      t[slot] = t[slot] == null ? p : Math.min(t[slot], p);
+    }
+    return t.normal ?? t.holo ?? t.reverse ?? t.first ? t : null;
+  }
   function fromTcgdex(c, lang = "en") {
-    const cm = c.pricing?.cardmarket, tp = c.pricing?.tcgplayer;
+    const tp = c.pricing?.tcgplayer;
     const usd = tp && (tp.normal?.marketPrice ?? tp.holofoil?.marketPrice ?? tp.holo?.marketPrice ?? tp["reverse-holofoil"]?.marketPrice ?? tp.reverse?.marketPrice);
     return {
       id: c.id,
@@ -601,21 +614,10 @@ label textarea { resize: vertical; min-height: 54px; }
       imageLarge: c.image ? c.image + "/high.webp" : null,
       dex: Array.isArray(c.dexId) ? c.dexId : [],
       cardmarketUrl: null,
-      eur: cm ? {
-        trend: num(cm.trend) ?? num(cm.avg),
-        trendHolo: num(cm["trend-holo"]) ?? num(cm["avg-holo"]),
-        avg1: num(cm.avg1),
-        avg7: num(cm.avg7),
-        avg30: num(cm.avg30),
-        avg1Holo: num(cm["avg1-holo"]),
-        avg7Holo: num(cm["avg7-holo"]),
-        avg30Holo: num(cm["avg30-holo"]),
-        low: num(cm.low),
-        updated: cm.updated ?? null,
-        src: "tcgdex"
-      } : null,
+      eur: null,
       usd: num(usd),
-      usdEd: tpEditions(tp, "marketPrice")
+      usdEd: tpEditions(tp, "marketPrice"),
+      tp: tpPrices(tp, "marketPrice", tp?.updated, null)
     };
   }
   var briefFromTcgdex = (b, lang = "en") => ({
@@ -659,7 +661,7 @@ label textarea { resize: vertical; min-height: 54px; }
     return { cards: picked.slice(0, 250).map(brief), exactNumber };
   }
   function fromPtcg(c) {
-    const p = c.cardmarket?.prices, tp = c.tcgplayer?.prices;
+    const tp = c.tcgplayer?.prices;
     const usd = tp && (tp.normal?.market ?? tp.holofoil?.market ?? tp.reverseHolofoil?.market ?? tp["1stEditionHolofoil"]?.market);
     return {
       id: c.id,
@@ -675,26 +677,14 @@ label textarea { resize: vertical; min-height: 54px; }
       image: c.images?.small ?? null,
       imageLarge: c.images?.large ?? null,
       dex: c.nationalPokedexNumbers ?? [],
-      cardmarketUrl: c.cardmarket?.url ?? null,
-      eur: p ? {
-        trend: num(p.trendPrice) ?? num(p.averageSellPrice),
-        trendHolo: num(p.reverseHoloTrend) ?? num(p.reverseHoloSell),
-        avg1: num(p.avg1),
-        avg7: num(p.avg7),
-        avg30: num(p.avg30),
-        avg1Holo: num(p.reverseHoloAvg1),
-        avg7Holo: num(p.reverseHoloAvg7),
-        avg30Holo: num(p.reverseHoloAvg30),
-        low: num(p.lowPrice),
-        lowEx: num(p.lowPriceExPlus),
-        updated: c.cardmarket?.updatedAt ? String(c.cardmarket.updatedAt).replace(/\//g, "-") : null,
-        src: "ptcg"
-      } : null,
+      cardmarketUrl: null,
+      eur: null,
       usd: num(usd),
-      usdEd: tpEditions(tp, "market")
+      usdEd: tpEditions(tp, "market"),
+      tp: tpPrices(tp, "market", c.tcgplayer?.updatedAt, c.tcgplayer?.url)
     };
   }
-  var FIELDS = "id,name,number,set,images,cardmarket,tcgplayer,nationalPokedexNumbers,rarity,artist";
+  var FIELDS = "id,name,number,set,images,tcgplayer,nationalPokedexNumbers,rarity,artist";
   async function ptcgSearch({ species, number, total, dex }, signal) {
     const s = species.toLowerCase().replace(/"/g, "");
     const q = dex ? `nationalPokedexNumbers:${dex}` : /^[a-z0-9]+$/.test(s) ? `name:${s}` : `name:"${s}"`;
@@ -759,16 +749,6 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     return fromTcgdex(await getJSON(`${tcgdexUrl(lang || "en")}/cards/${encodeURIComponent(id)}`, { signal }), lang || "en");
   }
-  // Cardmarket prices: TCGdex copies Cardmarket's price guide every day. pokemontcg.io's copy has
-  // stopped updating (most of its Cardmarket prices are months old, some mix up editions), so it
-  // is only used where TCGdex has no price, and then the price's date is shown.
-  var STALE_PRICE_DAYS = 10;
-  var priceAge = (e) => {
-    const t = e?.updated ? Date.parse(String(e.updated).replace(/\//g, "-")) : NaN;
-    return isFinite(t) ? (Date.now() - t) / 864e5 : null;
-  };
-  var staleEur = (e) => !!e && (priceAge(e) ?? 0) > STALE_PRICE_DAYS;
-  var freshLowEx = (e) => e && !staleEur(e) ? e.lowEx ?? null : null;
   // pokemontcg.io set ids -> TCGdex set ids. Most follow a pattern (sv3pt5 -> sv03.5, me1 -> me01).
   var PTCG_SET_TO_TCGDEX = { base6: "lc", hsp: "hgssp", sm35: "sm3.5", sm75: "sm7.5", swsh35: "swsh3.5", swsh45: "swsh4.5", swsh45sv: "swsh4.5sv", bp: "bog", pgo: "swsh10.5", zsv10pt5: "sv10.5b", rsv10pt5: "sv10.5w", me55: "30th", mcd11: "2011bw", mcd12: "2012bw", mcd14: "2014xy", mcd15: "2015xy", mcd16: "2016xy", mcd17: "2017sm", mcd18: "2018sm", mcd19: "2019sm", mcd21: "2021swsh", mcd22: "2022swsh" };
   var tcgdexSetOf = (ptcgSet) => {
@@ -809,8 +789,6 @@ label textarea { resize: vertical; min-height: 54px; }
     }
     return null;
   }
-  // pokemontcg.io's Cardmarket price, kept as a cross-check while it's under a year old
-  var altFrom = (e) => e?.src === "ptcg" && e.trend != null && (priceAge(e) ?? 0) < 365 ? { trend: e.trend, updated: e.updated } : null;
   var TCGDEX_SET_TO_PTCG = Object.fromEntries(Object.entries(PTCG_SET_TO_TCGDEX).map(([k, v]) => [v, k]));
   var ptcgSetOf = (setId) => TCGDEX_SET_TO_PTCG[setId] || String(setId || "").replace(/^(sv|me)0(\d)/, "$1$2").replace(/\.(\d)/, "pt$1");
   // The same card on pokemontcg.io, for a card found on TCGdex: straight by id, then by searching
@@ -831,135 +809,47 @@ label textarea { resize: vertical; min-height: 54px; }
     const sameSet = other.cards.filter((c) => card.setTotal && c.setTotal === card.setTotal || card.setName && c.setName && words(c.setName) === words(card.setName));
     return sameSet.length === 1 ? sameSet[0] : !card.setTotal && !card.setName && other.cards.length === 1 ? other.cards[0] : null;
   }
-  // Prices come from TCGdex (Cardmarket, daily). pokemontcg.io links cards to Cardmarket and
-  // TCGplayer separately, so its prices are kept alongside as cross-checks: TCGdex sometimes
-  // links a card to the wrong Cardmarket listing (a 30p uncommon priced at £65).
+  // Prices are TCGplayer's market prices, which only pokemontcg.io has. A card found on TCGdex
+  // (the main card database, with better images and newer sets) gets its pokemontcg.io twin's prices.
   async function withPrice(card, { species, dex }, signal) {
     if (!card || !card.number) return card;
     if (card.lang && card.lang !== "en") return card;
-    if (card.source === "ptcg") {
-      const cmAlt = altFrom(card.eur) || card.cmAlt || null;
-      if (card.eur?.src !== "tcgdex") {
-        try {
-          const twin = await tcgdexTwin(card, species, signal);
-          if (twin?.eur) card = { ...card, eur: { ...twin.eur, lowEx: freshLowEx(card.eur) }, illustrator: card.illustrator || twin.illustrator, priceFrom: "tcgdex" };
-        } catch (e) {
-          if (signal?.aborted) throw e;
-        }
-      }
-      return { ...card, cmAlt };
-    }
-    const old = isVintage(cardSetId(card));
-    if (card.eur && !staleEur(card.eur) && (old ? card.usdEd : card.usd != null && card.cmAlt)) return card;
+    if (card.tp || card.source === "ptcg") return card;
     try {
       const match = await ptcgTwin(card, { species, dex }, signal);
-      if (match) {
-        const both = { usd: card.usd ?? match.usd, usdEd: card.usdEd || match.usdEd || null, cmAlt: card.cmAlt || altFrom(match.eur), cardmarketUrl: card.cardmarketUrl || match.cardmarketUrl };
-        if (card.eur) return { ...card, ...both, eur: old ? { ...card.eur, lowEx: freshLowEx(match.eur) } : card.eur };
-        if (match.eur) return { ...card, ...both, eur: match.eur, priceFrom: "ptcg" };
-        return { ...card, ...both };
-      }
+      if (match?.tp) return { ...card, tp: match.tp, usd: match.usd, usdEd: match.usdEd || null, rarity: card.rarity || match.rarity, priceFrom: "ptcg" };
     } catch (e) {
       if (signal?.aborted) throw e;
     }
     return card;
   }
-  // When a refresh can't reach pokemontcg.io, keep the cross-check prices saved last time
-  var keepRefs = (card, prev) => card && prev && card.id === prev.cardId ? { ...card, usd: card.usd ?? prev.usd ?? null, usdEd: card.usdEd || prev.usdEd || null, cmAlt: card.cmAlt || prev.cmAlt || null } : card;
+  // When a refresh can't reach pokemontcg.io (it often errors), keep the prices saved last time
+  var keepRefs = (card, prev) => card && prev && card.id === prev.cardId && !card.tp && prev.tp ? { ...card, tp: prev.tp, usd: prev.usd ?? null, usdEd: prev.usdEd || null } : card;
   async function cheapestCard(species, dex, signal) {
-    const byPrice = (cards2) => cards2.filter((c) => eurPrice(c, "standard") != null).sort((a, b) => eurPrice(a, "standard") - eurPrice(b, "standard"));
-    const pick = (cards2) => byPrice(cards2)[0] || null;
-    try {
-      // pokemontcg.io lists every card in one go, but its prices are old, so it only
-      // shortlists the cheapest few, which are then re-priced from TCGdex.
-      const r = await ptcgSearch({ species, dex }, signal);
-      const shortlist = byPrice(r.cards).slice(0, 6);
-      if (shortlist.length) {
-        const fresh = await inBatches(shortlist, 3, (c) => withPrice(c, { species, dex }, signal).catch(() => c));
-        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-        const best = pick(fresh);
-        if (best) return best;
-      }
-    } catch (e) {
-      if (signal?.aborted) throw e;
-    }
-    const list = await getJSON(`${TCGDEX}/cards?name=${encodeURIComponent(species)}`, { signal });
-    const briefs = (Array.isArray(list) ? list : []).filter((b) => b && b.id && isCardOf(b.name, species)).reverse().slice(0, 24);
-    const cards = await inBatches(briefs, 6, (b) => getJSON(`${TCGDEX}/cards/${encodeURIComponent(b.id)}`, { signal }).then(fromTcgdex).catch(() => null));
-    return pick(cards.filter(Boolean));
+    const r = await ptcgSearch({ species, dex }, signal);
+    return r.cards.filter((c) => eurPrice(c, "standard") != null).sort((a, b) => eurPrice(a, "standard") - eurPrice(b, "standard"))[0] || null;
   }
-  function recentAverages(card, finish) {
-    const e = card?.eur;
-    if (!e) return [];
-    const h = finish === "reverse" && (e.trendHolo ?? e.avg30Holo ?? e.avg7Holo ?? e.avg1Holo) != null;
-    return [
-      { days: 30, label: "30-day average", eur: h ? e.avg30Holo : e.avg30 },
-      { days: 7, label: "7-day average", eur: h ? e.avg7Holo : e.avg7 },
-      { days: 1, label: "Yesterday's average", eur: h ? e.avg1Holo : e.avg1 },
-      { days: 0, label: "Price used now", eur: eurPrice(card, finish) }
-    ].filter((p) => p.eur != null);
-  }
-  // Older (WOTC-era) sets: Cardmarket lumps 1st Edition and Unlimited together and its trend
-  // ignores condition, so one high sale can inflate it. For those we prefer TCGplayer's
-  // edition-split market price, then the cheapest Excellent-or-better listing, then the
-  // lowest of Cardmarket's recent averages. Newer sets keep the Cardmarket trend.
+  // TCGplayer gives one market price, not averages over time, so the chart uses the app's own history
+  var recentAverages = () => [];
   var NO_REVERSE_SET = /^(base[1-6]|basep|gym[12]|neo[1-4]|si1|wp)$/i;
   var FIRST_ED_SET = /^(base[1235]|gym[12]|neo[1-4])$/i;
   var cardSetId = (c) => c?.setId || (c?.id ? String(c.id).replace(/-[^-]+$/, "") : "");
+  // The price is TCGplayer's market price for the card's finish (US dollars, worked in euros
+  // inside the app and shown in pounds). Holo cards use the holofoil price, others the normal one.
+  var TP_OLD_DAYS = 30;
   function priceInfo(card, finish) {
-    const e = card?.eur;
-    const old = (!card?.lang || card.lang === "en") && isVintage(cardSetId(card));
-    if (old && finish !== "reverse") {
-      const first = finish === "first", ed = card.usdEd;
-      const usd = ed ? first ? ed.first : ed.unlimited : null;
-      if (usd != null) return { eur: usd / (fx.usd || FALLBACK_USD), basis: `TCGplayer ${first ? "1st Edition" : "Unlimited"} market price ($${usd.toFixed(2)})`, solid: true };
-      const asOf = staleEur(e) ? ` (from ${shortDate(String(e.updated).replace(/\//g, "-"))}, the newest available)` : "";
-      if (first) {
-        const v = e?.trend ?? e?.avg30;
-        return v != null ? { eur: v, basis: `Cardmarket trend ${euro(v)}${asOf}, which mixes editions, so treat it as rough` } : null;
-      }
-      const lowEx = freshLowEx(e);
-      if (lowEx != null) return { eur: lowEx, basis: `Cheapest Excellent-or-better listing on Cardmarket (${euro(lowEx)})`, solid: true };
-      const vals = [e?.avg1, e?.avg7, e?.trend, e?.avg30].filter((v) => v != null);
-      if (vals.length) {
-        const v = Math.min(...vals);
-        return { eur: v, basis: `Lowest of Cardmarket's recent averages (${euro(v)})${asOf}, as the trend is unreliable for older cards` };
-      }
-      return null;
-    }
-    if (!e) return null;
-    const v = finish === "reverse" ? e.trendHolo ?? e.trend ?? e.avg30 : e.trend ?? e.avg30 ?? e.trendHolo;
-    if (v == null) return null;
-    const stale = staleEur(e), asOf = stale ? shortDate(String(e.updated).replace(/\//g, "-")) : "";
-    if (finish !== "reverse") {
-      const usd = card.usdEd?.unlimited ?? card.usd;
-      const tpE = usd != null && usd > 0 ? usd / (fx.usd || FALLBACK_USD) : null;
-      // Only an out-of-date Cardmarket price was found: TCGplayer's current price is closer.
-      if (stale && tpE != null) return { eur: tpE, basis: `TCGplayer market price ($${usd.toFixed(2)}), as the only Cardmarket price found is from ${asOf}` };
-      // Wrong-listing check: TCGdex sometimes links a card to the wrong Cardmarket listing, so the
-      // trend and all its averages are wrong together. pokemontcg.io links cards separately (to
-      // Cardmarket and TCGplayer), so if the trend is over 4x the higher of those, it's wrong.
-      const alt = !stale && card.cmAlt?.trend > 0 && (priceAge(card.cmAlt) ?? 0) < 365 ? card.cmAlt.trend : null;
-      const refs = stale ? [] : [tpE, alt].filter((x) => x != null && x > 0);
-      const top = refs.length ? Math.max(...refs) : null;
-      if (top != null && v > top * 4 && v - top > 3) {
-        if (alt != null) return { eur: alt, basis: `Cardmarket price ${euro(alt)} (from ${shortDate(String(card.cmAlt.updated).replace(/\//g, "-"))}), as today's Cardmarket price (${euro(v)}) looks linked to the wrong listing${tpE != null ? `; TCGplayer agrees at $${usd.toFixed(2)}` : ""}` };
-        return { eur: tpE, basis: `TCGplayer market price ($${usd.toFixed(2)}), as the Cardmarket price (${euro(v)}) looks linked to the wrong listing` };
-      }
-      // Spike check: a rarely-sold card can have its trend dragged up by one odd sale.
-      // Compare it with Cardmarket's own average sale prices (yesterday, 7 days, 30 days).
-      const sales = [e.avg1, e.avg7, e.avg30].filter((x) => x != null && x > 0).sort((a, b) => a - b);
-      if (sales.length >= 2) {
-        const typical = sales.length % 2 ? sales[(sales.length - 1) / 2] : (sales[sales.length / 2 - 1] + sales[sales.length / 2]) / 2;
-        if (v > typical * 2 && v - typical > 3) return { eur: typical, basis: `Cardmarket's typical recent sale price, as the trend (${euro(v)}) looked inflated by an odd sale` };
-      }
-    }
-    if (stale) return { eur: v, basis: `Cardmarket trend ${euro(v)} from ${asOf}, the newest available, so it may be out of date` };
-    const unchecked = finish !== "reverse" && card.usd == null && !card.usdEd && !card.cmAlt && (!card.lang || card.lang === "en");
-    return unchecked ? { eur: v, basis: `Cardmarket trend ${euro(v)}. Couldn't double-check it against the backup price database this time, so tap Refresh price later if it looks wrong` } : { eur: v, basis: `Cardmarket trend ${euro(v)}`, solid: true };
+    const t = card?.tp;
+    if (!t) return null;
+    const holoFirst = /holo|ex\b|gx\b|vmax|vstar|\bv\b|ultra|secret|illustration|rare rainbow|shiny|hyper/i.test(card.rarity || "");
+    const usd = finish === "reverse" ? t.reverse : finish === "first" ? t.first : holoFirst ? t.holo ?? t.normal : t.normal ?? t.holo;
+    if (usd == null) return null;
+    const what = finish === "reverse" ? "reverse holo " : finish === "first" ? "1st Edition " : isVintage(cardSetId(card)) ? "Unlimited " : "";
+    const age = t.updated ? (Date.now() - Date.parse(t.updated)) / 864e5 : null;
+    const when = age != null && age > TP_OLD_DAYS ? `, last updated ${shortDate(t.updated)}, so it may be out of date` : t.updated ? `, updated ${shortDate(t.updated)}` : "";
+    return { eur: usd / (fx.usd || FALLBACK_USD), usd, basis: `TCGplayer ${what}market price ($${usd.toFixed(2)})${when}`, solid: age == null || age <= TP_OLD_DAYS };
   }
   var eurPrice = (card, finish) => priceInfo(card, finish)?.eur ?? null;
-  // Market prices are for Near Mint copies. Typical discounts for worn copies (Cardmarket scale).
+  // Market prices are for Near Mint copies. Typical discounts for worn copies.
   var COND_FACTOR = { "Mint": 1, "Near Mint": 1, "Excellent": 0.8, "Good": 0.65, "Light Played": 0.55, "Played": 0.4, "Poor": 0.25 };
   var condFactor = (c) => COND_FACTOR[c] ?? 1;
   var byCondition = (gbpValue, c) => gbpValue == null ? null : Math.round(gbpValue * condFactor(c) * 100) / 100;
@@ -1924,11 +1814,12 @@ label textarea { resize: vertical; min-height: 54px; }
       rarity: card.rarity ?? null,
       image: card.image || entry.image || null,
       imageLarge: card.imageLarge || entry.imageLarge || null,
-      cardmarketUrl: card.cardmarketUrl || null,
-      eur: card.eur || null,
+      cardmarketUrl: null,
+      tcgplayerUrl: card.tp?.url || null,
+      eur: null,
+      tp: card.tp || null,
       usd: card.usd ?? null,
       usdEd: card.usdEd || null,
-      cmAlt: card.cmAlt || null,
       cardLang: card.lang || "en",
       value,
       nmValue: market,
@@ -1951,12 +1842,12 @@ label textarea { resize: vertical; min-height: 54px; }
     eur: e.eur,
     usd: e.usd,
     usdEd: e.usdEd || null,
-    cmAlt: e.cmAlt || null,
+    tp: e.tp || null,
     illustrator: e.illustrator,
     setId: setIdOf(e),
     lang: e.cardLang || "en"
   });
-  var cardmarketLink = (card, species) => card?.cardmarketUrl || "https://www.cardmarket.com/en/Pokemon/Products/Search?searchString=" + encodeURIComponent([card?.lang && card.lang !== "en" ? species : card?.name || species, card?.number ? String(card.number).replace(/^0+(?=\d)/, "") : ""].filter(Boolean).join(" "));
+  var cardmarketLink = (card, species) => card?.tp?.url || card?.tcgplayerUrl || "https://www.tcgplayer.com/search/pokemon/product?productLineName=pokemon&q=" + encodeURIComponent([card?.lang && card.lang !== "en" ? species : card?.name || species, card?.number ? String(card.number).replace(/^0+(?=\d)/, "") : ""].filter(Boolean).join(" "));
   async function linkEntry(e, signal) {
     let number = String(e.number || "").trim(), total = e.setTotal || null, setText = e.set || "";
     const m = (number + " " + setText).match(/(\d{1,3})\s*\/\s*(\d{2,3})/);
@@ -2040,7 +1931,7 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   // Prices saved before the Oct 2026 price fix have no source tag, and some came from out-of-date
   // data, so each English card is re-priced once.
-  var needsPrice = (e) => !e.cardId || e.eur && ageDays(e.checkedAt) > STALE_DAYS || e.value == null && (e.cardLang || "en") === "en" || e.eur && (e.cardLang || "en") === "en" && (!e.eur.src || !("cmAlt" in e));
+  var needsPrice = (e) => !e.cardId || e.tp && ageDays(e.checkedAt) > STALE_DAYS || e.value == null && (e.cardLang || "en") === "en" || (e.cardLang || "en") === "en" && !("tp" in e);
   function stats() {
     const slotsTotal = SLOTS.length;
     const got = SLOTS.reduce((t, sl) => t + (owned.has(sl.key) ? 1 : 0), 0), pct = got / slotsTotal * 100;
@@ -2162,7 +2053,7 @@ label textarea { resize: vertical; min-height: 54px; }
     } else if (view === "top") {
       bar.hidden = false;
       const d = top.data;
-      bar.innerHTML = `<p class="hint">${d ? `The ${d.cards.length} most valuable Pokémon cards by Cardmarket trend price${d.method === "full" ? `, out of ${(+d.scanned || 0).toLocaleString("en-GB")} priced cards` : ""}. Updated ${shortDate(d.updated)}.` : "The most valuable Pokémon cards of all, by Cardmarket trend price."}</p>`;
+      bar.innerHTML = `<p class="hint">${d ? `The ${d.cards.length} most valuable Pokémon cards by TCGplayer market price${d.method === "full" ? `, out of ${(+d.scanned || 0).toLocaleString("en-GB")} priced cards` : ""}. Updated ${shortDate(d.updated)}.` : "The most valuable Pokémon cards of all, by TCGplayer market price."}</p>`;
     } else if (view === "prices") {
       bar.hidden = false;
       let last = null;
@@ -2175,7 +2066,7 @@ label textarea { resize: vertical; min-height: 54px; }
         <div class="progress"><i style="width:${updating.done / updating.total * 100}%"></i></div>`;
         $("#stopUpd").onclick = () => updating?.ctl.abort();
       } else {
-        bar.innerHTML = `<span class="hint">Most valuable first. ${isEnglish() ? "Cardmarket trend prices" : `Cardmarket trend prices where there are any (most ${cfg().label} cards have none, so set your own value on those)`} in pounds at €1 = £${fx.rate.toFixed(3)}${last ? `. Last full update ${shortDate(last)}` : ""}.</span>
+        bar.innerHTML = `<span class="hint">Most valuable first. ${isEnglish() ? "TCGplayer market prices" : `TCGplayer market prices where there are any (most ${cfg().label} cards have none, so set your own value on those)`}, converted from US dollars at $1 = £${(fx.rate / (fx.usd || FALLBACK_USD)).toFixed(3)}${last ? `. Last full update ${shortDate(last)}` : ""}.</span>
         <span class="spacer"></span><button type="button" class="btn small primary" id="updAll">Update all prices</button>`;
         $("#updAll").onclick = updateAllPrices;
       }
@@ -2507,7 +2398,7 @@ label textarea { resize: vertical; min-height: 54px; }
       <button type="button" data-open="${w.dex}" style="all:unset;cursor:pointer;min-width:0">
         <span class="rt">#${pad(w.dex)} ${esc(nameOf(w.dex))}${isDeal ? `<span class="chip deal">Deal</span>` : ""}</span>
         <span class="rs">${wc ? `Wanted: ${esc([wc.setName, wc.number ? "#" + wc.number : "", wc.finish === "first" ? "1st Edition" : wc.finish === "reverse" ? "Reverse holo" : ""].filter(Boolean).join(" "))}${owned.has(w.dex) ? " · upgrade" : ""}${c ? "" : d ? " · no price found" : " · price not checked yet"}` : c ? `Cheapest: ${esc([c.setName, c.number ? "#" + c.number : ""].filter(Boolean).join(" "))}` : d ? "No priced cards found" : "Not checked yet"}${w.target != null ? ` · your max ${money(w.target)}` : ""}<br>
-        ${c || wc ? `<a class="pricelink" href="${esc(cardmarketLink(c || wc, nameOf(w.dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>` : ""}</span>
+        ${c || wc ? `<a class="pricelink" href="${esc(cardmarketLink(c || wc, nameOf(w.dex)))}" target="_blank" rel="noopener">View on TCGplayer ↗</a>` : ""}</span>
       </button>
       <span class="rv ${isDeal ? "up" : ""}">${price != null ? money(price) : "–"}<small>${price != null ? wc ? "this card" : "cheapest" : ""}</small></span></div>`;
     }).join("");
@@ -2528,7 +2419,7 @@ label textarea { resize: vertical; min-height: 54px; }
       await Promise.all(items.slice(i, i + 3).map(async (w) => {
         try {
           const c = w.card ? await withPrice(await getCard(w.card.id, w.card.source, ctl.signal, w.card.lang), { species: nameOf(w.dex), dex: w.dex }, ctl.signal) : await cheapestCard(nameOf(w.dex), w.dex, ctl.signal);
-          deals.set(w.dex, { at: (/* @__PURE__ */ new Date()).toISOString(), card: c ? { id: c.id, source: c.source, lang: c.lang || "en", name: c.name, setName: c.setName, setId: cardSetId(c), number: c.number, image: c.image, eur: c.eur, usd: c.usd ?? null, usdEd: c.usdEd || null, cardmarketUrl: c.cardmarketUrl } : null });
+          deals.set(w.dex, { at: (/* @__PURE__ */ new Date()).toISOString(), card: c ? { id: c.id, source: c.source, lang: c.lang || "en", name: c.name, setName: c.setName, setId: cardSetId(c), number: c.number, image: c.image, rarity: c.rarity || null, tp: c.tp || null, usd: c.usd ?? null, usdEd: c.usdEd || null } : null });
         } catch {
           if (!ctl.signal.aborted) dealCheck.failed++;
         } finally {
@@ -2597,8 +2488,8 @@ label textarea { resize: vertical; min-height: 54px; }
       return `<div class="row-item" style="grid-template-columns:22px 44px 1fr auto"><span class="rank">${i + 1}</span>${thumb(c.image)}
       <span style="min-width:0"><span class="rt">${esc(c.name)}${own === "own" ? `<span class="chip own">You own this</span>` : own === "have" ? `<span class="chip have">In your Dex</span>` : ""}</span>
       <span class="rs">${esc([c.set, c.number ? c.total ? `${c.number}/${c.total}` : "#" + c.number : "", c.rarity].filter(Boolean).join(" · "))}<br>
-      ${c.url ? `<a class="pricelink" href="${esc(c.url)}" target="_blank" rel="noopener">View on Cardmarket ↗</a>` : ""}</span></span>
-      <span class="rv">${money(gbp(c.eur))}<small>${euro(c.eur)}</small></span></div>`;
+      ${c.url ? `<a class="pricelink" href="${esc(c.url)}" target="_blank" rel="noopener">View on TCGplayer ↗</a>` : ""}</span></span>
+      <span class="rv">${c.usd != null ? `${money(gbp(c.usd / (fx.usd || FALLBACK_USD)))}<small>$${(+c.usd).toFixed(2)}</small>` : `${money(gbp(c.eur))}<small>${euro(c.eur)}</small>`}</span></div>`;
     }).join("");
     return `<section class="panel">${cards.length ? `<div class="rows">${rows}</div>` : `<p class="lede">No cards match that search.</p>`}
     ${cards.length > top.limit ? `<button type="button" class="textbtn" id="topMore">Show more</button>` : ""}</section>`;
@@ -2676,13 +2567,13 @@ label textarea { resize: vertical; min-height: 54px; }
       note = `${money(last.v)} now, ${diff >= 0 ? "up" : "down"} ${money(Math.abs(diff))}${first.v ? ` (${diff >= 0 ? "+" : "−"}${Math.abs(diff / first.v * 100).toFixed(0)}%)` : ""} since ${shortDate(first.t)}. A point is added each day the price is updated.`;
     } else if ((!card?.lang || card.lang === "en") && isVintage(cardSetId(card)) && finish !== "reverse") {
       if (hist.length === 1) return `<div class="pchart"><h4>Price history</h4><p class="hint">One saved price so far: ${money(hist[0].v)} on ${shortDate(hist[0].d + "T12:00:00")}. Each day the price is updated adds a point.</p></div>`;
-      return `<div class="pchart"><h4>Price history</h4><p class="hint">No history yet. For older cards Cardmarket's averages mix 1st Edition and Unlimited sales, so they aren't charted. ${entry ? "Your own history builds up each day you update prices." : "A history builds up once the card is in your Dex and you update prices."}</p></div>`;
+      return `<div class="pchart"><h4>Price history</h4><p class="hint">No history yet. ${entry ? "Your own history builds up each day you update prices." : "A history builds up once the card is in your Dex and you update prices."}</p></div>`;
     } else {
       const avg = recentAverages(card, finish).map((a) => ({ t: Date.now() - a.days * DAY, v: gbp(a.eur), label: a.label }));
       if (avg.length >= 2) {
         pts = avg;
         title = "Recent price";
-        note = `Cardmarket's 30-day, 7-day and yesterday's averages, then the price the app uses${priceInfo(card, finish) ? `: ${esc(priceInfo(card, finish).basis)}` : ""}.${entry ? " Your own price history builds up as you update prices." : ""}`;
+        note = `Recent prices, then the price the app uses${priceInfo(card, finish) ? `: ${esc(priceInfo(card, finish).basis)}` : ""}.${entry ? " Your own price history builds up as you update prices." : ""}`;
       } else if (hist.length === 1) {
         return `<div class="pchart"><h4>Price history</h4><p class="hint">One saved price so far: ${money(hist[0].v)} on ${shortDate(hist[0].d + "T12:00:00")}. Each day the price is updated adds a point.</p></div>`;
       } else {
@@ -2821,7 +2712,7 @@ label textarea { resize: vertical; min-height: 54px; }
         return;
       }
       const eur = eurPrice(sel, finish), nmP = gbp(eur), cond = $("#fCond")?.value || "", p = byCondition(nmP, cond);
-      const updated = sel.eur?.updated ? ` · ${shortDate(sel.eur.updated)}` : "";
+      const updated = "";
       const meta = [sel.setName, sel.number ? sel.setTotal ? `${sel.number}/${sel.setTotal}` : `#${sel.number}` : "", sel.rarity, sel.illustrator ? `Illus. ${sel.illustrator}` : ""].filter(Boolean).join(" · ");
       results.innerHTML = `<div class="chosen">
       ${sel.imageLarge || sel.image ? `<img src="${esc(sel.imageLarge || sel.image)}" alt="${esc(sel.name)}">` : "<div></div>"}
@@ -2829,7 +2720,7 @@ label textarea { resize: vertical; min-height: 54px; }
         <div class="cn">${esc(sel.name)}</div>
         <div class="meta">${esc(meta || "Set unknown")}</div>
         ${needsEdition() ? editionAskHTML(sel, cond) : ""}
-        <div class="price"${needsEdition() ? " hidden" : ""}>${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${condFactor(cond) !== 1 ? `For a ${esc(cond)} copy (Near Mint ${money(nmP)}). ` : ""}${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : "No market price, so you can set your own value below"}</small></div>
+        <div class="price"${needsEdition() ? " hidden" : ""}>${p != null ? money(p) : existing?.manualValue != null && sel.id === existing.cardId ? money(existing.manualValue) : "No price yet"}<small>${eur != null ? `${condFactor(cond) !== 1 ? `For a ${esc(cond)} copy (Near Mint ${money(nmP)}). ` : ""}${esc(priceInfo(sel, finish).basis)}${updated}` : existing?.manualValue != null && sel.id === existing.cardId ? "Your value (no market price)" : (isEnglish() ? "No TCGplayer price found. The price database is sometimes busy, so try again in a moment, or set your own value below" : "No market price, so you can set your own value below")}</small></div>
         <div class="finish" role="group" aria-label="Finish"${needsEdition() ? " hidden" : ""}>${finishOptions(sel).map(([f, label]) => `
           <button type="button" data-f="${f}" aria-pressed="${finish === f}">${label}</button>`).join("")}
         </div>
@@ -2841,7 +2732,7 @@ label textarea { resize: vertical; min-height: 54px; }
         const note = g.any ? `<br><small>Recent eBay sales (median)${all ? "" : "; ~ is a rough guide"}, updated ${shortDate(g.checked)}${finish === "first" ? ". Sales may include Unlimited copies" : ""}.</small>` : "";
         return `<p class="graded">${g.any ? "If graded:" : "If graded (rough guide):"} ${gradeText(g, 8)} · ${gradeText(g, 9)} · ${gradeText(g, 10)}${note}</p>`;
       })()}
-        <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on Cardmarket ↗</a>
+        <p class="match" style="margin-top:8px"><a class="pricelink" href="${esc(cardmarketLink(sel, nameOf(dex)))}" target="_blank" rel="noopener">View on TCGplayer ↗</a>
         ${mode === "edit" && sel.id ? ` · <button type="button" class="textbtn" id="refreshBtn" style="padding:0">Refresh price</button>` : ""}</p>
       </div></div>
       ${cardChartHTML(existing && sel.id === existing.cardId ? existing : null, sel, finish, results.clientWidth)}
@@ -2888,7 +2779,7 @@ label textarea { resize: vertical; min-height: 54px; }
       results.innerHTML = `<p class="hint">${pickerNote || `${cards.length} matching cards. Tap the one you have.`}</p>
       <div class="picker">${cards.map((c, i) => `<button type="button" class="pick" data-i="${i}" aria-pressed="${sel?.id === c.id}">
         ${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}<b>${esc(c.number ? "#" + c.number : c.name)}</b><span>${esc(c.setName || c.setId || "")}</span>
-        ${c.eur && !staleEur(c.eur) ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`).join("")}</div>`;
+        ${eurPrice(c, "standard") != null ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`).join("")}</div>`;
       results.querySelectorAll(".pick").forEach((b) => b.onclick = () => choose(cards[+b.dataset.i]));
     }
     async function choose(card) {
@@ -3053,6 +2944,7 @@ label textarea { resize: vertical; min-height: 54px; }
           source: null,
           cardName: null,
           eur: null,
+          tp: null,
           usd: null,
           value: entry.manualValue,
           checkedAt: null,
@@ -3212,7 +3104,7 @@ label textarea { resize: vertical; min-height: 54px; }
         return `<button type="button" class="pick ${o ? "mine" : ""} ${o?.kind === "binder" ? "binder" : ""}" data-i="${i}">
         ${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : `<span class="noimg" style="aspect-ratio:63/88;border-radius:5px;background:var(--line)"></span>`}
         <b>${esc(c.number ? "#" + c.number : c.name)}</b><span>${esc(c.setName || c.setId || "")}</span>
-        ${o ? `<span class="tag">${o.kind === "binder" ? "★ Binder" : "Owned"}</span>` : c.eur && !staleEur(c.eur) ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`;
+        ${o ? `<span class="tag">${o.kind === "binder" ? "★ Binder" : "Owned"}</span>` : eurPrice(c, "standard") != null ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`;
       }).join("");
       $("#acGrid").querySelectorAll(".pick").forEach((b) => b.onclick = () => showCard(shown[+b.dataset.i]));
     }
@@ -3562,7 +3454,7 @@ label textarea { resize: vertical; min-height: 54px; }
     </div>
     <div class="setting">
       <h4>Prices</h4>
-      <p class="hint">Cardmarket trend prices for newer cards, from Cardmarket's own price guide (copied daily by TCGdex). For older Wizards-era cards (Base to Neo and e-Card), where Cardmarket mixes 1st Edition with Unlimited and one high sale can skew the trend, the app uses TCGplayer's edition-split price, then the cheapest Excellent-or-better Cardmarket listing, then the lowest recent Cardmarket average. For newer cards, if Cardmarket's price is over four times TCGplayer's, the card has probably been matched to the wrong Cardmarket product, so TCGplayer's price is used. If the trend is more than double Cardmarket's typical recent sale (yesterday's, 7-day and 30-day averages), the typical sale price is used instead. The backup database (Pokémon TCG API) is only used to find cards: its Cardmarket prices are often months old, so a card found there is priced from its TCGdex twin, and if there's only an old price the card shows its date. Market prices are for Near Mint copies, so cards with a condition set are valued lower: Excellent 80%, Good 65%, Light Played 55%, Played 40%, Poor 25%. Prices are converted at €1 = £${fx.rate.toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cardmarket updates prices daily. Japanese, Korean and Chinese cards come from TCGdex too, but most have no market price, so you can set your own value on those.</p>
+      <p class="hint">Prices are TCGplayer market prices (what cards have recently sold for on TCGplayer, a US marketplace), for the card's finish: normal, holo, reverse holo, or 1st Edition for older sets. They come from the Pokémon TCG API, which updates them every week or two, and are converted from US dollars at $1 = £${(fx.rate / (fx.usd || FALLBACK_USD)).toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cards are found using TCGdex too, for its newer sets and better pictures, then priced from their Pokémon TCG API twin. That database is sometimes down, so if a price can't be refreshed the last one is kept. Market prices are for Near Mint copies, so cards with a condition set are valued lower: Excellent 80%, Good 65%, Light Played 55%, Played 40%, Poor 25%. Japanese, Korean and Chinese cards have no TCGplayer price, so you can set your own value on those.</p>
     </div>
     <div class="setting">
       <h4>Start over</h4>

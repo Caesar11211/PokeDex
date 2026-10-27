@@ -1,7 +1,7 @@
 # Living Dex
 
 Your own app for collecting one card of every Pokémon. Scan a card with your phone and it finds the
-exact card, shows the official card image in your binder, and fills in its **raw Cardmarket price
+exact card, shows the official card image in your binder, and fills in its **TCGplayer market price
 in pounds** automatically.
 
 ## Put it on your phone (about 10 minutes, once)
@@ -45,7 +45,7 @@ scan and the Spares list. The light on the red bar blinks while a card is being 
 - **Rapid scan** (in the filter sheet; the Scan button turns to Rapid when it's on): skips the crop screen when the card is found, and adds clear
   matches by itself. Duplicates count as spares. Great for bulk lots.
 - **Prices tab**: your collection, most valuable first. **Update all prices** refreshes every card.
-  The app reminds you when prices are over a week old. Cardmarket updates them daily.
+  The app reminds you when prices are over a week old. TCGplayer prices in the price database are refreshed every week or two.
 - **Wishlist**: tap any missing slot to star it and set the most you'd pay.
 - **Spares list**: a ready-to-paste list of your duplicates for trading.
 - **Regions strip**: tap **All** for every Pokémon, or a region to see just that generation.
@@ -63,7 +63,7 @@ scan and the Spares list. The light on the red bar blinks while a card is being 
   sending those off. Each card also shows its PSA 8, 9 and 10 values when you open it.
 - **Wishlist tab**: tap **Check prices** to find the cheapest card for each wishlisted Pokémon. Any at or
   under your "most I'd pay" price get a **Deal** tag.
-- **Top cards tab**: the 500 most valuable Pokémon cards of all, by Cardmarket trend price, with a tag on
+- **Top cards tab**: the 500 most valuable Pokémon cards of all, by TCGplayer market price, with a tag on
   any you own. Needs the one-off setup below.
 - **Dex / All cards switch** (next to Rapid scan): **Dex** is one card per Pokémon. **All cards** shows how
   many cards you own of each Pokémon; tap one to see every card printed for it, with the ones you own
@@ -83,7 +83,7 @@ scan and the Spares list. The light on the red bar blinks while a card is being 
   details and set a value.
 - **Price history chart**: open any card to see a line chart of its value over time (tap it for any
   point). Each card saves a point every day its price is updated or you change your value. Until a card
-  has two saved prices, the chart shows Cardmarket's 30-day, 7-day and yesterday's averages instead.
+  has two saved prices, it shows the one saved price.
 - **Settings (cog icon)**: extra slots for forms, official card images or your photos, back up,
   restore, export to a spreadsheet, or import one.
 
@@ -142,10 +142,13 @@ there and use **Restore a backup**.
 
 ## Where prices come from
 
-Prices are Cardmarket's **trend** price, fetched from [TCGdex](https://tcgdex.dev) (free, no sign-up).
-The app also tries the [Pokémon TCG API](https://pokemontcg.io) as a backup, but that service is being
-retired and doesn't usually answer phones directly, so TCGdex does almost all the work. Euros are
-converted to pounds using the day's rate from [Frankfurter](https://frankfurter.dev). The text
+Prices are TCGplayer **market** prices (recent sale prices on TCGplayer, a US marketplace) for the
+card's finish, fetched from the [Pokémon TCG API](https://pokemontcg.io) (free, no sign-up). It's the
+only free source of TCGplayer prices, refreshes them every week or two, and often answers with an error
+before working a moment later, so the app retries and keeps each card's last price if it can't get a new
+one. Cards are also looked up on [TCGdex](https://tcgdex.dev) for newer sets and better pictures, then
+priced from their Pokémon TCG API twin. Dollars are converted to pounds using the day's rate from
+[Frankfurter](https://frankfurter.dev). The text
 reading uses [Tesseract.js](https://tesseract.projectnaptha.com), which runs on your phone.
 Pokémon names and types come from [PokéAPI](https://pokeapi.co).
 
