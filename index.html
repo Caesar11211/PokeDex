@@ -3202,15 +3202,55 @@ body.quick-open .toast { z-index: 40; }
   var usdToGbp = (usd) => usd == null ? null : gbp(usd / (fx.usd || FALLBACK_USD));
   var topUsd = (c) => Math.max(0, ...FINISHES.map(([f]) => c.tp?.[f] ?? 0));
   var yearOf = (c) => c.releaseDate ? c.releaseDate.slice(0, 4) : "";
+  // A search can be a Pokémon ("Mewtwo"), a Dex number ("150"), a card name ("Charizard ex"),
+  // an illustrator ("artist: Arita"), plus a card number ("51" or "51/108") and set words
+  // ("Evolutions"), in any order: "Mewtwo 51/108 Evolutions" finds that one card.
+  // A pasted link (PriceCharting, TCGplayer, eBay…) becomes the words in it:
+  // pricecharting.com/game/pokemon-evolutions/mewtwo-51 -> "mewtwo 51 evolutions"
+  function linkToWords(t) {
+    let u;
+    try {
+      u = new URL(t);
+    } catch {
+      return t;
+    }
+    const segs = u.pathname.split("/").map((x) => decodeURIComponent(x)).filter(Boolean);
+    let parts = segs.filter((x) => !/^(game|games|product|products|item|itm|p|pokemon|en|us|gb|singles|cards?|search|sch)$/i.test(x) && !/^\d{5,}$/.test(x));
+    if (/pricecharting/i.test(u.hostname) && parts.length >= 2) parts = [parts[parts.length - 1], parts[parts.length - 2]];
+    else parts = parts.slice(-2);
+    const q = u.searchParams.get("q") || u.searchParams.get("_nkw") || u.searchParams.get("searchString") || "";
+    return (parts.join(" ") + " " + q).replace(/^pokemon[-\s]/i, "").replace(/\bpokemon[-_]/gi, "").replace(/[-_+]+/g, " ").replace(/\s+/g, " ").trim() || t;
+  }
+  // Words that describe a copy rather than which card it is, so they don't narrow the search
+  var FILLER = /* @__PURE__ */ new Set(["set", "pokemon", "card", "cards", "tcg", "english", "holo", "holofoil", "foil", "reverse", "rev", "1st", "first", "edition", "ed", "unlimited", "shadowless", "the", "of", "and", "nm", "mint", "psa", "cgc", "bgs", "raw", "single", "price", "value", "rare"]);
   function parseSearch(text) {
-    const t = String(text || "").trim();
+    const t = linkToWords(String(text || "").trim());
     if (!t) return null;
     const art = t.match(/^(?:artist|illustrator|by)\s*:?\s+(.+)$/i);
     if (art) return { kind: "artist", text: art[1].trim(), label: `Illustrated by ${art[1].trim()}` };
-    const dex = resolveDex(t);
-    const bare = norm(t.replace(/^#?\d+\s*/, "")) === norm(dex ? nameOf(dex) : "") || /^#?\d+$/.test(t);
-    if (dex && bare) return { kind: "dex", dex, text: nameOf(dex), label: `${nameOf(dex)} · #${pad(dex)}` };
-    return { kind: "name", dex, text: t, label: `“${t}”` };
+    if (/^#?\d{1,4}$/.test(t)) {
+      const n = +t.replace("#", "");
+      if (n >= 1 && n <= TOTAL) return { kind: "dex", dex: n, text: nameOf(n), label: `${nameOf(n)} · #${pad(n)}` };
+    }
+    // card number: "51", "051", "51/108", "TG05", "SWSH136"
+    const m = t.match(/(?:^|\s)#?((?:[a-z]{1,5})?\d{1,3})(?:\s*\/\s*([a-z]{0,3}\d{1,3}))?(?=\s|$)/i);
+    const num = m ? m[1].toUpperCase() : "", total = m && m[2] && /^\d+$/.test(m[2]) ? +m[2] : null;
+    const rest = (m ? t.replace(m[0], " ") : t).replace(/\s+/g, " ").trim();
+    const dex = rest ? resolveDex(rest) : 0;
+    // words left over once the Pokémon's name is taken out: set names, "ex", "V", "Galarian"...
+    const nameW = dex ? words(nameOf(dex)).trim().split(" ") : [];
+    const extra = words(rest).trim().split(" ").filter((w) => w && !nameW.includes(w) && !FILLER.has(w)).join(" ");
+    const bits = [num && (total ? `${num}/${total}` : `#${num}`), extra].filter(Boolean).join(" · ");
+    if (dex) return { kind: "dex", dex, text: nameOf(dex), num, total, extra, label: `${nameOf(dex)}${bits ? " · " + bits : ` · #${pad(dex)}`}` };
+    const clean = words(rest).trim().split(" ").filter((w) => w && !FILLER.has(w)).join(" ") || rest || t;
+    return { kind: "name", dex: 0, text: clean, num, total, extra: "", label: `“${t}”` };
+  }
+  // Narrow results to the number and set words typed (all cards come back if nothing matches)
+  function narrowTo(p, cards) {
+    if (!p || !p.num && !p.extra) return { cards, exact: true };
+    const hay = (c) => " " + words([c.name, c.setName, c.series, c.rarity, c.setId].filter(Boolean).join(" ")).trim() + " ";
+    const keep = cards.filter((c) => (!p.num || sameNumber(c.number, p.num)) && (!p.total || !c.setTotal || c.setTotal === p.total) && (!p.extra || p.extra.split(" ").every((w) => hay(c).includes(" " + w))));
+    return keep.length ? { cards: keep, exact: true } : { cards, exact: false };
   }
   async function ptcgAll(q, signal) {
     const url = (page) => `${PTCG}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=250&orderBy=-set.releaseDate&select=${FIELDS}`;
@@ -3232,8 +3272,13 @@ body.quick-open .toast { z-index: 40; }
       let q;
       if (s.kind === "dex") q = `nationalPokedexNumbers:${s.dex}`;
       else if (s.kind === "artist") q = `artist:"*${esc2(s.text)}*"`;
-      else q = `name:"*${esc2(s.text)}*"`;
+      else q = `name:"*${esc2(s.text)}*"${s.num ? ` number:${esc2(s.num)}` : ""}`;
       let cards = await ptcgAll(q, signal);
+      if (!cards.length && s.kind === "name" && !s.dex) {
+        // Not a card name: try it as a set name ("Evolutions", "Base Set 4")
+        const setCards = await ptcgAll(`set.name:"*${esc2(s.text)}*"${s.num ? ` number:${esc2(s.num)}` : ""}`, signal);
+        if (setCards.length) return { cards: setCards, note: "", set: setCards[0].setName };
+      }
       if (!cards.length && s.kind === "name" && s.dex) cards = await ptcgAll(`nationalPokedexNumbers:${s.dex}`, signal);
       if (!cards.length && s.dex) {
         const r = await lookupCards(s.dex, {}, signal);
@@ -3300,7 +3345,7 @@ body.quick-open .toast { z-index: 40; }
   }
   async function runFinder(text) {
     finder.ctl?.abort();
-    const parsed = parseSearch(text);
+    let parsed = parseSearch(text);
     finder.text = text;
     finder.parsed = parsed;
     finder.limit = 40;
@@ -3325,6 +3370,12 @@ body.quick-open .toast { z-index: 40; }
       finder.cards = res.cards;
       finder.note = res.note;
       finder.status = "ok";
+      if (res.set) {
+        const sets = new Set(res.cards.map((c) => c.setName));
+        finder.parsed = parsed = { ...parsed, kind: "set", extra: "", text: parsed.text, label: `${sets.size > 1 ? `Sets matching “${parsed.text}”` : `${res.set} set`}${parsed.num ? ` · #${parsed.num}` : ""}` };
+      }
+      const nar = narrowTo(parsed, res.cards);
+      if (nar.exact && nar.cards.length === 1 && (parsed.num || parsed.extra)) setTimeout(() => tab === "search" && openCardDetail(nar.cards[0], { dex: parsed.dex }), 0);
     } catch {
       if (ctl.signal.aborted) return;
       finder.status = "error";
@@ -3333,8 +3384,19 @@ body.quick-open .toast { z-index: 40; }
     }
     if (tab === "search") render();
   }
+  // How closely a card's set matches the set words typed: "base" puts Base first, then Base Set 2,
+  // then sets that only mention it (Legendary Collection's id is base6)
+  function setScore(p, c) {
+    if (!p?.extra) return 0;
+    const ex = p.extra.split(" ").filter((w) => !words(c.name).includes(" " + w + " ")).join(" ");
+    if (!ex) return 2;
+    const sn = words(c.setName || "").trim();
+    return sn === ex ? 4 : sn.startsWith(ex + " ") ? 3 : (" " + sn + " ").includes(" " + ex) ? 2 : 1;
+  }
   function finderShown() {
-    let cards = sortPrintings(finder.cards, finder.sort);
+    let cards = sortPrintings(narrowTo(finder.parsed, finder.cards).cards, finder.sort);
+    const sp = finder.parsed?.kind === "set" ? { extra: words(finder.parsed.text).trim() } : finder.parsed;
+    if (sp?.extra) cards = cards.map((c, i) => [c, setScore(sp, c), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]).map(([c]) => c);
     if (finder.show === "owned") cards = cards.filter((c) => copiesOf(c).length);
     if (finder.show === "missing") cards = cards.filter((c) => !copiesOf(c).length);
     return cards;
@@ -3348,9 +3410,10 @@ body.quick-open .toast { z-index: 40; }
     } else if (finder.status === "loading") body = `<p class="empty dots">Finding every ${esc(finder.parsed?.text || "")} card</p>`;
     else if (finder.status === "error") body = `<p class="empty">Couldn't reach the card databases. Check your connection and try again.</p>`;
     else {
-      const all = finder.cards, shown = finderShown();
-      const ownedN = all.filter((c) => copiesOf(c).length).length;
-      body = `<div class="resulthead"><div><b>${all.length}${all.length >= 1e3 ? "+" : ""} card${all.length === 1 ? "" : "s"}</b> <span class="hint">· ${esc(finder.parsed.label)} · you own ${ownedN}</span></div>
+      const all = finder.cards, nar = narrowTo(finder.parsed, all), shown = finderShown();
+      const ownedN = nar.cards.filter((c) => copiesOf(c).length).length;
+      body = `<div class="resulthead"><div><b>${nar.cards.length}${nar.cards.length >= 1e3 ? "+" : ""} card${nar.cards.length === 1 ? "" : "s"}</b> <span class="hint">· ${esc(finder.parsed.label)} · you own ${ownedN}</span>
+        ${!nar.exact ? `<p class="hint" style="margin-top:4px">No ${esc(finder.parsed.text)} card matches “${esc([finder.parsed.num, finder.parsed.extra].filter(Boolean).join(" "))}”, so here are all of them.</p>` : nar.cards.length < all.length ? `<button type="button" class="textbtn" id="showAllRes">Show all ${all.length} ${esc(finder.parsed.text)} cards</button>` : ""}</div>
         <div class="seg mini" id="showSeg">${[["all", "All"], ["owned", "Owned"], ["missing", "Missing"]].map(([v, l]) => `<button type="button" data-show="${v}" aria-pressed="${finder.show === v}">${l}</button>`).join("")}</div>
         <select id="sortSel" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}"${finder.sort === v ? " selected" : ""}>${l}</option>`).join("")}</select></div>
         ${finder.note ? `<p class="notice">${esc(finder.note)}</p>` : ""}
@@ -3382,6 +3445,7 @@ body.quick-open .toast { z-index: 40; }
       finder.sort = ev.target.value;
       render();
     });
+    $("#showAllRes")?.addEventListener("click", () => runFinder(finder.parsed.text));
     $("#moreRes")?.addEventListener("click", () => {
       finder.limit += 40;
       render();
@@ -4396,8 +4460,29 @@ body.quick-open .toast { z-index: 40; }
       renderViewBar();
     });
   });
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {
-  });
+  // Updates: check for a new version on opening and whenever the app comes back to the front,
+  // and reload once when it arrives (unless a camera or card sheet is open).
+  if ("serviceWorker" in navigator) {
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) reg.update().catch(() => {
+        });
+      });
+    }).catch(() => {
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloading) return;
+      const busy = () => quick || $("#sheetRoot").firstElementChild || document.querySelector(".cropper");
+      const go = () => {
+        if (busy()) return setTimeout(go, 3000);
+        reloading = true;
+        location.reload();
+      };
+      go();
+    });
+  }
 })();
 
 </script>

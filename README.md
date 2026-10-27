@@ -33,10 +33,13 @@ websites you haven't visited in a while, but not for apps on your home screen.
 and **Value** (Prices, Insights, Grading, Top cards). The top bar switches collection (English,
 Japanese, Korean, Chinese), adds a card by hand (**+**) and opens settings.
 
-- **Search**: type a Pokémon, a card name ("Charizard ex") or an illustrator ("artist: Arita") to see
+- **Search**: type a Pokémon, a card name ("Charizard ex"), a Pokémon with its number or set
+  ("Mewtwo 51", "Mewtwo 51/108", "Charizard Base Set"), a set ("Evolutions 51"), an illustrator
+  ("artist: Arita"), or paste a PriceCharting or TCGplayer link. An exact match opens straight away. You'll see
   every printing: picture, set and set symbol, number, rarity, year, illustrator and a TCGplayer price
   for each finish (normal, holo, reverse holo, 1st Edition), marked Owned or Missing. Sort by newest,
-  oldest or price, and filter to owned or missing. Tap any card for its page.
+  oldest or price, and filter to owned or missing. Tap any card for its page. Add the card number
+  and/or set to go straight to one card: "Mewtwo 51", "Mewtwo 51/108" or "Mewtwo Evolutions".
 - **Card page**: big picture (tap to enlarge), price by finish with an **Add** button for each,
   your copies, set details, illustrator (tap to see all their cards), graded estimates, price history
   and wishlist.
