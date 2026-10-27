@@ -3193,6 +3193,7 @@ body.quick-open .toast { z-index: 40; }
     };
     draw();
   }
+  var APP_VERSION = "22 (27 Oct 2026)";
   // ---------- Card search: every printing of a card, in full detail ----------
   // pokemontcg.io gives everything in one go for English cards: set, symbol, release date,
   // rarity, illustrator and TCGplayer prices for each finish. TCGdex is the fallback, and the
@@ -3289,8 +3290,8 @@ body.quick-open .toast { z-index: 40; }
       if (signal?.aborted) throw e;
       const n = s.dex || resolveDex(s.text);
       if (!n) throw e;
-      // pokemontcg.io is down: TCGdex still lists the cards, just without prices
-      const r = await lookupCards(n, {}, signal);
+      // pokemontcg.io is down: TCGdex still lists the cards (and finds one by its number), just without prices
+      const r = await lookupCards(n, s.num ? { number: s.num, total: s.total } : {}, signal);
       const cards = r.cards.filter((c) => s.kind !== "name" || words(c.name).includes(words(s.text).trim()) || norm(s.text) === norm(nameOf(n)));
       return { cards: cards.length ? cards : r.cards, note: "The price database isn't answering right now, so these come without prices. Try again in a minute." };
     }
@@ -3405,8 +3406,8 @@ body.quick-open .toast { z-index: 40; }
     const recent = recentSearches();
     let body = "";
     if (finder.status === "idle") {
-      body = `<section class="panel"><h2>Find any card</h2><p class="lede">Search a Pokémon, a card name (like “Charizard ex”) or an illustrator (“artist: Arita”). You'll see every printing, with its set, number, rarity, illustrator and a TCGplayer price for each finish.</p>
-      ${recent.length ? `<div class="recent"><span class="hint">Recent</span>${recent.map((r) => `<button type="button" class="rchip" data-recent="${esc(r)}">${esc(r)}</button>`).join("")}</div>` : ""}</section>`;
+      body = `<section class="panel"><h2>Find any card</h2><p class="lede">Type the name and number on the card, like <b>Mewtwo 51</b> or <b>Mewtwo 51/108</b>, and it opens that card from the right set. You can also search a Pokémon (every printing), a set (<b>Evolutions 51</b>), an illustrator (<b>artist: Arita</b>), or paste a PriceCharting or TCGplayer link.</p>
+      ${recent.length ? `<div class="recent"><span class="hint">Recent</span>${recent.map((r) => `<button type="button" class="rchip" data-recent="${esc(r)}">${esc(r)}</button>`).join("")}</div>` : ""}<p class="hint">App version ${APP_VERSION}</p></section>`;
     } else if (finder.status === "loading") body = `<p class="empty dots">Finding every ${esc(finder.parsed?.text || "")} card</p>`;
     else if (finder.status === "error") body = `<p class="empty">Couldn't reach the card databases. Check your connection and try again.</p>`;
     else {
@@ -4176,6 +4177,7 @@ body.quick-open .toast { z-index: 40; }
       <div class="actions" style="justify-content:flex-start"><button type="button" class="btn" id="csvBtn">Export CSV</button><button type="button" class="btn" id="impBtn">Import CSV</button></div>
     </div>
     <div class="setting">
+      <p class="hint">App version ${APP_VERSION}</p>
       <h4>Prices</h4>
       <p class="hint">Prices are TCGplayer market prices (what cards have recently sold for on TCGplayer, a US marketplace), for the card's finish: normal, holo, reverse holo, or 1st Edition for older sets. They come from the Pokémon TCG API, which updates them every week or two, and are converted from US dollars at $1 = £${(fx.rate / (fx.usd || FALLBACK_USD)).toFixed(3)}${fx.live ? ` (rate from ${shortDate(fx.at)})` : " (estimated rate: couldn't get today's)"}. Cards are found using TCGdex too, for its newer sets and better pictures, then priced from their Pokémon TCG API twin. That database is sometimes down, so if a price can't be refreshed the last one is kept. Market prices are for Near Mint copies, so cards with a condition set are valued lower: Excellent 80%, Good 65%, Light Played 55%, Played 40%, Poor 25%. Japanese, Korean and Chinese cards have no TCGplayer price, so you can set your own value on those.</p>
     </div>
@@ -4465,7 +4467,9 @@ body.quick-open .toast { z-index: 40; }
   if ("serviceWorker" in navigator) {
     const hadController = !!navigator.serviceWorker.controller;
     let reloading = false;
-    navigator.serviceWorker.register("sw.js").then((reg) => {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
+      reg.update().catch(() => {
+      });
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) reg.update().catch(() => {
         });
