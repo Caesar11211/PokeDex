@@ -5,46 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Living Dex</title>
   <meta name="description" content="Scan Pokémon cards into a 1,025-slot living Pokédex binder with TCGplayer prices.">
-  <meta name="theme-color" content="#d3202f">
+  <meta name="theme-color" content="#f4f5f9">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Living Dex">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <style>
-/* Living Dex — a field Pokédex device: a red shell, a dark pixel screen for your progress,
-   and a binder whose empty slots are tinted with each Pokémon's type colours. */
+/* Living Dex — a light, clean collector app: white cards on a soft grey page, big card images,
+   one indigo accent, and Pokémon type colours for empty binder slots. */
 :root {
-  --paper: #eef0f3; --panel: #ffffff; --sunk: #f4f5f8; --line: #d9dde3;
-  --ink: #1b2230; --muted: #616a79;
-  --red: #d3202f; --red-deep: #9e1525; --red-ink: #ffffff;
-  --screen: #1d2938; --screen-edge: #2b3a4e; --glow: #e8f4e4; --glow-dim: #9db0a6; --amber: #ffd54a; --lime: #8be28f;
-  --got: #22874f; --got-soft: #e1f2e7; --gold: #b7860b; --warn: #c2361f;
-  --px: "Pixelify Sans", ui-monospace, "SF Mono", Menlo, monospace;
-  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --shell-h: calc(56px + env(safe-area-inset-top, 0px));
-  --tab-h: calc(64px + env(safe-area-inset-bottom, 0px));
-  /* names older parts of the app use */
+  --paper: #f4f5f9; --panel: #ffffff; --sunk: #f1f2f7; --line: #e4e6ee;
+  --ink: #12141c; --muted: #6a7080;
+  --red: #4b4fe0; --red-deep: #3437b8; --red-ink: #ffffff;
+  --accent-soft: #eceefe;
+  --screen: #ffffff; --screen-edge: #e4e6ee; --glow: #12141c; --glow-dim: #6a7080; --amber: #12141c; --lime: #4b4fe0;
+  --got: #12915a; --got-soft: #e5f6ee; --gold: #c08a00; --warn: #d4402b; --miss: #8a90a0;
+  --px: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --shadow: 0 1px 2px rgba(18,20,28,.05), 0 4px 14px rgba(18,20,28,.06);
+  --shadow-lg: 0 10px 40px rgba(18,20,28,.16);
+  --shell-h: calc(58px + env(safe-area-inset-top, 0px));
+  --tab-h: calc(66px + env(safe-area-inset-bottom, 0px));
   --bg: var(--paper); --sheet: var(--panel); --sleeve: var(--sunk); --accent: var(--red); --accent-ink: var(--red-ink);
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #0f1319; --panel: #181e27; --sunk: #212834; --line: #2f3846;
-    --ink: #e7ebf1; --muted: #98a2b2;
-    --red: #c81d2c; --red-deep: #7a0f1a;
-    --screen: #0b1017; --screen-edge: #1f2a37;
-    --got: #48c27f; --got-soft: #15301f; --gold: #e1b53e; --warn: #ff6a52;
-    color-scheme: dark;
-  }
-}
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--paper); }
-body { color: var(--ink); font: 15px/1.45 var(--body); padding-bottom: calc(var(--tab-h) + 24px); -webkit-tap-highlight-color: transparent; }
+body { color: var(--ink); font: 15px/1.45 var(--body); padding-bottom: calc(var(--tab-h) + 24px); -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -52,245 +44,304 @@ button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .55; }
 :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.px, .num { font-family: var(--px); font-variant-numeric: tabular-nums; }
+.px, .num { font-variant-numeric: tabular-nums; }
 .spacer { flex: 1; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.wrap { max-width: 860px; margin: 0 auto; padding: 14px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 12px; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 14px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 14px; }
 
-/* ---------- The device shell ---------- */
-.shell { position: sticky; top: 0; z-index: 25; background: linear-gradient(180deg, var(--red) 0%, color-mix(in srgb, var(--red) 88%, #000) 100%);
-  border-bottom: 3px solid var(--red-deep); color: var(--red-ink); padding-top: env(safe-area-inset-top, 0px); }
-.shell-in { max-width: 860px; margin: 0 auto; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
-.lamp { width: 20px; height: 20px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #e6f6ff 0 18%, #5cb8f2 40%, #1d6fb8 100%);
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--red-deep); }
-body.busy .lamp { animation: lamp 1s steps(2) infinite; }
-@keyframes lamp { 50% { filter: brightness(1.6) saturate(1.3); } }
-.brand { font: 700 19px/1 var(--px); letter-spacing: .01em; white-space: nowrap; }
-.collpick { border: 0; background: rgba(255,255,255,.17); color: #fff; border-radius: 999px; padding: 5px 12px 5px 12px; font-weight: 600; font-size: 13.5px; white-space: nowrap; }
-.collpick::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 7px; vertical-align: 2px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-.shellbtn { width: 38px; height: 38px; border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; display: grid; place-items: center; flex: none; }
-.shellbtn svg { width: 20px; height: 20px; }
+/* ---------- Top bar ---------- */
+.shell { position: sticky; top: 0; z-index: 25; background: rgba(244,245,249,.86); -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
+  border-bottom: 1px solid var(--line); color: var(--ink); padding-top: env(safe-area-inset-top, 0px); }
+.shell-in { max-width: 900px; margin: 0 auto; height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+.lamp { width: 28px; height: 28px; border-radius: 9px; flex: none; background: linear-gradient(135deg, #6a6ef2, #3437b8); box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); position: relative; }
+.lamp::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; border: 2.5px solid #fff; }
+body.busy .lamp { animation: lamp 1s ease-in-out infinite; }
+@keyframes lamp { 50% { filter: brightness(1.35); transform: scale(.94); } }
+.brand { font: 800 19px/1 var(--body); letter-spacing: -.02em; white-space: nowrap; }
+.collpick { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 5px 12px; font-weight: 600; font-size: 13px; white-space: nowrap; box-shadow: 0 1px 2px rgba(18,20,28,.05); }
+.collpick::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 7px; vertical-align: 2px; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.shellbtn { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); display: grid; place-items: center; flex: none; box-shadow: 0 1px 2px rgba(18,20,28,.05); }
+.shellbtn svg { width: 19px; height: 19px; }
 @media (max-width: 370px) { .brand { display: none; } }
 
-/* ---------- The screen ---------- */
-.screen { background: var(--screen); color: var(--glow); border-radius: 14px; padding: 12px 16px 11px; position: relative; overflow: hidden;
-  box-shadow: inset 0 0 0 3px var(--screen-edge), inset 0 8px 24px rgba(0,0,0,.35); }
-.screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px); }
+/* ---------- Portfolio summary ---------- */
+.screen { background: linear-gradient(135deg, #5357ea 0%, #3437b8 100%); color: #fff; border-radius: 20px; padding: 18px 18px 16px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(52,55,184,.25); }
+.screen::after { content: ""; position: absolute; right: -40px; top: -60px; width: 200px; height: 200px; border-radius: 50%; border: 28px solid rgba(255,255,255,.07); pointer-events: none; }
 .screen p { margin: 0; }
-.scr-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-.scr-caught .px { font-size: 34px; line-height: 1; }
+.scr-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; position: relative; z-index: 1; }
+.scr-caught .px { font: 800 32px/1 var(--body); letter-spacing: -.02em; }
 .scr-value { text-align: right; }
-.scr-value .px { font-size: 26px; line-height: 1; color: var(--amber); display: block; }
-.scr-of { font-size: 13px; color: var(--glow-dim); margin-left: 4px; }
-.scr-value .scr-of { margin: 2px 0 0; display: block; }
-.meter { height: 8px; margin: 10px 0 8px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
-.meter i { display: block; height: 100%; width: 0; transition: width .5s steps(12);
-  background: repeating-linear-gradient(90deg, var(--lime) 0 6px, color-mix(in srgb, var(--lime) 70%, #000) 6px 8px); }
-.scr-foot { font-size: 12.5px; color: var(--glow-dim); }
-.scr-foot span { color: var(--glow); }
-#subTxt { display: block; color: var(--amber); margin-top: 3px; }
+.scr-value .px { font: 800 26px/1 var(--body); letter-spacing: -.02em; color: #fff; display: block; }
+.scr-of { font-size: 13px; color: rgba(255,255,255,.75); margin-left: 4px; }
+.scr-value .scr-of { margin: 4px 0 0; display: block; }
+.meter { height: 8px; margin: 14px 0 10px; background: rgba(255,255,255,.2); border-radius: 999px; overflow: hidden; position: relative; z-index: 1; }
+.meter i { display: block; height: 100%; width: 0; transition: width .5s ease; background: #fff; border-radius: 999px; }
+.scr-foot { font-size: 12.5px; color: rgba(255,255,255,.78); position: relative; z-index: 1; }
+.scr-foot span { color: #fff; font-weight: 600; }
+#subTxt { display: block; color: #fff; margin-top: 3px; }
 #subTxt:empty { display: none; }
+body[data-view="search"] .screen, body[data-view="search"] #notice { display: none; }
 
-.notice { background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.notice { background: var(--accent-soft); border: 0; border-radius: 14px; padding: 11px 14px; color: var(--red-deep); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin: 0; }
 
-/* ---------- Toolbar: tab sections, search, filters ---------- */
-.toolbar { display: flex; flex-direction: column; gap: 8px; }
-.seg { display: flex; background: var(--sunk); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 2px; }
-.seg button { flex: 1; border: 0; background: none; padding: 7px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
-.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12), inset 0 -2px 0 var(--red); }
+/* ---------- Toolbar ---------- */
+.toolbar { display: flex; flex-direction: column; gap: 10px; }
+.seg { display: flex; background: #e9ebf2; border-radius: 12px; padding: 3px; gap: 2px; }
+.seg button { flex: 1; border: 0; background: none; padding: 7px 10px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(18,20,28,.12); }
 .seg.mini { display: inline-flex; }
 .seg.mini button { flex: none; padding: 5px 11px; font-size: 12.5px; }
-.findbar { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px 4px 4px 12px; }
-.findbar > svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
-.findbar input { flex: 1; min-width: 0; border: 0; background: none; padding: 7px 0; font-size: 16px; outline: none; }
-.findbar input::placeholder { color: var(--muted); }
-.findbar:focus-within { border-color: var(--ink); }
-.filterbtn { position: relative; width: 38px; height: 38px; border: 0; border-radius: 9px; background: var(--sunk); display: grid; place-items: center; color: var(--ink); flex: none; }
+.findbar, .bigsearch { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px 4px 4px 14px; box-shadow: var(--shadow); }
+.findbar > svg, .bigsearch > svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.findbar input, .bigsearch input { flex: 1; min-width: 0; border: 0; background: none; padding: 8px 0; font-size: 16px; outline: none; }
+.findbar input::placeholder, .bigsearch input::placeholder { color: var(--muted); }
+.findbar:focus-within, .bigsearch:focus-within { border-color: var(--red); box-shadow: 0 0 0 3px var(--accent-soft); }
+.bigsearch { padding: 6px 6px 6px 16px; border-radius: 16px; }
+.filterbtn { position: relative; width: 38px; height: 38px; border: 0; border-radius: 10px; background: var(--sunk); display: grid; place-items: center; color: var(--ink); flex: none; }
 .filterbtn svg { width: 20px; height: 20px; }
-.fcount { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--red); color: #fff; font: 600 11px/18px var(--px); text-align: center; }
+.fcount { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--red); color: #fff; font: 700 11px/18px var(--body); text-align: center; }
 .viewbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .hint { color: var(--muted); font-size: 13px; margin: 0; }
 .textbtn { border: 0; background: none; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; padding: 6px 4px; }
 .progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; flex: 1 1 100%; }
-.progress i { display: block; height: 100%; background: var(--got); width: 0; transition: width .2s; }
+.progress i { display: block; height: 100%; background: var(--red); width: 0; transition: width .2s; }
 .switch { display: inline-flex; align-items: center; gap: 10px; border: 0; background: none; padding: 4px 0; font-size: 14px; font-weight: 600; text-align: left; }
-.switch .knob { width: 38px; height: 22px; border-radius: 999px; background: var(--line); position: relative; flex: none; transition: background .15s; }
-.switch .knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+.switch .knob { width: 42px; height: 26px; border-radius: 999px; background: #d5d8e2; position: relative; flex: none; transition: background .15s; }
+.switch .knob::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
 .switch[aria-pressed="true"] .knob { background: var(--red); }
 .switch[aria-pressed="true"] .knob::after { transform: translateX(16px); }
 
 /* ---------- Binder ---------- */
-.pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 14px; }
-.page { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
-body:not([data-coll="en"]) .page { border-top: 3px solid var(--red); }
-.page h2 { margin: 0 2px 8px; display: flex; justify-content: space-between; align-items: baseline; font: 600 15px/1.2 var(--px); }
+.pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.page { background: var(--panel); border: 0; border-radius: 18px; padding: 12px; box-shadow: var(--shadow); }
+body:not([data-coll="en"]) .page { box-shadow: var(--shadow), inset 0 3px 0 var(--red); }
+.page h2 { margin: 0 2px 10px; display: flex; justify-content: space-between; align-items: baseline; font: 700 15px/1.2 var(--body); }
 .page h2 .num { font: 500 12px var(--body); color: var(--muted); }
-.grid9 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.flat { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 8px; }
+.grid9 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.flat { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
 .slot { --t1: #a8a77a; --t2: var(--t1); position: relative; aspect-ratio: 63 / 88; max-width: 100%; min-width: 0; overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--t1) 35%, var(--line)); border-radius: 8px;
-  background: color-mix(in srgb, var(--t1) 13%, var(--panel));
-  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 9px 6px 6px; text-align: left; }
-.slot::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--t1) 50%, var(--t2) 50%); }
-.slot .sn { font: 600 13px/1 var(--px); color: color-mix(in srgb, var(--t1) 55%, var(--ink)); }
-.slot .nm { font-size: 11.5px; font-weight: 600; line-height: 1.15; color: var(--muted); overflow-wrap: anywhere; }
-.slot.legend::after { content: ""; position: absolute; top: 10px; right: 6px; width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold); z-index: 1; }
-.slot.wish { border: 1.5px dashed var(--red); }
+  border: 1.5px dashed color-mix(in srgb, var(--t1) 45%, var(--line)); border-radius: 10px;
+  background: color-mix(in srgb, var(--t1) 8%, var(--panel));
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 8px 7px 7px; text-align: left; }
+.slot::before { content: ""; position: absolute; left: 7px; right: 7px; bottom: 7px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--t1) 50%, var(--t2) 50%); opacity: .7; }
+.slot .sn { font: 700 12px/1 var(--body); color: color-mix(in srgb, var(--t1) 60%, var(--ink)); font-variant-numeric: tabular-nums; }
+.slot .nm { font-size: 11.5px; font-weight: 600; line-height: 1.15; color: var(--muted); overflow-wrap: anywhere; margin-bottom: 6px; }
+.slot.legend::after { content: ""; position: absolute; top: 9px; right: 7px; width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold); z-index: 1; border-radius: 1px; }
+.slot.wish { border: 1.5px solid var(--red); background: var(--accent-soft); }
 .slot.wish .sn { color: var(--red); }
 .slot.got { background: var(--got-soft); border: 1.5px solid var(--got); }
 .slot.got .sn { color: var(--got); }
 .slot.got .nm { color: var(--ink); }
 .slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.slot.hasimg { padding: 0; border-color: transparent; background: var(--sunk); }
+.slot.hasimg { padding: 0; border: 0; background: var(--sunk); box-shadow: 0 2px 6px rgba(18,20,28,.18); border-radius: 8px; }
 .slot.hasimg::before, .slot.hasimg .sn, .slot.hasimg .nm { display: none; }
-.slot .badge { position: absolute; z-index: 1; bottom: 5px; font: 600 10.5px/1.5 var(--px); border-radius: 4px; padding: 0 4px; }
-.slot .spare { right: 5px; background: var(--ink); color: var(--paper); }
-.slot .val { left: 5px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
-.empty { color: var(--muted); text-align: center; padding: 40px 10px; }
+.slot .badge { position: absolute; z-index: 1; bottom: 5px; font: 700 10.5px/1.6 var(--body); border-radius: 6px; padding: 0 5px; font-variant-numeric: tabular-nums; }
+.slot .spare { right: 5px; background: var(--ink); color: #fff; }
+.slot .val { left: 5px; background: rgba(255,255,255,.94); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.empty { color: var(--muted); text-align: center; padding: 40px 10px; margin: 0; }
 
 /* ---------- Bottom bar ---------- */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end;
-  background: var(--panel); border-top: 1px solid var(--line); padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
-.tabbar button { position: relative; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; color: var(--muted); font-size: 11.5px; font-weight: 600; }
+  background: rgba(255,255,255,.92); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px); border-top: 1px solid var(--line);
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+.tabbar button { position: relative; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0; color: var(--miss); font-size: 11px; font-weight: 600; }
 .tabbar button svg { width: 23px; height: 23px; }
 .tabbar button[aria-pressed="true"] { color: var(--red); }
 .tabbar button[aria-pressed="true"] span { font-weight: 700; }
-.tcount { position: absolute; top: 0; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--red); color: #fff; font: 600 10.5px/17px var(--px); }
+.tcount { position: absolute; top: 0; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--warn); color: #fff; font: 700 10.5px/17px var(--body); }
 .tcount:empty { display: none; }
-.tabbar .scanbtn { color: var(--red); }
-.tabbar .scanbtn svg { width: 58px; height: 58px; padding: 14px; margin-top: -30px; border-radius: 50%; background: var(--red); color: #fff;
-  box-shadow: 0 0 0 4px var(--panel), 0 0 0 6px var(--red-deep), 0 6px 14px rgba(160, 20, 35, .35); }
-.tabbar .scanbtn.rapid svg { background: var(--red-deep); box-shadow: 0 0 0 4px var(--panel), 0 0 0 6px var(--amber), 0 6px 14px rgba(160, 20, 35, .35); }
+.tabbar .scanbtn { color: var(--ink); }
+.tabbar .scanbtn svg { width: 56px; height: 56px; padding: 15px; margin-top: -28px; border-radius: 18px; background: linear-gradient(135deg, #5f63f0, #3437b8); color: #fff;
+  box-shadow: 0 0 0 4px var(--panel), 0 8px 18px rgba(52,55,184,.4); }
+.tabbar .scanbtn.rapid svg { background: linear-gradient(135deg, #12915a, #0b6b41); box-shadow: 0 0 0 4px var(--panel), 0 8px 18px rgba(18,145,90,.4); }
 
 /* ---------- Sheets ---------- */
-.backdrop { position: fixed; inset: 0; z-index: 30; background: rgba(10,14,22,.55); display: flex; align-items: flex-end; justify-content: center; }
-.sheet { background: var(--panel); width: min(560px, 100%); max-height: 92%; overflow: auto; overscroll-behavior: contain; border-radius: 18px 18px 0 0;
+.backdrop { position: fixed; inset: 0; z-index: 30; background: rgba(18,20,28,.42); display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--panel); width: min(600px, 100%); max-height: 94%; overflow: auto; overscroll-behavior: contain; border-radius: 24px 24px 0 0; box-shadow: var(--shadow-lg);
   padding: 0 max(18px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
-@media (min-width: 700px) { .backdrop { align-items: center; } .sheet { border-radius: 18px; } }
-.sheet-top { position: sticky; top: 0; z-index: 2; background: var(--panel); margin: 0 -18px; padding: 16px 18px 10px; display: flex; flex-direction: column; gap: 6px; }
-.sheet-top.typed { border-top: 5px solid var(--t1); background: linear-gradient(180deg, color-mix(in srgb, var(--t1) 14%, var(--panel)), var(--panel) 90%); }
+.sheet::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: #d5d8e2; margin: 8px auto -6px; flex: none; }
+@media (min-width: 700px) { .backdrop { align-items: center; } .sheet { border-radius: 24px; } .sheet::before { display: none; } }
+.sheet-top { position: sticky; top: 0; z-index: 2; background: var(--panel); margin: 0 -18px; padding: 12px 18px 10px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid transparent; }
+.sheet-top.typed { box-shadow: inset 0 4px 0 var(--t1); }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.sheet h3 { margin: 0; font: 600 21px/1.15 var(--px); }
-.sheet h4 { margin: 0; font: 600 15px/1.2 var(--px); color: var(--ink); }
-.x { border: 0; background: var(--sunk); border-radius: 50%; width: 34px; height: 34px; font-size: 18px; line-height: 1; flex: none; }
+.sheet h3 { margin: 0; font: 800 21px/1.15 var(--body); letter-spacing: -.02em; flex: 1; min-width: 0; }
+.sheet h4 { margin: 0; font: 700 15px/1.2 var(--body); color: var(--ink); }
+.x { border: 0; background: var(--sunk); border-radius: 50%; width: 34px; height: 34px; font-size: 18px; line-height: 1; flex: none; color: var(--muted); }
+.backbtn { border: 0; background: var(--sunk); border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px; color: var(--red); flex: none; }
 .tchips { display: flex; gap: 5px; flex-wrap: wrap; }
-.tchip { background: var(--c); color: var(--cink); border-radius: 5px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+.tchip { background: var(--c); color: var(--cink); border-radius: 999px; padding: 1px 9px; font-size: 11.5px; font-weight: 700; }
 .sheet .actions.sticky { position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom, 0px)); z-index: 2; margin: 0 -18px calc(-18px - env(safe-area-inset-bottom, 0px));
-  padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border-top: 1px solid var(--line); }
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px)); background: rgba(255,255,255,.96); border-top: 1px solid var(--line); }
 .photo { display: flex; gap: 14px; align-items: flex-start; }
-.photo img { width: 88px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); flex: none; }
+.photo img { width: 88px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 9px; box-shadow: 0 2px 8px rgba(0,0,0,.15); flex: none; }
 .status { font-size: 14px; color: var(--muted); min-width: 0; margin: 0; }
 .status.ok { color: var(--got); } .status.warn { color: var(--warn); }
 .dots::after { content: ""; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 .searchrow { display: grid; grid-template-columns: 1fr 92px auto; gap: 8px; align-items: end; }
 form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
-label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); min-width: 0; }
-label input, label textarea, label select { background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; font-size: 16px; font-weight: 400; color: var(--ink); width: 100%; }
+form.bigsearch { display: flex; }
+label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--muted); min-width: 0; }
+label input, label textarea, label select { background: var(--sunk); border: 1px solid transparent; border-radius: 11px; padding: 10px 12px; font-size: 16px; font-weight: 400; color: var(--ink); width: 100%; }
+label input:focus, label textarea:focus, label select:focus { outline: none; border-color: var(--red); background: var(--panel); box-shadow: 0 0 0 3px var(--accent-soft); }
 label textarea { resize: vertical; min-height: 54px; }
 .full { grid-column: 1 / -1; }
-.more { border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
-.more summary { padding: 11px 0; font-weight: 600; font-size: 14px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; }
+.more { border: 1px solid var(--line); border-radius: 14px; padding: 0 14px; }
+.more summary { padding: 12px 0; font-weight: 600; font-size: 14px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; }
 .more summary::-webkit-details-marker { display: none; }
-.more summary::after { content: "+"; font: 600 18px/1 var(--px); color: var(--muted); }
+.more summary::after { content: "+"; font: 600 18px/1 var(--body); color: var(--muted); }
 .more[open] summary::after { content: "–"; }
 .more[open] { padding-bottom: 12px; }
 #manualRow input { border-color: var(--red); }
 .match { font-size: 13px; color: var(--muted); margin: 0; } .match b { color: var(--ink); }
 .pricelink { color: var(--red); font-weight: 600; text-underline-offset: 3px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
-.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 10px 18px; font-weight: 600; }
-.btn.small { padding: 6px 12px; font-size: 13px; }
-.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.btn.go { background: var(--red); color: #fff; border-color: var(--red); font: 600 16px var(--px); padding: 11px 22px; }
-.btn.danger { color: var(--warn); border-color: var(--warn); }
-.dupe { background: var(--sunk); border-radius: 10px; padding: 12px; font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 18px; font-weight: 600; text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.btn.small { padding: 7px 12px; font-size: 13px; border-radius: 10px; }
+.btn.primary { background: var(--red); color: #fff; border-color: var(--red); }
+.btn.go { background: var(--red); color: #fff; border-color: var(--red); font: 700 16px var(--body); padding: 12px 22px; }
+.btn.danger { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
+.dupe { background: var(--sunk); border-radius: 14px; padding: 12px; font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
 .setting { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .setting:last-child { border-bottom: 0; padding-bottom: 0; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tab-h) + 16px); z-index: 40; background: var(--ink); color: var(--paper);
-  padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; max-width: calc(100% - 32px); text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tab-h) + 16px); z-index: 40; background: var(--ink); color: #fff;
+  padding: 11px 16px; border-radius: 14px; font-weight: 600; font-size: 14px; max-width: calc(100% - 32px); text-align: center; box-shadow: var(--shadow-lg); }
 
 /* Collection list and the filter sheet */
 .colllist { display: flex; flex-direction: column; gap: 8px; }
-.collrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 12px 14px; text-align: left; }
-.collrow b { font: 600 17px var(--px); display: block; }
+.collrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--line); background: var(--panel); border-radius: 14px; padding: 12px 14px; text-align: left; }
+.collrow b { font: 700 16px var(--body); display: block; }
 .collrow small { color: var(--muted); font-size: 12.5px; }
-.collrow .px { font-size: 15px; color: var(--muted); white-space: nowrap; }
-.collrow[aria-pressed="true"] { border: 2px solid var(--red); }
-.regiongrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
-.reg { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 7px 8px 6px; text-align: left; }
-.reg[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.reg .rn { display: block; font-weight: 600; font-size: 13px; }
-.reg .rc { display: block; font: 500 12px var(--px); color: var(--muted); }
-.reg .bar { display: block; height: 4px; border-radius: 2px; background: var(--line); margin-top: 5px; overflow: hidden; }
+.collrow .px { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.collrow[aria-pressed="true"] { border: 2px solid var(--red); background: var(--accent-soft); }
+.regiongrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 7px; }
+.reg { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 8px 9px 7px; text-align: left; }
+.reg[aria-pressed="true"] { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); background: var(--accent-soft); }
+.reg .rn { display: block; font-weight: 700; font-size: 13px; }
+.reg .rc { display: block; font: 500 12px var(--body); color: var(--muted); }
+.reg .bar { display: block; height: 4px; border-radius: 2px; background: var(--line); margin-top: 6px; overflow: hidden; }
 .reg .bar i { display: block; height: 100%; background: var(--got); }
 .optrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.optrow select { background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; font-size: 15px; color: var(--ink); }
+.optrow select, .resulthead select, #acSort { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 14px; color: var(--ink); }
 
-/* Card picker and chosen card */
-.picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
-.pick { border: 2px solid transparent; background: var(--sunk); border-radius: 9px; padding: 4px; display: flex; flex-direction: column; gap: 3px; text-align: left; font-size: 11px; color: var(--muted); min-width: 0; }
-.pick img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 5px; background: var(--line); }
-.pick b { color: var(--ink); font: 600 12.5px var(--px); }
+/* Card picker and chosen card (scan and add sheets) */
+.picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.pick { border: 2px solid transparent; background: var(--sunk); border-radius: 12px; padding: 5px; display: flex; flex-direction: column; gap: 3px; text-align: left; font-size: 11px; color: var(--muted); min-width: 0; }
+.pick img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 7px; background: var(--line); }
+.pick b { color: var(--ink); font: 700 12.5px var(--body); }
 .pick span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick[aria-pressed="true"] { border-color: var(--red); }
+.pick[aria-pressed="true"] { border-color: var(--red); background: var(--accent-soft); }
 .pick .tag { font-size: 10.5px; font-weight: 700; }
 .pick.mine { border-color: var(--got); background: var(--got-soft); }
 .pick.mine .tag { color: var(--got); }
 .pick.binder { border-color: var(--got); box-shadow: inset 0 0 0 1px var(--got); }
-.chosen { display: grid; grid-template-columns: 104px 1fr; gap: 14px; align-items: start; background: var(--sunk); border-radius: 12px; padding: 12px; }
-.chosen img { width: 104px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 7px; }
-.chosen .cn { font: 600 17px/1.2 var(--px); }
+.chosen { display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: start; background: var(--sunk); border-radius: 16px; padding: 12px; }
+.chosen img { width: 110px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+.chosen .cn { font: 800 17px/1.2 var(--body); letter-spacing: -.01em; }
 .chosen .meta { color: var(--muted); font-size: 12.5px; }
-.price { font: 700 26px/1.1 var(--px); margin-top: 6px; }
-.price small { font: 500 12px var(--body); color: var(--muted); display: block; margin-top: 2px; }
+.price { font: 800 26px/1.1 var(--body); letter-spacing: -.02em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.price small { font: 500 12px var(--body); color: var(--muted); display: block; margin-top: 3px; letter-spacing: 0; }
 .finish { display: inline-flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
 .finish button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.edask { margin-top: 8px; padding: 10px 12px; border: 2px solid var(--amber); border-radius: 12px; background: var(--panel); }
+.finish button[aria-pressed="true"] { background: var(--red); color: #fff; border-color: var(--red); }
+.edask { margin-top: 8px; padding: 10px 12px; border: 2px solid #f2b632; border-radius: 14px; background: var(--panel); }
 .edask p { margin: 4px 0 8px; font-size: 12.5px; color: var(--muted); }
 .edbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.edbtns button { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 8px; font-weight: 700; color: var(--ink); text-align: left; }
+.edbtns button { border: 1px solid var(--line); background: var(--sunk); border-radius: 12px; padding: 8px; font-weight: 700; color: var(--ink); text-align: left; }
 .edbtns small { display: block; font-weight: 500; color: var(--muted); margin-top: 2px; }
-.finish button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.graded { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
-.graded b { color: var(--ink); font-family: var(--px); font-weight: 600; }
+.graded { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+.graded b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.wishrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--sunk); border-radius: 10px; padding: 10px 12px; }
-.wishbtn { border: 1.5px dashed var(--red); background: none; color: var(--red); border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 13px; }
-.wishbtn[aria-pressed="true"] { background: var(--red); color: #fff; border-style: solid; }
+.wishrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--sunk); border-radius: 14px; padding: 10px 12px; }
+.wishbtn { border: 1.5px solid var(--red); background: none; color: var(--red); border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 13px; }
+.wishbtn[aria-pressed="true"] { background: var(--red); color: #fff; }
 .wishrow label { flex-direction: row; align-items: center; gap: 8px; }
 .wishrow input { width: 90px; }
 .added { display: flex; gap: 14px; align-items: center; }
-.added img { width: 84px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 7px; flex: none; }
-.added b { font: 600 18px var(--px); display: block; }
-.sparelist { width: 100%; min-height: 200px; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 10px; font-size: 13px; color: var(--ink); resize: vertical; }
+.added img { width: 84px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 8px; flex: none; box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+.added b { font: 800 18px var(--body); display: block; }
+.sparelist { width: 100%; min-height: 200px; background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 10px; font-size: 13px; color: var(--ink); resize: vertical; }
 
-/* ---------- Panels: Stats, Value, Wishlist ---------- */
+/* ---------- Search results and card pages ---------- */
+.searchview { display: flex; flex-direction: column; gap: 12px; }
+.recent { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rchip { border: 1px solid var(--line); background: var(--sunk); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; }
+.resulthead { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; justify-content: space-between; }
+.resulthead > div:first-child { flex: 1 1 100%; }
+.prows { display: flex; flex-direction: column; gap: 10px; }
+.prow { display: grid; grid-template-columns: 74px 1fr 14px; gap: 12px; align-items: center; background: var(--panel); border: 0; border-radius: 16px; padding: 10px; text-align: left; box-shadow: var(--shadow); width: 100%; color: inherit; }
+.sheet .prow { box-shadow: none; border: 1px solid var(--line); }
+.prow.owned { box-shadow: var(--shadow), inset 3px 0 0 var(--got); }
+.sheet .prow.owned { border-color: color-mix(in srgb, var(--got) 50%, var(--line)); }
+.pimg { width: 74px; aspect-ratio: 63 / 88; border-radius: 6px; overflow: hidden; background: var(--sunk); display: block; box-shadow: 0 2px 6px rgba(0,0,0,.16); }
+.pimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pbody { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pname { font: 700 15px/1.25 var(--body); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; }
+.pset { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink); min-width: 0; }
+.setsym { width: 18px; height: 18px; object-fit: contain; flex: none; }
+.pmeta { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.pill-art { color: var(--red-deep); }
+.fps { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.fp { background: var(--sunk); border-radius: 8px; padding: 2px 7px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fp i { font-style: normal; font-weight: 500; color: var(--muted); margin-right: 4px; font-size: 11px; }
+.padd { color: var(--miss); font-size: 22px; line-height: 1; }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
+.chip.deal { background: var(--red); color: #fff; }
+.chip.own { background: var(--got-soft); color: var(--got); }
+.chip.miss { background: var(--sunk); color: var(--miss); }
+.chip.have { background: var(--sunk); color: var(--muted); }
+.chip.warn { background: #fdeceb; color: var(--warn); }
+.detail { display: grid; grid-template-columns: minmax(0, 46%) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 380px) { .detail { grid-template-columns: 1fr; } }
+.dimg { border: 0; padding: 0; background: none; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 28px rgba(18,20,28,.28); display: block; width: 100%; }
+.dimg img, .dimg .noimg { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; display: block; background: var(--sunk); }
+.dside { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.dprice { font: 800 30px/1.05 var(--body); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.dprice small { display: block; font: 500 12px/1.4 var(--body); letter-spacing: 0; color: var(--muted); margin-top: 6px; }
+.dtags { display: flex; flex-wrap: wrap; gap: 6px; }
+.dtags .chip { margin: 0; font-size: 12px; padding: 3px 10px; }
+.dsec { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+.frows { display: flex; flex-direction: column; gap: 6px; }
+.frow, .copy { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; background: var(--sunk); border-radius: 12px; padding: 9px 10px 9px 12px; }
+.frow b, .copy b { display: block; font-size: 14px; }
+.frow small, .copy small { display: block; color: var(--muted); font-size: 12px; }
+.fval { font: 800 16px/1.15 var(--body); text-align: right; font-variant-numeric: tabular-nums; }
+.fval small { font: 500 11px var(--body); color: var(--muted); display: block; }
+.copy { grid-template-columns: 1fr auto; }
+.copyacts { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; margin: 0; font-size: 14px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--red); font-weight: 700; text-align: left; }
+.zoom { position: fixed; inset: 0; z-index: 45; background: rgba(10,12,18,.92); display: grid; place-items: center; padding: 20px; }
+.zoom img { max-height: 92vh; max-width: 100%; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+
+/* ---------- Panels: Insights, Value, Wishlist ---------- */
 .stats-view { display: flex; flex-direction: column; gap: 14px; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.panel h2 { margin: 0; font: 600 18px/1.2 var(--px); }
+.panel { background: var(--panel); border: 0; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; box-shadow: var(--shadow); }
+.panel h2 { margin: 0; font: 800 18px/1.2 var(--body); letter-spacing: -.01em; }
 .panel .lede { margin: 0; color: var(--muted); font-size: 13px; }
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
 .chart .grid line { stroke: var(--line); stroke-width: 1; }
 .chart .axis text { fill: var(--muted); stroke: none; font-size: 11px; font-family: var(--body); }
-.chart .series { fill: none; stroke: var(--got); stroke-width: 2; }
-.chart .area { fill: var(--got); stroke: none; opacity: .12; }
-.chart .pt { fill: var(--got); stroke: none; }
-.chart .endpoint { fill: var(--got); stroke: var(--panel); stroke-width: 2; }
+.chart .series { fill: none; stroke: var(--red); stroke-width: 2.25; }
+.chart .area { fill: var(--red); stroke: none; opacity: .1; }
+.chart .pt { fill: var(--red); stroke: none; }
+.chart .endpoint { fill: var(--red); stroke: var(--panel); stroke-width: 2; }
 .chart .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
-.chart .tip { position: absolute; top: -6px; transform: translate(-50%, -100%); background: var(--ink); color: var(--paper); border-radius: 8px; padding: 5px 9px; font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 3; }
-.chart .tip b { font: 600 14px var(--px); display: block; }
-.pchart { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; min-width: 0; }
+.chart .tip { position: absolute; top: -6px; transform: translate(-50%, -100%); background: var(--ink); color: #fff; border-radius: 10px; padding: 5px 9px; font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 3; }
+.chart .tip b { font: 700 14px var(--body); display: block; }
+.pchart { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; min-width: 0; }
+.pchart h4 { margin: 0; }
 .movers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 560px) { .movers { grid-template-columns: 1fr; } }
-.movers h3 { margin: 0 0 6px; font: 600 14px var(--px); color: var(--muted); }
-.mover { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; width: 100%; }
-.mover img, .mover .noimg { width: 36px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 4px; background: var(--sunk); display: block; }
+.movers h3 { margin: 0 0 6px; font: 700 13px var(--body); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.mover { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; width: 100%; color: inherit; }
+.mover img, .mover .noimg { width: 38px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 4px; background: var(--sunk); display: block; }
 .mover .mn { font-weight: 600; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mover .ms { color: var(--muted); font-size: 12px; }
-.mover .delta { font: 600 14px var(--px); text-align: right; }
+.mover .delta { font: 700 14px var(--body); text-align: right; font-variant-numeric: tabular-nums; }
 .delta.up { color: var(--got); } .delta.down { color: var(--warn); }
 .delta small { display: block; font: 500 11px var(--body); color: var(--muted); }
 .months { display: flex; flex-direction: column; gap: 8px; }
@@ -299,36 +350,31 @@ label textarea { resize: vertical; min-height: 54px; }
 .month .bars { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .month .bar { display: flex; align-items: center; gap: 8px; }
 .month .bar i { display: block; height: 8px; border-radius: 0 4px 4px 0; min-width: 2px; }
-.month .bar.spent i { background: var(--muted); }
-.month .bar.worth i { background: var(--got); }
-.month .bar span { font: 500 12px var(--px); white-space: nowrap; }
+.month .bar.spent i { background: #b9bdcb; }
+.month .bar.worth i { background: var(--red); }
+.month .bar span { font: 600 12px var(--body); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .key { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
-.key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-.badge-card { border: 1px dashed var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px; color: var(--muted); }
-.badge-card b { font: 600 14px var(--px); color: var(--muted); }
+.badge-card { border: 1px solid var(--line); border-radius: 14px; padding: 11px; display: flex; flex-direction: column; gap: 2px; color: var(--muted); background: var(--sunk); }
+.badge-card b { font: 700 14px var(--body); color: var(--muted); }
 .badge-card small { font-size: 12px; }
-.badge-card.earned { border: 1px solid var(--got); background: var(--got-soft); }
+.badge-card.earned { border-color: var(--got); background: var(--got-soft); }
 .badge-card.earned b { color: var(--ink); }
 .badge-card .prog { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 6px; }
 .badge-card .prog i { display: block; height: 100%; background: var(--got); }
 .rows { display: flex; flex-direction: column; }
 .row-item { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border: 0; border-top: 1px solid var(--line); background: none; text-align: left; width: 100%; color: inherit; }
 .row-item:first-child { border-top: 0; }
-.row-item img, .row-item .noimg { width: 44px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 5px; background: var(--sunk); display: block; }
-.row-item .rt { font-weight: 600; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.row-item img, .row-item .noimg { width: 44px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 5px; background: var(--sunk); display: block; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.row-item .rt { font-weight: 700; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .row-item .rs { color: var(--muted); font-size: 12px; line-height: 1.35; }
-.row-item .rv { font: 700 15px var(--px); text-align: right; white-space: nowrap; }
+.row-item .rv { font: 800 15px var(--body); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .row-item .rv small { display: block; font: 500 11px var(--body); color: var(--muted); }
-.row-item .rank { font: 500 13px var(--px); color: var(--muted); }
+.row-item .rank { font: 700 13px var(--body); color: var(--muted); }
 .rv.up { color: var(--got); } .rv.down { color: var(--muted); }
-.chip { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
-.chip.deal { background: var(--red); color: #fff; }
-.chip.own { background: var(--got-soft); color: var(--got); border: 1px solid var(--got); }
-.chip.have { background: var(--sunk); color: var(--muted); border: 1px solid var(--line); }
-.chip.warn { background: var(--sunk); color: var(--warn); border: 1px dashed var(--warn); }
 .costrow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-direction: row; }
-.costrow input { width: 84px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 16px; color: var(--ink); }
+.costrow input { width: 84px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; font-size: 16px; color: var(--ink); }
 
 /* ---------- Crop step: a camera screen, dark in both themes ---------- */
 .cropper { position: fixed; inset: 0; z-index: 35; background: #0b0e14; color: #fff; display: flex; flex-direction: column;
@@ -341,6 +387,31 @@ label textarea { resize: vertical; min-height: 54px; }
 .crop-bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 12px 16px 16px; }
 .crop-bar .btn { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
 .crop-bar .btn.primary { background: #d3202f; border-color: #d3202f; color: #fff; }
+
+
+/* ---------- Quick scan: live camera that adds cards one after another ---------- */
+.quick { position: fixed; inset: 0; z-index: 32; background: #0b0e14; color: #fff; display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+body.quick-open .backdrop { z-index: 36; }
+body.quick-open .toast { z-index: 40; }
+.quick .crop-top .count { font: 500 13px var(--body); color: rgba(255,255,255,.72); }
+.qs-view { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #000; }
+.qs-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qs-guide { position: absolute; left: 50%; top: 50%; height: min(72%, 128vw); aspect-ratio: 63 / 88; transform: translate(-50%, -50%);
+  border: 3px solid rgba(255,255,255,.55); border-radius: 14px; box-shadow: 0 0 0 100vmax rgba(0,0,0,.28); transition: border-color .2s; pointer-events: none; }
+.qs-guide.steady { border-color: #f2b632; }
+.qs-guide.ok { border-color: #36c27a; }
+.qs-guide.check { border-color: #ff8a3d; }
+.qs-status { position: absolute; left: 12px; right: 12px; bottom: 12px; text-align: center; font-weight: 600; font-size: 15px;
+  background: rgba(10,14,22,.72); border-radius: 12px; padding: 9px 12px; }
+.qs-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px 4px; min-height: 92px; scrollbar-width: none; }
+.qs-item { flex: none; width: 116px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; padding: 6px;
+  display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; line-height: 1.3; color: #fff; text-align: left; }
+.qs-item img { width: 34px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 4px; flex: none; }
+.qs-item b { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 66px; }
+.qs-item.check { border-color: #ff8a3d; }
+.qs-item .undo { color: #ffb4b4; text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; }
+.qs-empty { color: rgba(255,255,255,.6); font-size: 13px; align-self: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .dots::after { animation: none; content: "…"; }
@@ -405,15 +476,15 @@ label textarea { resize: vertical; min-height: 54px; }
 <nav class="tabbar" aria-label="Sections">
   <button type="button" data-tab="binder" aria-pressed="true">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 3v18M4 12h16"/></svg><span>Binder</span></button>
-  <button type="button" data-tab="value" aria-pressed="false">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16l4-5 3 3 5-7"/></svg><span>Value</span><b class="tcount" id="cRe"></b></button>
+  <button type="button" data-tab="search" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>Search</span></button>
   <button type="button" class="scanbtn" id="scanBtn" aria-label="Scan a card">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="9" y="8" width="6" height="8" rx="1"/></svg>
     <span>Scan</span></button>
   <button type="button" data-tab="wish" aria-pressed="false">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span>Wishlist</span><b class="tcount" id="cWish"></b></button>
-  <button type="button" data-tab="stats" aria-pressed="false">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6"/></svg><span>Stats</span></button>
+  <button type="button" data-tab="value" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16l4-5 3 3 5-7"/></svg><span>Value</span><b class="tcount" id="cRe"></b></button>
 </nav>
 
 <input id="cam" class="sr" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
@@ -611,6 +682,7 @@ label textarea { resize: vertical; min-height: 54px; }
       setId: c.set?.id ?? null,
       setName: c.set?.name ?? null,
       setTotal: c.set?.cardCount?.official ?? null,
+      setSymbol: c.set?.symbol ? c.set.symbol + ".webp" : null,
       rarity: c.rarity ?? null,
       image: c.image ? c.image + "/low.webp" : null,
       imageLarge: c.image ? c.image + "/high.webp" : null,
@@ -675,6 +747,9 @@ label textarea { resize: vertical; min-height: 54px; }
       setId: c.set?.id ?? null,
       setName: c.set?.name ?? null,
       setTotal: c.set?.printedTotal ?? null,
+      setSymbol: c.set?.images?.symbol ?? null,
+      series: c.set?.series ?? null,
+      releaseDate: c.set?.releaseDate ? String(c.set.releaseDate).replace(/\//g, "-") : null,
       rarity: c.rarity ?? null,
       image: c.images?.small ?? null,
       imageLarge: c.images?.large ?? null,
@@ -1660,7 +1735,7 @@ label textarea { resize: vertical; min-height: 54px; }
   var dealCheck = null;
   var top = { status: "idle", data: null, limit: 100 };
   var prefs = (() => {
-    const d = { rapid: false, binder: "card", sort: "dex", gradingCost: DEFAULT_GRADING_COST, regional: false, megas: false, cardsView: false };
+    const d = { rapid: false, quick: false, binder: "card", sort: "dex", gradingCost: DEFAULT_GRADING_COST, regional: false, megas: false, cardsView: false };
     try {
       return { ...d, ...JSON.parse(localStorage.getItem("prefs") || "{}") };
     } catch {
@@ -2076,7 +2151,7 @@ label textarea { resize: vertical; min-height: 54px; }
   }
   var tab = "binder";
   var lastSub = { binder: "all", value: "prices" };
-  var SUBS = { binder: [["all", "All"], ["missing", "Missing"], ["have", "Got"]], value: [["prices", "Prices"], ["grading", "Grading"], ["top", "Top cards"]] };
+  var SUBS = { binder: [["all", "All"], ["missing", "Missing"], ["have", "Got"]], value: [["prices", "Prices"], ["stats", "Insights"], ["grading", "Grading"], ["top", "Top cards"]] };
   var activeFilters = () => (gen ? 1 : 0) + (typeFilter ? 1 : 0) + (prefs.sort !== "dex" ? 1 : 0) + (prefs.cardsView ? 1 : 0);
   function setTab(t) {
     tab = t;
@@ -2096,19 +2171,25 @@ label textarea { resize: vertical; min-height: 54px; }
     const subs = SUBS[tab], seg = $("#subSeg");
     seg.hidden = !subs;
     if (subs) seg.innerHTML = subs.map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${view === v}">${l}</button>`).join("");
-    $("#findbar").hidden = tab === "stats" || view === "grading";
+    $("#findbar").hidden = tab === "search" || view === "stats" || view === "grading";
     $("#filterBtn").hidden = tab !== "binder";
     const n = activeFilters();
     $("#filterCount").hidden = !n;
     $("#filterCount").textContent = n;
-    $("#scanBtn").classList.toggle("rapid", !!prefs.rapid);
-    $("#scanBtn span").textContent = prefs.rapid ? "Rapid" : "Scan";
+    $("#scanBtn").classList.toggle("rapid", !!(prefs.rapid || prefs.quick));
+    $("#scanBtn span").textContent = prefs.quick ? "Quick" : prefs.rapid ? "Rapid" : "Scan";
   }
   function render() {
     stats();
     renderNav();
     renderViewBar();
     const list = $("#list");
+    document.body.dataset.view = view;
+    if (view === "search") {
+      list.innerHTML = searchHTML();
+      bindSearch();
+      return;
+    }
     if (view === "stats") {
       list.innerHTML = statsHTML();
       bindStats();
@@ -3067,108 +3148,340 @@ label textarea { resize: vertical; min-height: 54px; }
     };
     $("#nextBtn").focus();
   }
+  // Every printing of one Pokémon, from the binder. Tap one for its full details.
   async function openAllCards(k) {
     const sl = slotOf(k), n = sl.dex;
     const which = isEnglish() ? "" : cfg().label + " ";
-    const signal = sheetShell(`${slotLabel(k)}${localName(n) ? ` · ${localName(n)}` : ""}: all ${which}cards`, `<p class="hint" id="acSummary"><span class="dots">Loading every ${which}${esc(sl.name)} card</span></p>
-    <div id="acChosen"></div><div id="acGrid" class="picker"></div>`, n);
-    let cards = [];
+    const signal = sheetShell(`${slotLabel(k)}${localName(n) ? ` · ${localName(n)}` : ""}`, `<div class="resulthead"><p class="hint" id="acSummary"><span class="dots">Loading every ${which}${esc(sl.name)} card</span></p>
+      <select id="acSort" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></div>
+      <div class="actions" style="justify-content:flex-start"><button type="button" class="btn small" id="acHand">${owned.has(k) ? "Edit binder card" : "Add by hand or set a wishlist price"}</button></div>
+      <div id="acRows" class="prows"></div>`, n);
+    $("#acHand").onclick = () => openCardSheet({ mode: owned.has(k) ? "edit" : "add", slot: isFormKey(k) ? k : void 0, dex: n });
+    let cards = [], note = "", sort = "new";
     try {
-      const [res, rate] = await Promise.all([lookupCards(n, {}, signal), eurToGbp()]);
+      const [res, rate] = await Promise.all([searchPrintings({ kind: "dex", dex: n, text: nameOf(n) }, signal), eurToGbp()]);
       fx = rate;
       cards = res.cards;
+      note = res.note;
     } catch {
       if (signal.aborted) return;
       $("#acSummary").textContent = "Couldn't reach the card databases. Check your connection and try again.";
       return;
     }
     if (signal.aborted) return;
+    // Cards for a regional form or Mega go in that slot when it's switched on
     if (sl.form) cards = cards.filter((c) => cardForm(n, c.name)?.key === k);
     else cards = cards.filter((c) => {
       const f = cardForm(n, c.name);
       return !f || !formOn(f);
     });
-    const binder = () => owned.get(k);
-    const mine = () => {
-      const m = /* @__PURE__ */ new Map(), b = binder();
-      if (b) m.set(b.cardId || "binder", { kind: "binder", e: b });
-      for (const x of extrasIn(k)) m.set(x.cardId || x.id, { kind: "extra", e: x });
-      return m;
+    // Your own cards that aren't in the list (typed in by hand, or another database's version)
+    const mine = [owned.get(k), ...extrasIn(k)].filter(Boolean);
+    const outside = mine.filter((e) => !cards.some((c) => samePrinting(e, c))).map((e) => ({ ...entryAsCard(e), dex: [n] }));
+    const all = [...outside, ...cards];
+    const draw = () => {
+      if (signal.aborted) return;
+      const shown = sortPrintings(all, sort);
+      const ownN = all.filter((c) => copiesOf(c).length).length;
+      $("#acSummary").innerHTML = all.length ? `<b>${all.length}</b> ${which}${esc(sl.name)} card${all.length === 1 ? "" : "s"} · you own ${ownN}${note ? `. ${esc(note)}` : ""}` : `No ${which}${esc(sl.name)} cards found.${isEnglish() ? "" : ` The ${cfg().label} card database is less complete than the English one.`}`;
+      $("#acRows").innerHTML = shown.map((c) => printingRowHTML(c, all.indexOf(c))).join("");
+      $("#acRows").querySelectorAll("[data-pi]").forEach((b) => b.onclick = () => openCardDetail(all[+b.dataset.pi], { dex: n, back: () => openAllCards(k) }));
     };
-    let shown = [];
-    function draw() {
-      const own = mine();
-      const outside = [...own.values()].filter((o) => !o.e.cardId || !cards.some((c) => c.id === o.e.cardId)).map((o) => ({ ...entryAsCard(o.e), id: o.e.cardId || o.e.id, _own: o }));
-      shown = [...outside, ...cards];
-      $("#acSummary").innerHTML = shown.length ? `You own <b>${own.size}</b> of ${shown.length}${cards.length >= 250 ? "+" : ""} ${which}${esc(sl.name)} cards. Tap one to see its price history, add it to your collection or make it your binder card.` : `No ${which}${esc(sl.name)} cards found.${isEnglish() ? "" : ` The ${cfg().label} card database is less complete than the English one.`}`;
-      $("#acGrid").innerHTML = shown.map((c, i) => {
-        const o = c._own || own.get(c.id);
-        return `<button type="button" class="pick ${o ? "mine" : ""} ${o?.kind === "binder" ? "binder" : ""}" data-i="${i}">
-        ${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : `<span class="noimg" style="aspect-ratio:63/88;border-radius:5px;background:var(--line)"></span>`}
-        <b>${esc(c.number ? "#" + c.number : c.name)}</b><span>${esc(c.setName || c.setId || "")}</span>
-        ${o ? `<span class="tag">${o.kind === "binder" ? "★ Binder" : "Owned"}</span>` : eurPrice(c, "standard") != null ? `<span>${money(gbp(eurPrice(c, "standard")))}</span>` : ""}</button>`;
-      }).join("");
-      $("#acGrid").querySelectorAll(".pick").forEach((b) => b.onclick = () => showCard(shown[+b.dataset.i]));
+    $("#acSort").onchange = (ev) => {
+      sort = ev.target.value;
+      draw();
+    };
+    draw();
+  }
+  // ---------- Card search: every printing of a card, in full detail ----------
+  // pokemontcg.io gives everything in one go for English cards: set, symbol, release date,
+  // rarity, illustrator and TCGplayer prices for each finish. TCGdex is the fallback, and the
+  // source for Japanese, Korean and Chinese cards.
+  var FINISHES = [["normal", "Normal"], ["holo", "Holo"], ["reverse", "Reverse holo"], ["first", "1st Edition"]];
+  var FINISH_OF_SLOT = { normal: "standard", holo: "standard", reverse: "reverse", first: "first" };
+  var usdToGbp = (usd) => usd == null ? null : gbp(usd / (fx.usd || FALLBACK_USD));
+  var topUsd = (c) => Math.max(0, ...FINISHES.map(([f]) => c.tp?.[f] ?? 0));
+  var yearOf = (c) => c.releaseDate ? c.releaseDate.slice(0, 4) : "";
+  function parseSearch(text) {
+    const t = String(text || "").trim();
+    if (!t) return null;
+    const art = t.match(/^(?:artist|illustrator|by)\s*:?\s+(.+)$/i);
+    if (art) return { kind: "artist", text: art[1].trim(), label: `Illustrated by ${art[1].trim()}` };
+    const dex = resolveDex(t);
+    const bare = norm(t.replace(/^#?\d+\s*/, "")) === norm(dex ? nameOf(dex) : "") || /^#?\d+$/.test(t);
+    if (dex && bare) return { kind: "dex", dex, text: nameOf(dex), label: `${nameOf(dex)} · #${pad(dex)}` };
+    return { kind: "name", dex, text: t, label: `“${t}”` };
+  }
+  async function ptcgAll(q, signal) {
+    const url = (page) => `${PTCG}/cards?q=${encodeURIComponent(q)}&page=${page}&pageSize=250&orderBy=-set.releaseDate&select=${FIELDS}`;
+    const first = await getJSON(url(1), { signal });
+    const out = [...first.data || []];
+    const pages = Math.min(4, Math.ceil((first.totalCount || 0) / 250));
+    for (let p = 2; p <= pages; p++) out.push(...(await getJSON(url(p), { signal })).data || []);
+    return out.map(fromPtcg);
+  }
+  async function searchPrintings(s, signal) {
+    if (!isEnglish()) {
+      const n = s.dex || resolveDex(s.text);
+      if (!n) return { cards: [], note: `Type a Pokémon's name or Dex number to search ${cfg().label} cards.` };
+      const r = await lookupCards(n, {}, signal);
+      return { cards: r.cards, note: "" };
     }
-    async function showCard(c) {
-      const box = $("#acChosen");
-      box.innerHTML = `<p class="status dots">Getting the price</p>`;
-      box.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      let card = c;
-      try {
-        if (card.brief) card = await getCard(card.id, card.source, signal, card.lang);
-        if (!c._own) card = await withPrice(card, { species: nameOf(n), dex: n }, signal);
-      } catch {
-        if (signal.aborted) return;
-        box.innerHTML = `<p class="status warn">Couldn't load that card. Try again.</p>`;
-        return;
+    const esc2 = (v) => String(v).replace(/["\\]/g, "");
+    try {
+      let q;
+      if (s.kind === "dex") q = `nationalPokedexNumbers:${s.dex}`;
+      else if (s.kind === "artist") q = `artist:"*${esc2(s.text)}*"`;
+      else q = `name:"*${esc2(s.text)}*"`;
+      let cards = await ptcgAll(q, signal);
+      if (!cards.length && s.kind === "name" && s.dex) cards = await ptcgAll(`nationalPokedexNumbers:${s.dex}`, signal);
+      if (!cards.length && s.dex) {
+        const r = await lookupCards(s.dex, {}, signal);
+        return { cards: r.cards, note: r.cards.length ? "These come from the backup card list, so some have no price." : "" };
       }
-      const o = c._own || mine().get(card.id);
-      const p = o ? o.e.value : gbp(eurPrice(card, "standard"));
-      const meta = [card.setName, card.number ? card.setTotal ? `${card.number}/${card.setTotal}` : `#${card.number}` : "", card.rarity].filter(Boolean).join(" · ");
-      box.innerHTML = `<div class="chosen">${card.imageLarge || card.image ? `<img src="${esc(card.imageLarge || card.image)}" alt="${esc(card.name)}">` : "<div></div>"}
-      <div><div class="cn">${esc(card.name)}</div><div class="meta">${esc(meta || "Set unknown")}</div>
-        <div class="price">${p != null ? money(p) : "No price yet"}<small>${o ? o.kind === "binder" ? "Your binder card" : "In your collection" : esc(priceInfo(card, "standard")?.basis || "No market price")}</small></div>
-        <div class="actions" style="justify-content:flex-start;margin-top:10px" id="acActs">
-          ${!o ? `<button type="button" class="btn primary small" id="acAdd">${binder() ? "Add to my collection" : "Add to my binder"}</button>` : ""}
-          ${!o && !isFormKey(k) ? `<button type="button" class="wishbtn" id="acWish" aria-pressed="${wantsCard(n, card.id)}">${wantsCard(n, card.id) ? "★ On wishlist" : "☆ Wishlist"}</button>` : ""}
-          ${o?.kind === "extra" ? `<button type="button" class="btn primary small" id="acMake">Make this my binder card</button><button type="button" class="btn small danger" id="acRm">Remove</button>` : ""}
-          ${o?.kind === "binder" ? `<button type="button" class="btn small" id="acEdit">Edit details</button>` : ""}
-        </div></div></div>
-      ${cardChartHTML(o ? o.e : null, card, o?.e.finish || "standard", box.clientWidth)}`;
-      bindCardCharts(box);
-      const slotField = isFormKey(k) ? k : void 0;
-      $("#acWish")?.addEventListener("click", async () => {
-        const on = await toggleWishCard(n, card, "standard");
-        const b = $("#acWish");
-        if (b) {
-          b.setAttribute("aria-pressed", String(on));
-          b.textContent = on ? "★ On wishlist" : "☆ Wishlist";
-        }
+      return { cards, note: "" };
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      const n = s.dex || resolveDex(s.text);
+      if (!n) throw e;
+      // pokemontcg.io is down: TCGdex still lists the cards, just without prices
+      const r = await lookupCards(n, {}, signal);
+      const cards = r.cards.filter((c) => s.kind !== "name" || words(c.name).includes(words(s.text).trim()) || norm(s.text) === norm(nameOf(n)));
+      return { cards: cards.length ? cards : r.cards, note: "The price database isn't answering right now, so these come without prices. Try again in a minute." };
+    }
+  }
+  // Which of your cards are this printing (binder card, extra copies), matching across both databases
+  function samePrinting(e, c) {
+    if (!e || !c) return false;
+    if (e.cardId && e.cardId === c.id) return true;
+    if (!e.number || !sameNumber(e.number, c.number)) return false;
+    const es = setIdOf(e), cs = cardSetId(c);
+    if (es && cs && (es === cs || es === tcgdexSetOf(cs) || tcgdexSetOf(es) === cs)) return true;
+    return !!(e.set && c.setName && words(e.set) === words(c.setName) && (!c.dex?.length || c.dex.includes(e.dex)));
+  }
+  function copiesOf(c) {
+    const out = [];
+    for (const [k, e] of owned) if (samePrinting(e, c)) out.push({ kind: "binder", key: k, e });
+    for (const x of extras.values()) if (samePrinting(x, c)) out.push({ kind: "extra", key: keyOf(x), e: x });
+    return out;
+  }
+  var setBadge = (c) => c.setSymbol ? `<img class="setsym" src="${esc(c.setSymbol)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  function printingRowHTML(c, i) {
+    const own = copiesOf(c);
+    const prices = FINISHES.filter(([f]) => c.tp?.[f] != null).map(([f, l]) => `<span class="fp"><i>${l}</i>${money(usdToGbp(c.tp[f]))}</span>`).join("");
+    const meta = [c.number ? c.setTotal ? `${c.number}/${c.setTotal}` : `#${c.number}` : "", c.rarity, yearOf(c)].filter(Boolean).join(" · ");
+    return `<button type="button" class="prow${own.length ? " owned" : ""}" data-pi="${i}">
+      <span class="pimg">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}</span>
+      <span class="pbody"><span class="pname">${esc(c.name)}${own.length ? `<span class="chip own">${own.length > 1 ? `Owned ×${own.length}` : "Owned"}</span>` : `<span class="chip miss">Missing</span>`}</span>
+        <span class="pset">${setBadge(c)}${esc(c.setName || c.setId || "Unknown set")}</span>
+        <span class="pmeta">${esc(meta)}${c.illustrator ? ` · <span class="pill-art">${esc(c.illustrator)}</span>` : ""}</span>
+        ${prices ? `<span class="fps">${prices}</span>` : `<span class="pmeta">${c.lang && c.lang !== "en" ? "No market price" : "No TCGplayer price"}</span>`}</span>
+      <span class="padd" aria-hidden="true">›</span></button>`;
+  }
+  var SORTS = [["new", "Newest"], ["old", "Oldest"], ["high", "Price: high"], ["low", "Price: low"]];
+  function sortPrintings(cards, how) {
+    const d = (c) => c.releaseDate || "";
+    const n = (c) => parseInt(String(c.number).replace(/\D/g, ""), 10) || 0;
+    const a = cards.slice();
+    if (how === "old") a.sort((x, y) => d(x).localeCompare(d(y)) || n(x) - n(y));
+    else if (how === "high") a.sort((x, y) => topUsd(y) - topUsd(x));
+    else if (how === "low") a.sort((x, y) => (topUsd(x) || 1e9) - (topUsd(y) || 1e9));
+    else a.sort((x, y) => d(y).localeCompare(d(x)) || n(x) - n(y));
+    return a;
+  }
+  var finder = { text: "", parsed: null, status: "idle", cards: [], note: "", sort: "new", show: "all", limit: 40, ctl: null };
+  var RECENT_KEY = "recentSearches";
+  function recentSearches() {
+    try {
+      return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  }
+  async function runFinder(text) {
+    finder.ctl?.abort();
+    const parsed = parseSearch(text);
+    finder.text = text;
+    finder.parsed = parsed;
+    finder.limit = 40;
+    if (!parsed) {
+      finder.status = "idle";
+      finder.cards = [];
+      return render();
+    }
+    try {
+      const r = [text.trim(), ...recentSearches().filter((x) => x.toLowerCase() !== text.trim().toLowerCase())].slice(0, 8);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(r));
+    } catch {
+    }
+    const ctl = finder.ctl = new AbortController();
+    finder.status = "loading";
+    render();
+    document.body.classList.add("busy");
+    try {
+      const [res, rate] = await Promise.all([searchPrintings(parsed, ctl.signal), eurToGbp()]);
+      if (ctl.signal.aborted) return;
+      fx = rate;
+      finder.cards = res.cards;
+      finder.note = res.note;
+      finder.status = "ok";
+    } catch {
+      if (ctl.signal.aborted) return;
+      finder.status = "error";
+    } finally {
+      if (finder.ctl === ctl) document.body.classList.remove("busy");
+    }
+    if (tab === "search") render();
+  }
+  function finderShown() {
+    let cards = sortPrintings(finder.cards, finder.sort);
+    if (finder.show === "owned") cards = cards.filter((c) => copiesOf(c).length);
+    if (finder.show === "missing") cards = cards.filter((c) => !copiesOf(c).length);
+    return cards;
+  }
+  function searchHTML() {
+    const recent = recentSearches();
+    let body = "";
+    if (finder.status === "idle") {
+      body = `<section class="panel"><h2>Find any card</h2><p class="lede">Search a Pokémon, a card name (like “Charizard ex”) or an illustrator (“artist: Arita”). You'll see every printing, with its set, number, rarity, illustrator and a TCGplayer price for each finish.</p>
+      ${recent.length ? `<div class="recent"><span class="hint">Recent</span>${recent.map((r) => `<button type="button" class="rchip" data-recent="${esc(r)}">${esc(r)}</button>`).join("")}</div>` : ""}</section>`;
+    } else if (finder.status === "loading") body = `<p class="empty dots">Finding every ${esc(finder.parsed?.text || "")} card</p>`;
+    else if (finder.status === "error") body = `<p class="empty">Couldn't reach the card databases. Check your connection and try again.</p>`;
+    else {
+      const all = finder.cards, shown = finderShown();
+      const ownedN = all.filter((c) => copiesOf(c).length).length;
+      body = `<div class="resulthead"><div><b>${all.length}${all.length >= 1e3 ? "+" : ""} card${all.length === 1 ? "" : "s"}</b> <span class="hint">· ${esc(finder.parsed.label)} · you own ${ownedN}</span></div>
+        <div class="seg mini" id="showSeg">${[["all", "All"], ["owned", "Owned"], ["missing", "Missing"]].map(([v, l]) => `<button type="button" data-show="${v}" aria-pressed="${finder.show === v}">${l}</button>`).join("")}</div>
+        <select id="sortSel" aria-label="Sort">${SORTS.map(([v, l]) => `<option value="${v}"${finder.sort === v ? " selected" : ""}>${l}</option>`).join("")}</select></div>
+        ${finder.note ? `<p class="notice">${esc(finder.note)}</p>` : ""}
+        ${shown.length ? `<div class="prows">${shown.slice(0, finder.limit).map((c) => printingRowHTML(c, all.indexOf(c))).join("")}</div>` : `<p class="empty">No cards match that.</p>`}
+        ${shown.length > finder.limit ? `<button type="button" class="btn" id="moreRes" style="align-self:center">Show more (${shown.length - finder.limit} left)</button>` : ""}`;
+    }
+    return `<div class="searchview"><form class="bigsearch" id="finderForm" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="finderQ" type="search" enterkeyhint="search" autocomplete="off" list="dexList" placeholder="Pokémon, card name or artist: name" value="${esc(finder.text)}" aria-label="Search cards">
+      <button type="submit" class="btn primary small">Search</button></form>${body}</div>`;
+  }
+  function bindSearch() {
+    $("#finderForm").onsubmit = (ev) => {
+      ev.preventDefault();
+      $("#finderQ").blur();
+      runFinder($("#finderQ").value);
+    };
+    $("#finderQ").addEventListener("change", (ev) => {
+      if (ev.target.value.trim() && ev.target.value !== finder.text) runFinder(ev.target.value);
+    });
+    $("#list").querySelectorAll("[data-recent]").forEach((b) => b.onclick = () => runFinder(b.dataset.recent));
+    $("#showSeg")?.addEventListener("click", (ev) => {
+      const b = ev.target.closest("[data-show]");
+      if (!b) return;
+      finder.show = b.dataset.show;
+      render();
+    });
+    $("#sortSel")?.addEventListener("change", (ev) => {
+      finder.sort = ev.target.value;
+      render();
+    });
+    $("#moreRes")?.addEventListener("click", () => {
+      finder.limit += 40;
+      render();
+    });
+    $("#list").querySelectorAll("[data-pi]").forEach((b) => b.onclick = () => openCardDetail(finder.cards[+b.dataset.pi], { dex: finder.parsed?.dex }));
+  }
+  function searchFor(text) {
+    closeSheet();
+    setTab("search");
+    runFinder(text);
+  }
+  // ---------- Card detail page ----------
+  async function openCardDetail(card, { dex = 0, back = null } = {}) {
+    const dexes = card?.dex?.length ? card.dex : [];
+    const n = dexes.includes(dex) ? dex : dexes[0] || dex || 0;
+    const signal = sheetShell(card.name, `<div id="cdBody"></div>`, n);
+    if (back) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "backbtn";
+      b.textContent = "‹ Back";
+      b.onclick = back;
+      $(".sheet-head").prepend(b);
+    }
+    let full = card;
+    const draw = () => {
+      if (signal.aborted) return;
+      const c = full, copies = copiesOf(c), slotKey = n ? slotFor(n, c) : 0;
+      const binder = slotKey ? owned.get(slotKey) : null;
+      const vintage = isVintage(cardSetId(c));
+      const headFinish = copies.find((o) => o.kind === "binder")?.e.finish || copies[0]?.e.finish || "standard";
+      const raw = gbp(eurPrice(c, headFinish)) ?? gbp(eurPrice(c, "standard"));
+      const g = raw != null ? gradedFor(c.id, raw, vintage) : null;
+      const finRows = FINISHES.filter(([f]) => c.tp?.[f] != null || (!c.tp && f === "normal")).map(([f, l]) => {
+        const mine = copies.filter((o) => (o.e.finish || "standard") === FINISH_OF_SLOT[f]).length;
+        const usd = c.tp?.[f];
+        return `<div class="frow"><span><b>${l}</b>${mine ? `<small>You have ${mine}</small>` : ""}</span>
+          <span class="fval">${usd != null ? `${money(usdToGbp(usd))}<small>$${usd.toFixed(2)}</small>` : `<small>No price</small>`}</span>
+          ${n ? `<button type="button" class="btn small primary" data-add="${f}">Add</button>` : ""}</div>`;
+      }).join("");
+      const facts = [["Set", `${setBadge(c)}${esc(c.setName || c.setId || "Unknown")}`], ["Series", esc(c.series || "")], ["Number", esc(c.number ? c.setTotal ? `${c.number}/${c.setTotal}` : c.number : "")], ["Rarity", esc(c.rarity || "")],
+        ["Released", c.releaseDate ? esc(shortDate(c.releaseDate)) : ""], ["Illustrator", c.illustrator ? `<button type="button" class="linkbtn" id="cdArt">${esc(c.illustrator)}</button>` : ""], ["Pokédex", n ? `<button type="button" class="linkbtn" id="cdDex">#${pad(n)} ${esc(nameOf(n))}</button>` : "Not a Pokémon card"]].filter(([, v]) => v);
+      $("#cdBody").innerHTML = `<div class="detail">
+        <button type="button" class="dimg" id="cdZoom" aria-label="Show the card bigger">${c.imageLarge || c.image ? `<img src="${esc(c.imageLarge || c.image)}" alt="${esc(c.name)}">` : `<span class="noimg"></span>`}</button>
+        <div class="dside">
+          <div class="dprice">${raw != null ? money(raw) : "No price yet"}<small>${esc(priceInfo(c, headFinish)?.basis || priceInfo(c, "standard")?.basis || (c.lang && c.lang !== "en" ? "Most non-English cards have no market price" : "No TCGplayer price for this card"))}</small></div>
+          <div class="dtags">${copies.length ? `<span class="chip own">${copies.some((o) => o.kind === "binder") ? "★ In your binder" : "Owned"}${copies.length > 1 ? ` ×${copies.length}` : ""}</span>` : `<span class="chip miss">Not in your collection</span>`}${binder && !copies.some((o) => o.kind === "binder") ? `<span class="chip have">Binder has another ${esc(nameOf(n))}</span>` : ""}</div>
+          ${n && !isFormKey(slotKey) ? `<button type="button" class="wishbtn" id="cdWish" aria-pressed="${wantsCard(n, c.id)}">${wantsCard(n, c.id) ? "★ On wishlist" : "☆ Add to wishlist"}</button>` : ""}
+        </div></div>
+        <section class="dsec"><h4>Prices by finish</h4><p class="hint">TCGplayer market prices (US), in pounds.${c.tp?.updated ? ` Updated ${esc(shortDate(c.tp.updated))}.` : ""}</p><div class="frows">${finRows || `<p class="hint">No prices for this card.</p>`}</div></section>
+        ${copies.length ? `<section class="dsec"><h4>Your copies</h4>${copies.map((o, i) => `<div class="copy"><span><b>${o.kind === "binder" ? "★ Binder card" : "Extra copy"}</b><small>${esc([finishLabel(o.e.finish || "standard"), o.e.condition, o.e.paid != null ? "paid " + money(o.e.paid) : "", o.e.spares ? `+${o.e.spares} spare${o.e.spares > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · "))}</small></span>
+          <span class="fval">${o.e.value != null ? money(o.e.value) : "–"}</span>
+          <span class="copyacts">${o.kind === "binder" ? `<button type="button" class="btn small" data-edit="${i}">Edit</button>` : `<button type="button" class="btn small" data-make="${i}">Make binder card</button><button type="button" class="btn small danger" data-rm="${i}">Remove</button>`}</span></div>`).join("")}</section>` : ""}
+        <section class="dsec"><h4>Details</h4><dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></section>
+        ${g ? `<section class="dsec"><h4>If graded</h4><p class="graded">${[8, 9, 10].map((x) => gradeText(g, x)).join(" · ")}</p><p class="hint">Without a <b>~</b>: median of recent eBay sales. With a <b>~</b>: rough guide from typical PSA premiums.</p></section>` : ""}
+        <div id="cdChart"></div>
+        <div class="actions" style="justify-content:flex-start"><a class="btn small" href="${esc(cardmarketLink(c, n ? nameOf(n) : c.name))}" target="_blank" rel="noopener">View on TCGplayer ↗</a>${n ? `<button type="button" class="btn small" id="cdAll">Every ${esc(nameOf(n))} card</button>` : ""}</div>`;
+      const ent = copies[0]?.e || null;
+      $("#cdChart").innerHTML = cardChartHTML(ent, c, ent?.finish || "standard", $("#cdBody").clientWidth);
+      bindCardCharts($("#cdBody"));
+      $("#cdZoom").onclick = () => {
+        const big = c.imageLarge || c.image;
+        if (!big) return;
+        const z = document.createElement("div");
+        z.className = "zoom";
+        z.innerHTML = `<img src="${esc(big)}" alt="${esc(c.name)}">`;
+        z.onclick = () => z.remove();
+        document.body.appendChild(z);
+      };
+      $("#cdArt")?.addEventListener("click", () => searchFor(`artist: ${c.illustrator}`));
+      $("#cdDex")?.addEventListener("click", () => searchFor(nameOf(n)));
+      $("#cdAll")?.addEventListener("click", () => searchFor(nameOf(n)));
+      $("#cdWish")?.addEventListener("click", async () => {
+        await toggleWishCard(n, c, "standard");
+        draw();
       });
-      $("#acAdd")?.addEventListener("click", async () => {
-        const base = { dex: n, slot: slotField, name: nameOf(n), finish: "standard", spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() };
-        if (!binder()) {
-          await saveEntry(applyCard(base, card));
-          if (!isFormKey(k) && clearsWish(n, card.id)) await saveWish(n, null);
-          toast(`Added to your binder · ${pagePos(k)}`);
+      $("#cdBody").querySelectorAll("[data-add]").forEach((b) => b.onclick = async () => {
+        const finish = FINISH_OF_SLOT[b.dataset.add];
+        const base = { dex: n, slot: isFormKey(slotKey) ? slotKey : void 0, name: nameOf(n), finish, manualValue: null, paid: null, condition: null, spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() };
+        if (!owned.get(slotKey)) {
+          await saveEntry(applyCard(base, c));
+          if (!isFormKey(slotKey) && clearsWish(n, c.id)) await saveWish(n, null);
+          toast(`${c.name} added to your binder · ${pagePos(slotKey)}`);
         } else {
-          const x = applyCard({ ...base, id: newId() }, card);
-          if (!slotField) delete x.slot;
+          const x = applyCard({ ...base, id: newId() }, c);
+          if (!isFormKey(x.slot)) delete x.slot;
           await saveExtra(x);
-          toast("Added to your collection");
+          toast(`${c.name} added to your collection`);
         }
         render();
         draw();
-        showCard(card);
       });
-      $("#acMake")?.addEventListener("click", async () => {
-        const x = o.e, b = binder();
-        const { id, ...asBinder } = x;
-        await saveEntry({ ...asBinder, slot: slotField, spares: b?.spares || 0 });
-        await removeExtra(x.id);
-        if (b) {
-          const { spares, ...rest } = b;
+      $("#cdBody").querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => openCardSheet({ mode: "edit", slot: isFormKey(copies[+b.dataset.edit].key) ? copies[+b.dataset.edit].key : void 0, dex: slotDex(copies[+b.dataset.edit].key) }));
+      $("#cdBody").querySelectorAll("[data-make]").forEach((b) => b.onclick = async () => {
+        const o = copies[+b.dataset.make], k = o.key, cur = owned.get(k);
+        const { id, ...asBinder } = o.e;
+        await saveEntry({ ...asBinder, slot: isFormKey(k) ? k : void 0, spares: cur?.spares || 0 });
+        await removeExtra(o.e.id);
+        if (cur) {
+          const { spares, ...rest } = cur;
           const keep = { ...rest, id: newId() };
           if (!isFormKey(keep.slot)) delete keep.slot;
           await saveExtra(keep);
@@ -3176,24 +3489,368 @@ label textarea { resize: vertical; min-height: 54px; }
         render();
         draw();
         toast("Binder card changed");
-        box.innerHTML = "";
       });
-      $("#acRm")?.addEventListener("click", () => {
-        $("#acActs").innerHTML = `<span class="status">Remove this card from your collection?</span><button type="button" class="btn small" id="acNo">Keep</button><button type="button" class="btn small danger" id="acYes">Remove</button>`;
-        $("#acNo").onclick = () => showCard(c);
-        $("#acYes").onclick = async () => {
-          await removeExtra(o.e.id);
-          render();
-          draw();
-          box.innerHTML = "";
-          toast("Removed");
-        };
+      $("#cdBody").querySelectorAll("[data-rm]").forEach((b) => b.onclick = async () => {
+        if (b.dataset.sure !== "1") {
+          b.dataset.sure = "1";
+          b.textContent = "Tap again to remove";
+          return;
+        }
+        await removeExtra(copies[+b.dataset.rm].e.id);
+        render();
+        draw();
+        toast("Removed");
       });
-      $("#acEdit")?.addEventListener("click", () => openCardSheet({ mode: "edit", slot: k, dex: n }));
-    }
+    };
     draw();
+    // Fill in anything missing (pictures, set details, prices) in the background
+    try {
+      if (full.brief) full = await getCard(full.id, full.source, signal, full.lang);
+      if ((!full.lang || full.lang === "en") && (!full.tp || !full.releaseDate)) {
+        const twin = full.source === "ptcg" ? await getCard(full.id, "ptcg", signal).catch(() => null) : await ptcgTwin(full, { species: n ? nameOf(n) : full.name, dex: n }, signal).catch(() => null);
+        if (twin && !signal.aborted) full = { ...twin, ...Object.fromEntries(Object.entries(full).filter(([, v]) => v != null && v !== "")), id: full.id, source: full.source, tp: twin.tp || full.tp, setSymbol: full.setSymbol || twin.setSymbol, releaseDate: twin.releaseDate, series: twin.series, illustrator: full.illustrator || twin.illustrator, dex: full.dex?.length ? full.dex : twin.dex };
+      }
+      if (!signal.aborted) draw();
+    } catch {
+    }
+  }
+  // Quick scan: a live camera view. Hold a card steady in the frame and it's read, looked up and
+  // added (or counted as a spare) without any taps, then it waits for the next card. Anything it
+  // can't be sure of (several matching cards, a possible 1st Edition, an unreadable card) goes in
+  // a "check" list with its photo, to sort out by tapping it.
+  var quick = null;
+  async function openQuickScan() {
+    if (quick) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast("This phone can't show a live camera here, so it'll take a photo instead.");
+      $("#cam").value = "";
+      $("#cam").click();
+      return;
+    }
+    const root = document.createElement("div");
+    root.className = "quick";
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "true");
+    root.setAttribute("aria-label", "Quick scan");
+    root.innerHTML = `<div class="crop-top"><span>Quick scan <span class="count" id="qsCount"></span></span>
+      <span><button type="button" class="btn small" id="qsTorch" hidden style="background:rgba(255,255,255,.14);color:#fff;border-color:transparent">Light</button>
+      <button type="button" class="btn small primary" id="qsDone" style="background:#4b4fe0;border-color:#4b4fe0;color:#fff">Done</button></span></div>
+      <p class="crop-hint">Hold one card at a time inside the frame, flat and in good light. It adds the card, beeps, then waits for the next one.</p>
+      <div class="qs-view"><video id="qsVideo" playsinline muted autoplay></video><div class="qs-guide" id="qsGuide"></div><div class="qs-status" id="qsStatus" aria-live="polite">Starting the camera…</div></div>
+      <div class="qs-list" id="qsList"><span class="qs-empty">Scanned cards show here.</span></div>`;
+    document.body.appendChild(root);
+    document.body.classList.add("quick-open");
+    const ctl = new AbortController();
+    quick = { root, ctl, items: [], stream: null, timer: 0, state: "look", last: null, steady: 0, gone: 0, fails: 0, paused: false, lock: null, audio: null };
+    const q = quick;
+    const video = $("#qsVideo"), guide = $("#qsGuide"), status = $("#qsStatus");
+    const setStatus = (msg, cls = "") => {
+      status.textContent = msg;
+      guide.className = "qs-guide" + (cls ? " " + cls : "");
+    };
+    try {
+      q.audio = new (window.AudioContext || window.webkitAudioContext)();
+    } catch {
+    }
+    const beep = (kind) => {
+      navigator.vibrate?.(kind === "check" ? [60, 60, 60] : 70);
+      const a = q.audio;
+      if (!a) return;
+      try {
+        const tones = kind === "added" ? [880, 1320] : kind === "spare" ? [660] : [330, 260];
+        tones.forEach((f, i) => {
+          const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + i * 0.12;
+          o.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+          o.connect(g).connect(a.destination);
+          o.start(t);
+          o.stop(t + 0.11);
+        });
+      } catch {
+      }
+    };
+    const close = () => {
+      if (quick !== q) return;
+      ctl.abort();
+      clearTimeout(q.timer);
+      q.stream?.getTracks().forEach((t) => t.stop());
+      q.lock?.release?.().catch(() => {
+      });
+      q.audio?.close?.().catch(() => {
+      });
+      q.obs?.disconnect();
+      root.remove();
+      document.body.classList.remove("quick-open");
+      quick = null;
+      render();
+      const added = q.items.filter((i) => i.kind === "added").length, spares = q.items.filter((i) => i.kind === "spare").length, checks = q.items.filter((i) => i.kind === "check").length;
+      if (added || spares || checks) toast([added && `${added} added`, spares && `${spares} spare${spares > 1 ? "s" : ""}`, checks && `${checks} left to check`].filter(Boolean).join(" · "));
+    };
+    $("#qsDone").onclick = close;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) close();
+    }, { signal: ctl.signal });
+    // Phone camera
+    try {
+      q.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    } catch (e) {
+      setStatus(e?.name === "NotAllowedError" ? "Camera access was turned down. Allow it in your phone's settings for this app, then try again." : "Couldn't start the camera.");
+      return;
+    }
+    if (ctl.signal.aborted) return q.stream.getTracks().forEach((t) => t.stop());
+    video.srcObject = q.stream;
+    try {
+      await video.play();
+    } catch {
+    }
+    try {
+      q.lock = await navigator.wakeLock?.request("screen");
+    } catch {
+    }
+    const track = q.stream.getVideoTracks()[0];
+    if (track?.getCapabilities?.().torch) {
+      let on = false;
+      $("#qsTorch").hidden = false;
+      $("#qsTorch").onclick = async () => {
+        on = !on;
+        try {
+          await track.applyConstraints({ advanced: [{ torch: on }] });
+        } catch {
+        }
+      };
+    }
+    fx = await eurToGbp();
+    // While a card sheet is open on top (sorting out a "check" card), pause; carry on when it closes
+    q.obs = new MutationObserver(() => {
+      const open = !!$("#sheetRoot").firstElementChild;
+      if (open && !q.paused) {
+        q.paused = true;
+        setStatus("Paused while you check that card");
+      } else if (!open && q.paused) {
+        q.paused = false;
+        q.state = "look";
+        q.last = null;
+        setStatus("Show the next card");
+        schedule(400);
+      }
+    });
+    q.obs.observe($("#sheetRoot"), { childList: true });
+    const full = document.createElement("canvas");
+    const schedule = (ms) => {
+      clearTimeout(q.timer);
+      if (!ctl.signal.aborted) q.timer = setTimeout(tick, ms);
+    };
+    const near = (a, b) => a && b && Math.hypot(a.cx - b.cx, a.cy - b.cy) < a.long * 0.04 && Math.abs(a.long - b.long) < a.long * 0.05;
+    const moved = (a, b) => !a || !b || Math.hypot(a.cx - b.cx, a.cy - b.cy) > a.long * 0.25 || Math.abs(a.long - b.long) > a.long * 0.15;
+    async function tick() {
+      if (ctl.signal.aborted || q.paused) return;
+      const W = video.videoWidth, H = video.videoHeight;
+      if (!W || !H) return schedule(300);
+      full.width = W;
+      full.height = H;
+      full.getContext("2d", { willReadFrequently: true }).drawImage(video, 0, 0, W, H);
+      const found = detectCard(full);
+      const bigEnough = found && found.long >= Math.max(W, H) * 0.38;
+      if (q.state === "wait") {
+        // After a card is done, wait for it to leave (or a clearly different card to arrive)
+        if (!found) q.gone++;
+        else if (moved(q.doneAt, found)) q.gone += 2;
+        else q.gone = 0;
+        if (q.gone >= 2) {
+          q.state = "look";
+          q.last = null;
+          q.steady = 0;
+          q.fails = 0;
+          q.lastRead = null;
+          q.recheck = false;
+          setStatus("Show the next card");
+        } else if (found && Date.now() - q.doneTime > 2500) {
+          // A card is still there: re-read it in case a new card was slid into the same spot
+          q.state = "look";
+          q.recheck = true;
+          q.steady = 1;
+          q.last = found;
+        }
+        return schedule(300);
+      }
+      if (!found) {
+        q.steady = 0;
+        q.recheck = false;
+        q.lastRead = null;
+        setStatus("Show a card inside the frame");
+        return schedule(300);
+      }
+      if (!bigEnough) {
+        q.steady = 0;
+        setStatus("Move a little closer");
+        return schedule(300);
+      }
+      q.steady = near(q.last, found) ? q.steady + 1 : 0;
+      q.last = found;
+      if (q.steady < 1) {
+        setStatus("Hold it steady…", "steady");
+        return schedule(250);
+      }
+      // Steady: crop the card out of the frame and read it
+      if (!q.recheck) setStatus("Reading…", "steady");
+      document.body.classList.add("busy");
+      try {
+        const W2 = 400, H2 = 560, v = makeView(full);
+        v.ang = found.ang;
+        v.s = H2 / (found.long * TRIM);
+        v.centreOn(found.cx, found.cy);
+        const photo = await cropFromView(v, { x: 0, y: 0, w: W2, h: H2 }, W2, H2);
+        if (ctl.signal.aborted || !photo) return;
+        const r = await readCard(photo, NAMES, (msg) => setStatus(msg, "steady"), isEnglish() ? null : { tess: cfg().tess, lists: cfg().lists });
+        if (ctl.signal.aborted) return;
+        if (q.recheck) {
+          // Same card still in view: leave it. A different one: carry on and add it.
+          q.recheck = false;
+          const now = r.dex && r.number ? `${r.dex}|${r.number}` : null;
+          if (!now || now === q.lastRead) {
+            q.state = "wait";
+            q.doneTime = Date.now();
+            return schedule(300);
+          }
+        }
+        if (!r.dex || !r.number) {
+          q.fails++;
+          if (q.fails >= 5) {
+            q.lastRead = null;
+            addItem({ kind: "check", label: r.dex ? nameOf(r.dex) : "Unreadable card", note: "Couldn't read it", photo });
+            beep("check");
+            return finish(found, "Couldn't read that one. It's in the list to check. Show the next card", "check");
+          }
+          setStatus(q.fails >= 2 ? "Can't read it yet: tilt it away from glare, or try more light" : "Reading…", "steady");
+          q.steady = 0;
+          return schedule(250);
+        }
+        q.lastRead = `${r.dex}|${r.number}`;
+        await handleRead(r, photo, found);
+      } catch (e) {
+        if (ctl.signal.aborted) return;
+        setStatus(e && /reader/i.test(e.message || "") ? e.message : "Something went wrong reading that card. Trying again…");
+        q.steady = 0;
+        schedule(800);
+      } finally {
+        document.body.classList.remove("busy");
+      }
+    }
+    function finish(found, msg, cls) {
+      q.state = "wait";
+      q.doneAt = found;
+      q.doneTime = Date.now();
+      q.gone = 0;
+      setStatus(msg, cls);
+      schedule(700);
+    }
+    async function handleRead(r, photo, found) {
+      const n = r.dex, label = `${nameOf(n)} ${r.number}${r.total ? "/" + r.total : ""}`;
+      setStatus(`Read ${label}. Finding the card…`, "steady");
+      let res;
+      try {
+        res = await lookupCards(n, { number: r.number, total: r.total }, ctl.signal);
+      } catch {
+        if (ctl.signal.aborted) return;
+        addItem({ kind: "check", label, note: "Couldn't reach the card database", photo });
+        beep("check");
+        return finish(found, "Couldn't reach the card database. It's in the list to check", "check");
+      }
+      if (ctl.signal.aborted) return;
+      let cards = res.exactNumber ? res.cards : [];
+      if (cards.length > 1 && r.total) {
+        const t = cards.filter((c) => c.setTotal === r.total);
+        if (t.length) cards = t;
+      }
+      if (cards.length > 1) {
+        const f = cards.filter((c) => !cardForm(n, c.name) || formOn(cardForm(n, c.name)));
+        if (f.length === 1) cards = f;
+      }
+      if (cards.length !== 1) {
+        addItem({ kind: "check", label, note: cards.length ? `${cards.length} cards match` : "No card with that number", photo });
+        beep("check");
+        return finish(found, cards.length ? `Several ${nameOf(n)} cards match ${r.number}. It's in the list to check` : `Couldn't find ${label}. It's in the list to check`, "check");
+      }
+      let card = cards[0];
+      if (card.brief) card = await getCard(card.id, card.source, ctl.signal, card.lang);
+      if (ctl.signal.aborted) return;
+      if (finishOptions(card).some(([f]) => f === "first")) {
+        addItem({ kind: "check", label, note: "1st Edition or not?", photo });
+        beep("check");
+        return finish(found, "Older card: check whether it's 1st Edition. It's in the list to check", "check");
+      }
+      const key = slotFor(n, card), prev = owned.get(key);
+      if (prev) {
+        await saveEntry({ ...prev, spares: (prev.spares || 0) + 1 });
+        addItem({ kind: "spare", label: slotLabel(key), note: `Spare (now ${(prev.spares || 0) + 1})`, img: prev.image, key, prev });
+        beep("spare");
+        render();
+        return finish(found, `${slotLabel(key)}: you have it, so it's counted as a spare. Show the next card`, "ok");
+      }
+      let entry = applyCard({ dex: n, slot: isFormKey(key) ? key : void 0, name: nameOf(n), finish: "standard", manualValue: null, paid: null, condition: null, spares: 0, notes: "", addedAt: (/* @__PURE__ */ new Date()).toISOString() }, card);
+      entry.hasPhoto = await savePhoto(key, photo);
+      await saveEntry(entry);
+      if (!isFormKey(key) && clearsWish(n, entry.cardId)) await saveWish(n, null);
+      const item = addItem({ kind: "added", label: slotLabel(key), note: "Getting price…", img: card.image, key, prev: null });
+      beep("added");
+      render();
+      finish(found, `Added ${slotLabel(key)} · ${pagePos(key)}. Show the next card`, "ok");
+      // The price comes in the background, so the next card doesn't have to wait for it
+      withPrice(card, { species: nameOf(n), dex: n }, ctl.signal).then(async (priced) => {
+        const cur = owned.get(key);
+        if (cur && cur.cardId === card.id && priced) {
+          const upd = applyCard(cur, priced);
+          await saveEntry(upd);
+          item.note = upd.value != null ? money(upd.value) : "No price yet";
+          render();
+        } else item.note = "No price yet";
+        drawList();
+      }).catch(() => {
+        item.note = "No price yet";
+        drawList();
+      });
+    }
+    function addItem(it) {
+      if (it.photo) it.url = URL.createObjectURL(it.photo);
+      q.items.unshift(it);
+      drawList();
+      return it;
+    }
+    function drawList() {
+      if (quick !== q) return;
+      const added = q.items.filter((i) => i.kind === "added").length, spares = q.items.filter((i) => i.kind === "spare").length, checks = q.items.filter((i) => i.kind === "check").length;
+      $("#qsCount").textContent = q.items.length ? [`${added} added`, spares && `${spares} spare${spares > 1 ? "s" : ""}`, checks && `${checks} to check`].filter(Boolean).join(" · ") : "";
+      const list = $("#qsList");
+      if (!q.items.length) return;
+      list.innerHTML = q.items.map((it, i) => `<div class="qs-item${it.kind === "check" ? " check" : ""}" ${it.kind === "check" ? `role="button" tabindex="0" data-check="${i}"` : ""}>
+        ${it.img || it.url ? `<img src="${esc(it.img || it.url)}" alt="">` : ""}<span><b>${esc(it.label)}</b>${esc(it.note || "")}<br>
+        ${it.kind === "check" ? `<u>Tap to sort out</u>` : `<button type="button" class="undo" data-undo="${i}">Undo</button>`}</span></div>`).join("");
+      list.querySelectorAll("[data-undo]").forEach((b) => b.onclick = async () => {
+        const it = q.items[+b.dataset.undo];
+        if (!it) return;
+        if (it.prev) await saveEntry(it.prev);
+        else await removeEntry(it.key);
+        q.items.splice(+b.dataset.undo, 1);
+        render();
+        drawList();
+        toast("Undone");
+      });
+      list.querySelectorAll("[data-check]").forEach((el) => el.onclick = () => {
+        const i = +el.dataset.check, it = q.items[i];
+        if (!it) return;
+        q.items.splice(i, 1);
+        drawList();
+        clearTimeout(q.timer);
+        openCardSheet({ mode: "scan", photo: it.photo });
+      });
+    }
+    setStatus("Show a card inside the frame");
+    schedule(500);
   }
   function openCamera() {
+    if (prefs.quick) return openQuickScan();
     $("#cam").value = "";
     $("#cam").click();
   }
@@ -3543,7 +4200,8 @@ label textarea { resize: vertical; min-height: 54px; }
       <div class="seg mini" role="group" aria-label="Binder shows"><button type="button" data-mode="dex">One card per Pokémon</button><button type="button" data-mode="cards">All cards</button></div>
       <p class="hint">All cards: tap a Pokémon to see every card printed for it and which you own.</p></div>
     <div class="setting"><h4>Scanning</h4>
-      <button type="button" class="switch" id="rapidBtn" aria-pressed="${!!prefs.rapid}"><span class="knob" aria-hidden="true"></span>Rapid scan: add clear matches and count duplicates as spares without asking</button></div>
+      <button type="button" class="switch" id="rapidBtn" aria-pressed="${!!prefs.rapid}"><span class="knob" aria-hidden="true"></span>Rapid scan: add clear matches and count duplicates as spares without asking</button>
+      <button type="button" class="switch" id="quickBtn" aria-pressed="${!!prefs.quick}"><span class="knob" aria-hidden="true"></span>Quick scan: live camera that adds each card as you hold it up, then waits for the next</button></div>
     <div class="setting"><h4>Trading</h4><div><button type="button" class="btn small" id="sparesBtn">Spares list</button></div></div>
     <div class="actions sticky"><button type="button" class="textbtn" id="optReset">Clear filters</button><span class="spacer"></span><button type="button" class="btn primary" id="optDone"></button></div>`);
     const sync = () => {
@@ -3579,8 +4237,18 @@ label textarea { resize: vertical; min-height: 54px; }
     });
     $("#rapidBtn").onclick = (ev) => {
       prefs.rapid = !prefs.rapid;
+      if (prefs.rapid) prefs.quick = false;
       savePrefs();
       ev.currentTarget.setAttribute("aria-pressed", String(prefs.rapid));
+      $("#quickBtn").setAttribute("aria-pressed", String(!!prefs.quick));
+      render();
+    };
+    $("#quickBtn").onclick = (ev) => {
+      prefs.quick = !prefs.quick;
+      if (prefs.quick) prefs.rapid = false;
+      savePrefs();
+      ev.currentTarget.setAttribute("aria-pressed", String(prefs.quick));
+      $("#rapidBtn").setAttribute("aria-pressed", String(!!prefs.rapid));
       render();
     };
     $("#sparesBtn").onclick = openSpares;
@@ -3643,8 +4311,12 @@ label textarea { resize: vertical; min-height: 54px; }
     const s = ev.target.closest(".slot, [data-open]");
     if (!s) return;
     const k = parseKey(s.dataset.key ?? s.dataset.open);
+    const e = owned.get(k);
     if (prefs.cardsView && s.dataset.key) return openAllCards(k);
-    openCardSheet({ mode: owned.has(k) ? "edit" : "add", slot: isFormKey(k) ? k : void 0, dex: slotDex(k) });
+    if (e?.cardId) return openCardDetail({ ...entryAsCard(e), dex: [slotDex(k)] }, { dex: slotDex(k) });
+    if (e) return openCardSheet({ mode: "edit", slot: isFormKey(k) ? k : void 0, dex: slotDex(k) });
+    if (s.dataset.key) return openAllCards(k);
+    openCardSheet({ mode: "add", slot: isFormKey(k) ? k : void 0, dex: slotDex(k) });
   });
   $("#filterBtn").onclick = openOptions;
   $("#collBtn").onclick = openCollections;

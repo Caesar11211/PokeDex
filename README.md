@@ -29,11 +29,21 @@ websites you haven't visited in a while, but not for apps on your home screen.
 
 ## Using it
 
-**Getting around:** the bottom bar has the four sections, with **Scan** in the middle: **Binder**
-(All, Missing, Got), **Value** (Prices, Grading, Top cards), **Wishlist** and **Stats**. The red bar at
-the top switches collection (English, Japanese, Korean, Chinese), adds a card by hand (**+**) and opens
-settings. The filter button next to search holds region, type, sort, the Dex / All cards switch, Rapid
-scan and the Spares list. The light on the red bar blinks while a card is being read or prices checked.
+**Getting around:** the bottom bar has **Binder**, **Search**, **Scan** (in the middle), **Wishlist**
+and **Value** (Prices, Insights, Grading, Top cards). The top bar switches collection (English,
+Japanese, Korean, Chinese), adds a card by hand (**+**) and opens settings.
+
+- **Search**: type a Pokémon, a card name ("Charizard ex") or an illustrator ("artist: Arita") to see
+  every printing: picture, set and set symbol, number, rarity, year, illustrator and a TCGplayer price
+  for each finish (normal, holo, reverse holo, 1st Edition), marked Owned or Missing. Sort by newest,
+  oldest or price, and filter to owned or missing. Tap any card for its page.
+- **Card page**: big picture (tap to enlarge), price by finish with an **Add** button for each,
+  your copies, set details, illustrator (tap to see all their cards), graded estimates, price history
+  and wishlist.
+- **Binder**: tap a card to open its page. Tap an empty slot to see every version of that Pokémon.
+- **Quick scan** (in the filter sheet): a live camera. Hold cards up one at a time and each is read,
+  added (or counted as a spare) with a beep, then it waits for the next. Anything it isn't sure of
+  (several matches, a possible 1st Edition, an unreadable card) goes in a list to sort out by tapping.
 
 - **Scan a card**: take a photo, check the crop (it finds the card's edges by itself), and tap
   **Use this crop**. It reads the name and the number at the bottom (like `025/165`), finds that
