@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-20T15:44:02.641Z",
+ "updated": "2026-11-21T14:54:40.765Z",
  "source": "eBay sold listings (median of recent sales) via PokemonPriceTracker",
  "currency": "USD",
  "minSales": 2,
@@ -10,21 +10,21 @@
    "number": "20",
    "set": "Jungle",
    "psa8": {
-    "usd": 68.5,
-    "sales": 27,
-    "last": "2026-11-07T00:00:00.000Z"
+    "usd": 72,
+    "sales": 28,
+    "last": "2026-11-20T00:00:00.000Z"
    },
    "psa9": {
-    "usd": 130,
-    "sales": 43,
-    "last": "2026-11-14T00:00:00.000Z"
+    "usd": 134.73,
+    "sales": 45,
+    "last": "2026-11-19T00:00:00.000Z"
    },
    "psa10": {
     "usd": 732.28,
     "sales": 39,
     "last": "2026-10-25T00:00:00.000Z"
    },
-   "checked": "2026-11-15T14:16:11.001Z"
+   "checked": "2026-11-21T14:54:40.764Z"
   }
  }
 }
