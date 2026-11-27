@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-26T17:16:02.008Z",
+ "updated": "2026-11-27T16:56:52.676Z",
  "source": "eBay sold listings (median of recent sales) via PokemonPriceTracker",
  "currency": "USD",
  "minSales": 2,
@@ -20,11 +20,11 @@
     "last": "2026-11-19T00:00:00.000Z"
    },
    "psa10": {
-    "usd": 732.28,
-    "sales": 39,
-    "last": "2026-10-25T00:00:00.000Z"
+    "usd": 735.64,
+    "sales": 40,
+    "last": "2026-11-20T00:00:00.000Z"
    },
-   "checked": "2026-11-21T14:54:40.764Z"
+   "checked": "2026-11-27T16:56:52.674Z"
   }
  }
 }
